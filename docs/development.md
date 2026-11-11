@@ -19,6 +19,7 @@ the list of open windows and the tray icons; everything you see is ClearStart's 
 ```
 ClearStart
 ├── README.md
+├── LICENSE
 ├── THIRD-PARTY-NOTICES.md
 ├── docs/              the guides
 │   └── images/        the pictures they use
