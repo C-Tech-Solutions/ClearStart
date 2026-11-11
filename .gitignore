@@ -1,0 +1,21 @@
+# Build output
+bin/
+obj/
+publish/
+
+# Visual Studio, Rider, VS Code
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+
+# What the self-test and the screenshot mode write besides pictures
+out/
+selftest*/
+docs/images/*.log
+docs/images/*.json
+
+# Windows
+Thumbs.db
+Desktop.ini

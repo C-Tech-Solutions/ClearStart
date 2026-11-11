@@ -1,0 +1,52 @@
+<UserControl x:Class="ClearStart.ThumbnailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="White"
+             UseLayoutRounding="True" SnapsToDevicePixels="True">
+
+    <UserControl.Resources>
+
+        <!-- One window: its icon and title, a close button while the mouse is over it, and its live picture. -->
+        <DataTemplate x:Key="TileTemplate">
+            <Border x:Name="Tile" Background="Transparent" CornerRadius="6" Padding="8,4,8,8" Margin="2"
+                    MouseLeftButtonUp="Tile_Click" MouseDown="Tile_MouseDown">
+                <StackPanel Width="{DynamicResource BoxWidth}">
+                    <DockPanel Height="26" Margin="0,0,0,4">
+                        <Button x:Name="CloseButton" DockPanel.Dock="Right" Style="{StaticResource FlatButton}"
+                                Width="26" Height="26" Margin="4,0,-4,0" Visibility="Hidden" ToolTip="Close"
+                                Click="Close_Click">
+                            <TextBlock FontFamily="{StaticResource IconFont}" FontSize="10" Text="&#xE8BB;"/>
+                        </Button>
+                        <Image Source="{Binding Window.Icon}" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"
+                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <TextBlock Text="{Binding Window.Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+
+                    <!-- Only a placeholder: the compositor draws the window's live picture over it, centred. -->
+                    <Border x:Name="Picture" Height="{DynamicResource BoxHeight}" Background="#14FFFFFF" CornerRadius="3"/>
+                </StackPanel>
+            </Border>
+            <DataTemplate.Triggers>
+                <Trigger SourceName="Tile" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Tile" Property="Background" Value="{StaticResource HoverBrush}"/>
+                    <Setter TargetName="CloseButton" Property="Visibility" Value="Visible"/>
+                </Trigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- Side by side for a bar along the top or bottom, one under the other for a side bar. Both wrap when full. -->
+        <ItemsPanelTemplate x:Key="Across">
+            <WrapPanel Orientation="Horizontal"/>
+        </ItemsPanelTemplate>
+
+        <ItemsPanelTemplate x:Key="Down">
+            <WrapPanel Orientation="Vertical"/>
+        </ItemsPanelTemplate>
+
+    </UserControl.Resources>
+
+    <Border x:Name="Frame" Background="#FF262626" Padding="4">
+        <ItemsControl x:Name="Tiles" ItemTemplate="{StaticResource TileTemplate}" ItemsPanel="{StaticResource Across}"
+                      Focusable="False"/>
+    </Border>
+</UserControl>

@@ -1,0 +1,182 @@
+<UserControl x:Class="ClearStart.TaskbarView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="{StaticResource UiFont}" FontSize="12"
+             Foreground="{DynamicResource ForegroundBrush}"
+             UseLayoutRounding="True" SnapsToDevicePixels="True">
+
+    <UserControl.Resources>
+
+        <!-- One app: a pinned launcher, an app with open windows, or both. All of its windows are behind this one button. -->
+        <DataTemplate x:Key="AppTemplate">
+            <Button x:Name="Btn" Style="{StaticResource FlatButton}" Margin="{DynamicResource ButtonMargin}"
+                    MinWidth="{DynamicResource ButtonMinWidth}" MinHeight="{DynamicResource ButtonMinHeight}"
+                    HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                    ToolTip="{Binding Title}" AutomationProperties.Name="{Binding Title}"
+                    PreviewMouseDown="App_PreviewMouseDown"
+                    MouseEnter="App_MouseEnter" MouseLeave="App_MouseLeave"
+                    Click="App_Click" MouseRightButtonUp="App_RightClick">
+                <Grid>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="8,0">
+                        <Image x:Name="Icon" Source="{Binding First.Icon}"
+                               Width="{DynamicResource IconSize}" Height="{DynamicResource IconSize}"
+                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <TextBlock x:Name="Label" Text="{Binding Label}" Visibility="{DynamicResource LabelVisibility}" MaxWidth="150"
+                                   Margin="8,0,2,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+
+                    <!-- Running marker: one pill for one window, a pill and a dot for several. -->
+                    <StackPanel x:Name="Dots" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                                Margin="0,0,0,1" Visibility="Collapsed" IsHitTestVisible="False">
+                        <Border x:Name="Indicator" Height="3" Width="6" CornerRadius="1.5" Background="#99FFFFFF"/>
+                        <Border x:Name="Indicator2" Height="3" Width="3" CornerRadius="1.5" Margin="2,0,0,0"
+                                Background="#99FFFFFF" Visibility="Collapsed"/>
+                    </StackPanel>
+                </Grid>
+            </Button>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsPinned}" Value="True">
+                    <Setter TargetName="Icon" Property="Source" Value="{Binding Pin.Item.LargeIcon}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Label}" Value="">
+                    <Setter TargetName="Label" Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                    <Setter TargetName="Dots" Property="Visibility" Value="Visible"/>
+                    <!-- A running app shows previews of its windows instead of a tooltip. -->
+                    <Setter TargetName="Btn" Property="ToolTipService.IsEnabled" Value="False"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsMultiple}" Value="True">
+                    <Setter TargetName="Indicator2" Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="Active">
+                    <Setter TargetName="Btn" Property="Background" Value="#22FFFFFF"/>
+                    <Setter TargetName="Indicator" Property="Width" Value="16"/>
+                    <Setter TargetName="Indicator" Property="Background" Value="{StaticResource AccentBrush}"/>
+                    <Setter TargetName="Indicator2" Property="Background" Value="{StaticResource AccentBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="Flashing">
+                    <Setter TargetName="Btn" Property="Background" Value="#77FF8C00"/>
+                    <Setter TargetName="Indicator" Property="Background" Value="#FFFF8C00"/>
+                    <Setter TargetName="Indicator2" Property="Background" Value="#FFFF8C00"/>
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- A notification-area icon. Mouse input is passed straight through to the owning app. -->
+        <DataTemplate x:Key="TrayTemplate">
+            <Border Background="Transparent" Padding="4,6" ToolTip="{Binding Title}"
+                    MouseEnter="Tray_MouseEnter" MouseLeave="Tray_MouseLeave" MouseMove="Tray_MouseMove"
+                    MouseDown="Tray_MouseDown" MouseUp="Tray_MouseUp">
+                <Image Source="{Binding Icon}" Width="{DynamicResource TrayIconSize}" Height="{DynamicResource TrayIconSize}"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+            </Border>
+        </DataTemplate>
+
+        <ItemsPanelTemplate x:Key="Row">
+            <StackPanel Orientation="Horizontal"/>
+        </ItemsPanelTemplate>
+
+        <ItemsPanelTemplate x:Key="Column">
+            <StackPanel Orientation="Vertical"/>
+        </ItemsPanelTemplate>
+
+        <ItemsPanelTemplate x:Key="Wrap">
+            <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
+        </ItemsPanelTemplate>
+
+    </UserControl.Resources>
+
+    <!--
+        Written out here for a bar along the top or bottom; the code-behind turns it for a side bar.
+        The 1/255 alpha layer is invisible but makes the whole bar clickable, even when fully clear.
+    -->
+    <Grid x:Name="BarRoot" Background="#01000000" MouseRightButtonUp="Bar_RightClick" SizeChanged="Layout_SizeChanged">
+        <Border x:Name="TintLayer" IsHitTestVisible="False"/>
+
+        <!-- Holds the Start button when it is set to sit in the corner. -->
+        <Border x:Name="CornerHost" HorizontalAlignment="Left" SizeChanged="Layout_SizeChanged"/>
+
+        <DockPanel x:Name="MainGroup" LastChildFill="True" HorizontalAlignment="Center">
+            <Border x:Name="AppsStartHost" DockPanel.Dock="Left" SizeChanged="Layout_SizeChanged">
+                <!-- Start and the search button travel as a pair: PlaceStartButton puts it wherever Start is set to go. -->
+                <StackPanel x:Name="StartGroup" Orientation="Horizontal">
+                    <Button x:Name="StartButton" Style="{StaticResource FlatButton}" Margin="{DynamicResource ButtonMargin}"
+                            MinWidth="{DynamicResource ButtonMinWidth}" MinHeight="{DynamicResource ButtonMinHeight}"
+                            ToolTip="Start" Click="Start_Click" MouseRightButtonUp="Start_RightClick"/>
+                    <!-- Its face (a shape, a word or a picture) is drawn in code: see ApplyStartButton. -->
+
+                    <!-- Opens the menu with the cursor in its search box. On or off for every bar: see ApplySearchButton. -->
+                    <Button x:Name="SearchButton" Style="{StaticResource FlatButton}" Margin="{DynamicResource ButtonMargin}"
+                            MinWidth="{DynamicResource ButtonMinWidth}" MinHeight="{DynamicResource ButtonMinHeight}"
+                            ToolTip="Search" AutomationProperties.Name="Search"
+                            Click="Search_Click" MouseRightButtonUp="Search_RightClick">
+                        <TextBlock FontFamily="{StaticResource IconFont}" FontSize="{DynamicResource SearchGlyphSize}"
+                                   Text="&#xE721;"/>
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <!-- More apps than fit: the row scrolls with the mouse wheel instead of running under the clock. -->
+            <ScrollViewer x:Name="AppScroller" Focusable="False" HorizontalScrollBarVisibility="Hidden"
+                          VerticalScrollBarVisibility="Disabled" PreviewMouseWheel="Apps_MouseWheel">
+                <ItemsControl x:Name="AppList" ItemTemplate="{StaticResource AppTemplate}" ItemsPanel="{StaticResource Row}"
+                              Focusable="False" SizeChanged="Layout_SizeChanged"/>
+            </ScrollViewer>
+        </DockPanel>
+
+        <StackPanel x:Name="EndGroup" Orientation="Horizontal" HorizontalAlignment="Right" SizeChanged="Layout_SizeChanged">
+            <!-- The weather at the chosen place; a click opens the forecast. Filled in by the code-behind. -->
+            <Button x:Name="WeatherButton" Style="{StaticResource FlatButton}" Margin="{DynamicResource ButtonMargin}" Padding="8,0"
+                    Visibility="Collapsed" Click="Weather_Click" MouseRightButtonUp="Weather_RightClick">
+                <Viewbox StretchDirection="DownOnly">
+                    <StackPanel x:Name="WeatherStack" Orientation="Horizontal">
+                        <Viewbox x:Name="WeatherIcon" Width="{DynamicResource WeatherIconSize}"
+                                 Height="{DynamicResource WeatherIconSize}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="WeatherTemp" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="WeatherWords" Margin="6,0,0,0" VerticalAlignment="Center" Opacity="0.8"
+                                   MaxWidth="120" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Viewbox>
+            </Button>
+
+            <ItemsControl x:Name="TrayList" ItemTemplate="{StaticResource TrayTemplate}" ItemsPanel="{StaticResource Row}"
+                          VerticalAlignment="Center" Margin="0,0,2,0" Focusable="False"/>
+
+            <!-- Left click: the Windows quick settings. Right click: a menu for whichever glyph is under the mouse. -->
+            <Button x:Name="QuickButton" Style="{StaticResource FlatButton}" Margin="{DynamicResource ButtonMargin}" Padding="9,0"
+                    Click="Quick_Click" MouseRightButtonUp="Quick_RightClick">
+                <!-- Sized along with the tray icons; shrinks when a side bar is too narrow for the pair. -->
+                <Viewbox StretchDirection="DownOnly">
+                    <StackPanel Orientation="Horizontal">
+                        <!-- The code-behind swaps this for wired, Wi-Fi or disconnected. -->
+                        <TextBlock x:Name="NetworkGlyph" FontFamily="{StaticResource IconFont}"
+                                   FontSize="{DynamicResource TrayGlyphSize}" Text="&#xE774;"/>
+                        <TextBlock x:Name="VolumeGlyph" FontFamily="{StaticResource IconFont}"
+                                   FontSize="{DynamicResource TrayGlyphSize}" Text="&#xE767;" Margin="9,0,0,0"/>
+                    </StackPanel>
+                </Viewbox>
+            </Button>
+
+            <Button x:Name="ClockButton" Style="{StaticResource FlatButton}" Margin="{DynamicResource ButtonMargin}" Padding="9,0"
+                    Click="Clock_Click">
+                <!-- Shrinks the text when a narrow side bar has no room for it at full size. -->
+                <Viewbox StretchDirection="DownOnly">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="TimeText" HorizontalAlignment="Right"/>
+                        <!-- The day of the week, on bars with room for a third line: see DayFits. -->
+                        <TextBlock x:Name="DayText" HorizontalAlignment="Right" Visibility="Collapsed"/>
+                        <TextBlock x:Name="DateText" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                </Viewbox>
+            </Button>
+
+            <!-- Holds the Start button when it is set to sit at the far end. -->
+            <Border x:Name="EndStartHost"/>
+        </StackPanel>
+
+        <!-- Drag this edge (the one facing the desktop) to make the bar thicker or thinner. -->
+        <Border x:Name="ResizeGrip" Background="Transparent" MouseLeftButtonDown="Grip_MouseDown" MouseMove="Grip_MouseMove"
+                MouseLeftButtonUp="Grip_MouseUp" LostMouseCapture="Grip_LostCapture"/>
+    </Grid>
+</UserControl>

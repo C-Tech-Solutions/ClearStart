@@ -1,0 +1,204 @@
+<UserControl x:Class="ClearStart.StartMenuView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="{StaticResource UiFont}" FontSize="13"
+             Foreground="{DynamicResource ForegroundBrush}"
+             UseLayoutRounding="True" SnapsToDevicePixels="True"
+             PreviewKeyDown="View_PreviewKeyDown">
+
+    <UserControl.Resources>
+
+        <!-- A row in the app list. Rows never take the keyboard focus, so typing always goes to the search box. -->
+        <Style x:Key="AppRow" TargetType="ListBoxItem">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="App_Press"/>
+            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="App_Click"/>
+            <EventSetter Event="MouseRightButtonUp" Handler="App_RightClick"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource SelectedBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <DataTemplate x:Key="AppTemplate">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Image Source="{Binding LargeIcon}" Width="24" Height="24" RenderOptions.BitmapScalingMode="HighQuality"/>
+                <TextBlock Grid.Column="1" Text="{Binding DisplayName}" Margin="12,0,0,0" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="TileTemplate">
+            <Button Style="{StaticResource FlatButton}" Width="96" Height="88" Margin="2" ToolTip="{Binding Name}"
+                    Click="Pin_Click" MouseRightButtonUp="Pin_RightClick">
+                <StackPanel>
+                    <Image Source="{Binding Item.ExtraLargeIcon}" Width="36" Height="36"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <TextBlock Text="{Binding Name}" FontSize="12" Margin="4,6,4,0" MaxHeight="32" TextWrapping="Wrap"
+                               TextTrimming="CharacterEllipsis" TextAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </DataTemplate>
+
+        <!-- One entry in the column of places. Its sizes come from the settings: see ArrangePlaces. -->
+        <DataTemplate x:Key="PlaceTemplate">
+            <Grid>
+                <Button x:Name="Entry" Style="{StaticResource FlatButton}" Height="{DynamicResource PlaceRowHeight}"
+                        Padding="10,0" HorizontalContentAlignment="Stretch"
+                        Click="Place_Click" MouseRightButtonUp="Place_RightClick">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock FontFamily="{StaticResource IconFont}" FontSize="{DynamicResource PlaceGlyphSize}"
+                                   Width="{DynamicResource PlaceGlyphWidth}" Text="{Binding Glyph}"
+                                   Visibility="{DynamicResource PlaceGlyphVisibility}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="{DynamicResource PlaceFontSize}"
+                                   Margin="{DynamicResource PlaceTextMargin}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                </Button>
+                <!-- A divider entry: a thin line that opens nothing. -->
+                <Border x:Name="Line" Background="Transparent" Padding="8,6" Visibility="Collapsed"
+                        MouseRightButtonUp="Place_RightClick">
+                    <Border Height="1" Background="#24FFFFFF"/>
+                </Border>
+            </Grid>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsDivider}" Value="True">
+                    <Setter TargetName="Entry" Property="Visibility" Value="Collapsed"/>
+                    <Setter TargetName="Line" Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+    </UserControl.Resources>
+
+    <Border x:Name="Chrome" CornerRadius="8" BorderThickness="1" BorderBrush="{StaticResource MenuBorderBrush}">
+        <Grid x:Name="MenuGrid" Margin="18">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <!-- Apps, pinned, places. ArrangePlaces sets the widths, and swaps them when the places go on the left. -->
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="270"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="180"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Search -->
+            <Border Grid.ColumnSpan="3" Height="38" Margin="0,0,0,16" CornerRadius="6" Background="#1FFFFFFF"
+                    BorderBrush="#30FFFFFF" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock FontFamily="{StaticResource IconFont}" FontSize="15" Text="&#xE721;" Opacity="0.8"
+                               Margin="12,0,10,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="SearchHint" Grid.Column="1" Text="Search apps, or type a command and press Enter"
+                               Opacity="0.55" Margin="2,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                    <TextBox x:Name="SearchBox" Grid.Column="1" Margin="0,0,10,0" Background="Transparent" BorderThickness="0"
+                             Foreground="{DynamicResource ForegroundBrush}" CaretBrush="{DynamicResource ForegroundBrush}"
+                             SelectionBrush="{StaticResource AccentBrush}" VerticalAlignment="Center"
+                             TextChanged="Search_TextChanged">
+                        <TextBox.Template>
+                            <ControlTemplate TargetType="TextBox">
+                                <ScrollViewer x:Name="PART_ContentHost" Focusable="False"
+                                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                            </ControlTemplate>
+                        </TextBox.Template>
+                    </TextBox>
+                </Grid>
+            </Border>
+
+            <!-- All apps / search results -->
+            <DockPanel x:Name="AppsPanel" Grid.Row="1">
+                <TextBlock x:Name="AppHeader" DockPanel.Dock="Top" Style="{StaticResource SectionHeader}" Text="All apps"/>
+                <Grid>
+                    <ListBox x:Name="AppList" Background="Transparent" BorderThickness="0" Padding="0" Focusable="False"
+                             ItemContainerStyle="{StaticResource AppRow}" ItemTemplate="{StaticResource AppTemplate}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             VirtualizingPanel.ScrollUnit="Pixel"/>
+                    <TextBlock x:Name="NoResults" Visibility="Collapsed" Opacity="0.6" Margin="8,4" TextWrapping="Wrap"
+                               Text="No app matches. Press Enter to run what you typed as a command."/>
+                </Grid>
+            </DockPanel>
+
+            <!-- Pinned -->
+            <DockPanel x:Name="PinsPanel" Grid.Row="1" Grid.Column="1" Margin="14,0,10,0">
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource SectionHeader}" Text="Pinned"/>
+                <Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                        <ItemsControl x:Name="PinList" ItemTemplate="{StaticResource TileTemplate}" Focusable="False">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <TextBlock x:Name="PinHint" Opacity="0.6" Margin="8,4" TextWrapping="Wrap" IsHitTestVisible="False"
+                               Text="Nothing pinned yet. Right-click an app and choose “Pin to Start” to keep it here."/>
+                </Grid>
+            </DockPanel>
+
+            <!-- Account, places, power -->
+            <DockPanel x:Name="PlacesPanel" Grid.Row="1" Grid.Column="2">
+                <Button DockPanel.Dock="Top" Style="{StaticResource FlatButton}" Height="40" Padding="10,0"
+                        HorizontalContentAlignment="Left" ToolTip="Account settings" Click="User_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontFamily="{StaticResource IconFont}" FontSize="16" Width="20" Text="&#xE77B;"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock x:Name="UserName" Margin="12,0,0,0" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Button>
+
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource FlatButton}" Width="40" Height="40" ToolTip="ClearStart settings"
+                            Click="Settings_Click">
+                        <TextBlock FontFamily="{StaticResource IconFont}" FontSize="16" Text="&#xE713;"/>
+                    </Button>
+                    <Button x:Name="PowerButton" Style="{StaticResource FlatButton}" Width="40" Height="40" Margin="4,0,0,0"
+                            ToolTip="Power" Click="Power_Click">
+                        <TextBlock FontFamily="{StaticResource IconFont}" FontSize="16" Text="&#xE7E8;"/>
+                    </Button>
+                </StackPanel>
+
+                <Border x:Name="PlaceRule" DockPanel.Dock="Top" Height="1" Margin="8,8,8,8" Background="#24FFFFFF"/>
+
+                <!-- More places than fit scroll. -->
+                <ScrollViewer x:Name="PlaceScroller" VerticalScrollBarVisibility="Auto" Focusable="False">
+                    <ItemsControl x:Name="PlaceList" ItemTemplate="{StaticResource PlaceTemplate}" Focusable="False"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Grid>
+    </Border>
+</UserControl>

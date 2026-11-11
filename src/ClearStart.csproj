@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- The Windows 10 2004 part is for the spatial sound setting, which only the newer Windows API reads. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <!-- Keep building to the folder the program has always been in, whatever the framework is called. -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\$(Configuration)\net10.0-windows\</OutputPath>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Drawn by AppIcon.cs. The self-test writes it out as app-icon.ico; copy that here after changing the drawing. -->
+    <ApplicationIcon>ClearStart.ico</ApplicationIcon>
+    <Version>0.1.0</Version>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- The Windows Forms analyzer objects to DPI settings in the manifest; for a WPF app that is where they belong. -->
+    <NoWarn>$(NoWarn);WFAC010;WFO0003</NoWarn>
+  </PropertyGroup>
+
+  <!-- Windows Forms is referenced only because the shell library uses it for screen enumeration.
+       Keep its namespaces out of scope so WPF type names stay unambiguous. -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <!-- WPF projects leave System.IO out of the implicit usings; this app uses it everywhere. -->
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ManagedShell" Version="0.0.374" />
+  </ItemGroup>
+
+</Project>
