@@ -504,8 +504,8 @@ public partial class TaskbarView : UserControl
         var opens = Settings.Current.Taskbar.SearchButtonOpens;
         return new List<MenuEntry>
         {
-            new("Opens ClearStart's search", () => _host.SetSearchOpens(SearchOpens.Menu), Checked: opens == SearchOpens.Menu),
             new("Opens Windows Search", () => _host.SetSearchOpens(SearchOpens.Windows), Checked: opens == SearchOpens.Windows),
+            new("Opens ClearStart's search", () => _host.SetSearchOpens(SearchOpens.Menu), Checked: opens == SearchOpens.Menu),
             new(null, null),
             new("Hide the search button", () => _host.SetSearchButton(false)),
             new(null, null),

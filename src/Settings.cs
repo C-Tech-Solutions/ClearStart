@@ -214,8 +214,11 @@ public sealed class TaskbarSettings
     /// <summary>A search button next to Start, on every bar.</summary>
     public bool ShowSearchButton { get; set; } = true;
 
-    /// <summary>What that button opens: ClearStart's menu ready for typing a search, or Windows Search.</summary>
-    public SearchOpens SearchButtonOpens { get; set; } = SearchOpens.Menu;
+    /// <summary>
+    /// What that button opens: Windows Search, or ClearStart's menu ready for typing a search. Windows Search
+    /// is the default because the menu is what the Start button already opens.
+    /// </summary>
+    public SearchOpens SearchButtonOpens { get; set; } = SearchOpens.Windows;
 
     /// <summary>Button that opens the Windows quick settings panel (network, volume, battery).</summary>
     public bool ShowQuickSettingsButton { get; set; } = true;

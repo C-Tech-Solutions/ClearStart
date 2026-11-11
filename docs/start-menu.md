@@ -6,8 +6,8 @@
   <img src="images/start-menu.png" alt="The start menu: a search box across the top, all apps on the left, pinned tiles in the middle, and a list of places on the right">
 </p>
 
-The menu opens from the **Start** button or the **search button**, and in live mode from the
-Windows key. It opens against the bar it was opened from.
+The menu opens from the **Start** button, and in live mode from the Windows key. It opens against
+the bar it was opened from.
 
 It has four parts:
 
@@ -35,8 +35,8 @@ It has four parts:
   <img src="images/desktop-search.png" alt="The start menu with the letters p and a typed, showing Paint, Control Panel and Notepad as results">
 </p>
 
-The menu's search finds apps and runs commands. To search files, settings and the web, set the
-[search button](taskbar.md#the-search-button) to open Windows Search instead.
+The menu's search finds apps and runs commands. For files, settings and the web, click the
+[search button](taskbar.md#the-search-button) next to Start, which opens Windows Search.
 
 ## The list of places
 

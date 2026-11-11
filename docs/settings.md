@@ -108,7 +108,7 @@ set.
 | Show only the windows on the taskbar's own monitor | Off: every bar lists every window |
 | Pinned apps | On the main taskbar only, or on every one. Each monitor can differ, further down the page |
 | Search button | The magnifier next to Start, on every bar |
-| Search button opens | ClearStart's menu, or Windows Search. See [the search button](taskbar.md#the-search-button) |
+| Search button opens | Windows Search (the default), or ClearStart's menu. See [the search button](taskbar.md#the-search-button) |
 | One button per app | All of an app's windows sit behind one button, with previews |
 | Show window titles next to the icons | Titles beside the icons of running apps |
 | App buttons | Centered, or at the start of the bar |

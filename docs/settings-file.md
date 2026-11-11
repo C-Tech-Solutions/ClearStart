@@ -57,7 +57,7 @@ Keys are written here with a dot: `taskbar.edge` is the `edge` key inside the `t
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `taskbar.showSearchButton` | `true` | The search button next to Start, on every bar |
-| `taskbar.searchButtonOpens` | `menu` | What a click on it opens: `menu` (ClearStart's start menu, ready for a search) or `windows` (Windows Search) |
+| `taskbar.searchButtonOpens` | `windows` | What a click on it opens: `windows` (Windows Search) or `menu` (ClearStart's start menu, ready for a search) |
 
 **App buttons and pinned apps**
 
