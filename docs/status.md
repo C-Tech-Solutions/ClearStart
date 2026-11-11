@@ -16,6 +16,7 @@ what has not, and what is missing.
 | --- | --- |
 | **Preview mode** | Run on one desktop: Windows 11 25H2, four monitors at 100% scaling. |
 | **The self-test** | `ClearStart.exe --selftest` draws about eighty pictures of the bars, the start menu, the weather panel, the settings pages and the Start button designs, checks where things end up, and reports any error. It passes with no errors. |
+| **The installer** | Built and signed, then run on that desktop without its pages on screen: installing, installing again over a running copy, adding Start with Windows, and uninstalling. The installed copy passes the self-test. |
 
 ## What has not been run
 
@@ -25,7 +26,8 @@ written but has never been run:
 - hiding the Windows taskbar and putting it back on exit;
 - showing your apps' tray icons on ClearStart's bars;
 - opening the start menu with the Windows key;
-- `ClearStart.exe --restore`;
+- `ClearStart.exe --restore` after live mode. It has run only while a preview was up, when
+  uninstalling, and there was nothing to put back;
 - starting with Windows (the switch starts live mode).
 
 **Other setups.** Other versions of Windows, display scaling above 100%, and a PC with one monitor
@@ -46,12 +48,13 @@ one by clicking it on a real desktop:
 - the list of places in the settings window: the icon sheet, the "Add…" menu and the file and
   folder pickers, and right-clicking a place in the start menu;
 - throwing the Start with Windows switch;
-- how Windows shows the app icon on the program file and in Alt+Tab.
+- how Windows shows the app icon on the program file and in Alt+Tab;
+- the installer's own pages, and its **Start ClearStart now** at the end, which starts live mode.
 
 ## Not there yet
 
-- **No installer or download.** You build it from source, and "Start with Windows" points at
-  wherever `ClearStart.exe` happens to sit.
+- **No download yet.** You build it from source, or build [the installer](getting-started.md#the-installer)
+  yourself. Nothing has been published.
 - **No jump lists** on the app buttons.
 - **No tray overflow.** Every tray icon is shown on the bar; there is no flyout for the extra ones.
 - **No volume slider of its own.** Clicking the volume glyph opens Windows' quick settings.
