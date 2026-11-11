@@ -10,6 +10,7 @@ This page takes you from nothing to ClearStart's bars on your screen, and back a
 - [3. Find your way around](#3-find-your-way-around)
 - [4. Close it](#4-close-it)
 - [Live mode](#live-mode)
+- [The installer](#the-installer)
 - [Start with Windows](#start-with-windows)
 - [Where ClearStart keeps things](#where-clearstart-keeps-things)
 - [Removing it](#removing-it)
@@ -18,7 +19,7 @@ This page takes you from nothing to ClearStart's bars on your screen, and back a
 
 - **Windows 11.** It has been built and run on Windows 11 25H2 only.
 - **The [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)**, to build it. There is
-  no installer or ready-made download yet.
+  no ready-made download yet, but you can build [the installer](#the-installer) yourself.
 - **Git**, or download the code as a ZIP from the green **Code** button on GitHub.
 
 ## 1. Build it
@@ -101,6 +102,30 @@ key. Closing ClearStart undoes all three.
 > ClearStart.exe --restore
 > ```
 
+## The installer
+
+To put ClearStart on a PC for good, build its installer. That needs
+[Inno Setup 6](https://jrsoftware.org/isdl.php) (6.7 or later) as well as the .NET SDK. From the
+folder you cloned, run:
+
+```powershell
+installer\build-installer.ps1
+```
+
+It writes `artifacts\installer\ClearStart-Setup-0.1.0.exe`, about 55 MB, and its SHA-256
+checksum next to it.
+
+| | |
+| --- | --- |
+| **Everything in one file** | It carries its own copy of .NET, so the PC needs nothing installed first. |
+| **For you alone** | It installs into `%LOCALAPPDATA%\Programs\ClearStart`, adds ClearStart to the Start menu, and asks for no administrator rights. |
+| **Two choices at the end** | Start ClearStart when you sign in (off unless you tick it), and start it now. Both start [live mode](#live-mode). |
+| **Upgrades in place** | A newer installer replaces the old copy, and closes it first if it is running. |
+| **Uninstall** | From **Settings → Apps → Installed apps**. It closes ClearStart, makes sure the Windows taskbar is showing, and takes away the Start with Windows entry if it starts this copy. Your settings stay. |
+
+An installer built this way is not signed, so Windows warns before running it. A signed one is
+built with `-Sign`; see [Development](development.md#the-installer).
+
 ## Start with Windows
 
 **Settings → General → Start with Windows** adds ClearStart to the programs Windows starts when
@@ -121,6 +146,11 @@ you sign in. It needs no administrator rights.
 Both are created on the first run. [The settings file](settings-file.md) lists every key.
 
 ## Removing it
+
+**Installed:** uninstall it from **Settings → Apps → Installed apps**. To remove your settings
+too, delete the two folders in the table above afterwards.
+
+**Built and run from the folder:**
 
 1. Switch off **Start with Windows** if you switched it on.
 2. Close ClearStart.

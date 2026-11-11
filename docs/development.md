@@ -12,6 +12,7 @@ the list of open windows and the tray icons; everything you see is ClearStart's 
 - [The self-test](#the-self-test)
 - [The pictures in the docs](#the-pictures-in-the-docs)
 - [The app icon](#the-app-icon)
+- [The installer](#the-installer)
 - [Where the code is](#where-the-code-is)
 
 ## Layout
@@ -22,11 +23,14 @@ ClearStart
 ├── THIRD-PARTY-NOTICES.md
 ├── docs/              the guides
 │   └── images/        the pictures they use
+├── installer/         the installer and the script that builds it
 └── src/               the app
     ├── ClearStart.csproj
     ├── Interop/       calls into Windows
     └── Themes/        styles
 ```
+
+Builds of the installer go into `artifacts/`, which `.gitignore` leaves out.
 
 ## Build
 
@@ -101,6 +105,64 @@ is in [`src/Screenshots.cs`](../src/Screenshots.cs).
 `src/ClearStart.ico` is drawn by [`src/AppIcon.cs`](../src/AppIcon.cs). After changing the
 drawing, run the self-test, copy the `app-icon.ico` it writes over `src/ClearStart.ico`, and
 build again.
+
+## The installer
+
+`installer/ClearStart.iss` is the installer, for [Inno Setup 6](https://jrsoftware.org/isdl.php)
+(6.7 or later). `installer/build-installer.ps1` builds it:
+
+```powershell
+installer\build-installer.ps1
+```
+
+1. It publishes the app for 64-bit Windows with its own copy of .NET, into
+   `artifacts\publish\ClearStart-win-x64` (about 180 MB before compression).
+2. It compiles the installer into `artifacts\installer\ClearStart-Setup-<version>.exe`, about
+   55 MB.
+3. It writes the installer's SHA-256 into a `.sha256.txt` file next to it.
+
+The version comes from `<Version>` in `src/ClearStart.csproj`, and names both the installer and
+the version Windows lists under Installed apps.
+
+### Signing it
+
+```powershell
+installer\build-installer.ps1 -Sign -MetadataPath C:\path\to\azure-artifact-signing.json
+```
+
+Or set `CLEARSTART_SIGNING_METADATA` to the metadata file's path and pass `-Sign` on its own.
+Signing goes through Azure Artifact Signing and SignTool, with a timestamp, so a signature stays
+valid after the short-lived certificate behind it has expired. Two things are signed:
+
+- the program files in the publish that are not signed yet: ClearStart's own and ManagedShell's.
+  The .NET files already carry Microsoft's signature.
+- the setup program and its uninstaller, which Inno Setup signs as it builds them.
+
+The script stops if any program file, or the setup program, does not then have a valid signature.
+
+The metadata file names the signing account and certificate profile. Keep it out of the
+repository; the script never prints it. The PC also has to be signed in to Azure with an account
+that may use that profile, for example through the Azure CLI.
+
+The script finds its tools by itself, or you can point it at them:
+
+| Tool | Where it looks | Or pass |
+| --- | --- | --- |
+| `ISCC.exe` (Inno Setup) | `PATH`, and Inno Setup 6's usual install folders | `-IsccPath` |
+| `signtool.exe` | Artifact Signing Client Tools, `PATH`, the newest Windows SDK | `-SignToolPath`, or set `SIGNTOOL_PATH` |
+| `Azure.CodeSigning.Dlib.dll` | Artifact Signing Client Tools | `-DlibPath`, or set `AZURE_CODE_SIGNING_DLIB_PATH` |
+
+### What it does on a PC
+
+| | |
+| --- | --- |
+| **Where** | `%LOCALAPPDATA%\Programs\ClearStart`, for the one user, with no administrator rights. A shortcut goes in the Start menu. |
+| **Start with Windows** | An optional task, off by default while live mode is new. It writes the same entry the app's own switch writes (see [`src/AutoStart.cs`](../src/AutoStart.cs)), so the switch shows it as on. |
+| **Upgrading** | If the installed copy is running, Setup runs it with `--exit` first. |
+| **Uninstalling** | Runs `--restore`, then removes the files, and the Start with Windows entry if it starts this copy. The settings and the log stay. |
+
+`AppId` in `ClearStart.iss` ties every version together, so a new installer upgrades the old one
+in place. Never change it.
 
 ## Where the code is
 

@@ -23,8 +23,8 @@ ClearStart draws its own taskbar and its own start menu. It runs as an ordinary 
 is injected into Explorer, and closing it brings the Windows taskbar straight back.
 
 > [!IMPORTANT]
-> **This is an early preview.** There is no installer and no download yet; you build it from
-> source. Only **preview mode**, which runs next to the Windows taskbar and hides nothing, has
+> **This is an early preview.** There is no download yet: you build it from source, or build its
+> installer. Only **preview mode**, which runs next to the Windows taskbar and hides nothing, has
 > been run so far. **Live mode**, where ClearStart takes the Windows taskbar's place, is written
 > but has not been run yet. Start with the preview. [Where it stands](docs/status.md) has the
 > full list.
@@ -150,6 +150,18 @@ or right-click a bar and choose **Exit ClearStart**.
 
 [Getting started](docs/getting-started.md) goes through this step by step.
 
+**Or build the installer**
+
+```powershell
+installer\build-installer.ps1
+```
+
+This makes `artifacts\installer\ClearStart-Setup-0.1.0.exe`, one file of about 55 MB. It carries
+its own copy of .NET, so the PC it goes on needs nothing else. It installs for you alone, without
+administrator rights, and uninstalls from Windows' list of apps. Building it needs
+[Inno Setup 6](https://jrsoftware.org/isdl.php) as well. See
+[the installer](docs/getting-started.md#the-installer).
+
 ## Two ways to run it
 
 | | Preview | Live |
@@ -169,19 +181,26 @@ up (from Task Manager, say) and the Windows taskbar stays hidden, run:
 src\bin\Release\net10.0-windows\ClearStart.exe --restore
 ```
 
-This cannot happen in a preview, because a preview never hides the Windows taskbar.
+For a copy put there by the installer:
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\ClearStart\ClearStart.exe" --restore
+```
+
+Uninstalling does the same before it removes anything. None of this can happen in a preview,
+because a preview never hides the Windows taskbar.
 
 ## Guides
 
 | Guide | What is in it |
 | --- | --- |
-| [Getting started](docs/getting-started.md) | Building, the first run, closing it, starting with Windows, removing it |
+| [Getting started](docs/getting-started.md) | Building, the first run, closing it, the installer, starting with Windows, removing it |
 | [The taskbar](docs/taskbar.md) | Moving and resizing bars, app buttons, pinned apps, the search button, the clock, sound, network and weather |
 | [The start menu](docs/start-menu.md) | Searching, pinned tiles, and the list of places |
 | [The settings window](docs/settings.md) | Every page, the Start button designs, colors, and clear, blurred and frosted |
 | [The settings file](docs/settings-file.md) | Every key in `settings.json`, with its default |
 | [Where it stands](docs/status.md) | What works, what is missing, and what has not been tried yet |
-| [Development](docs/development.md) | How the code is laid out, the self-test, and how the pictures here are made |
+| [Development](docs/development.md) | How the code is laid out, the self-test, how the pictures here are made, and building and signing the installer |
 
 ## Privacy
 
