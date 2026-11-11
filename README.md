@@ -13,6 +13,7 @@
   <img src="https://img.shields.io/badge/Windows-11-0078D4" alt="Windows 11">
   <img src="https://img.shields.io/badge/.NET-10-512BD4" alt=".NET 10">
   <img src="https://img.shields.io/badge/status-early%20preview-E08A00" alt="Status: early preview">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F" alt="License: MIT"></a>
 </p>
 
 <p align="center">
@@ -201,8 +202,8 @@ See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## License
 
-No license has been chosen yet, so for now the code is published to read and to try, without a
-grant to reuse or redistribute it. This section will change when a license is added.
+ClearStart is released under the [MIT License](LICENSE). The libraries and data it uses keep
+their own licenses; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ---
 
