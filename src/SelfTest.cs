@@ -694,18 +694,18 @@ internal static partial class SelfTest
                         }
 
                         // What it opens: the choice is written and read back, a file that says nothing means
-                        // ClearStart's own menu, and the button's menu ticks the one in force. Nothing here
-                        // clicks the button: Windows Search must not open on the desktop during the test.
-                        host.SetSearchOpens(SearchOpens.Windows);
+                        // Windows Search, and the button's menu ticks the one in force. Nothing here clicks the
+                        // button: Windows Search must not open on the desktop during the test.
+                        host.SetSearchOpens(SearchOpens.Menu);
                         var opensBar = new TaskbarView(host, primary, AppBarEdge.Bottom, flat);
                         report["searchButtonMenu"] = MenuLines(opensBar.SearchButtonMenu(), "");
                         opensBar.Detach();
                         string opensLine = Settings.Write(Settings.Current).Split('\n').Select(line => line.Trim())
                             .FirstOrDefault(line => line.StartsWith("\"searchButtonOpens\"", StringComparison.Ordinal)) ?? "";
                         report["searchButtonOpensFileLine"] = opensLine;
-                        if (!opensLine.Contains("\"windows\"", StringComparison.Ordinal) ||
-                            Settings.Parse(Settings.Write(Settings.Current)).Taskbar.SearchButtonOpens != SearchOpens.Windows ||
-                            Settings.Parse("""{"taskbar":{}}""").Taskbar.SearchButtonOpens != SearchOpens.Menu)
+                        if (!opensLine.Contains("\"menu\"", StringComparison.Ordinal) ||
+                            Settings.Parse(Settings.Write(Settings.Current)).Taskbar.SearchButtonOpens != SearchOpens.Menu ||
+                            Settings.Parse("""{"taskbar":{}}""").Taskbar.SearchButtonOpens != SearchOpens.Windows)
                         {
                             errors.Add("Search button: what it opens did not write to and read back from the settings file");
                         }

@@ -85,15 +85,15 @@ It can open one of two things:
 
 | Choice | What a click opens |
 | --- | --- |
-| **ClearStart's menu** (the default) | The start menu with the cursor in its search box, so what you type next is the search. Finds apps and runs commands. |
-| **Windows Search** | Windows' own search, the one Win+S opens, which also finds files, settings and the web. |
+| **Windows Search** (the default) | Windows' own search, the one Win+S opens. It finds apps, files, settings and the web. |
+| **ClearStart's menu** | The start menu with the cursor in its search box, so what you type next is the search. Finds apps and runs commands. This is also what Start opens. |
 
 Choose under **Settings → Taskbar → Search button opens**, or right-click the button:
 
 | Entry | What it does |
 | --- | --- |
-| Opens ClearStart's search | Makes a click open the start menu. |
 | Opens Windows Search | Makes a click open Windows Search. |
+| Opens ClearStart's search | Makes a click open the start menu. |
 | Hide the search button | Takes it off every bar. A bar's right-click menu or the Taskbar page brings it back. |
 | Taskbar settings | Opens the settings at the Taskbar page. |
 

@@ -252,9 +252,9 @@ internal sealed class SettingsView : UserControl
         // Also the host's: the button appears or goes on every bar without reopening them.
         page.Children.Add(Row("Search button", "Next to Start on every taskbar",
             Toggle(() => Taskbar.ShowSearchButton, _host.SetSearchButton, SettingsChange.None)));
-        page.Children.Add(Row("Search button opens", "ClearStart's menu finds apps. Windows Search also finds files, settings and the web",
+        page.Children.Add(Row("Search button opens", "Windows Search finds apps, files, settings and the web. ClearStart's menu is the one Start opens",
             Choice(() => Taskbar.SearchButtonOpens, _host.SetSearchOpens, SettingsChange.None,
-                ("ClearStart's menu", SearchOpens.Menu), ("Windows Search", SearchOpens.Windows))));
+                ("Windows Search", SearchOpens.Windows), ("ClearStart's menu", SearchOpens.Menu))));
         page.Children.Add(Row("One button per app", "All of an app's windows sit behind one button, with previews",
             Toggle(() => Taskbar.CombineWindows, value => Taskbar.CombineWindows = value, SettingsChange.Bars)));
         page.Children.Add(Row("Show window titles next to the icons", null,

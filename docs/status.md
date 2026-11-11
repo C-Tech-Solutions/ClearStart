@@ -56,7 +56,7 @@ one by clicking it on a real desktop:
 - **No tray overflow.** Every tray icon is shown on the bar; there is no flyout for the extra ones.
 - **No volume slider of its own.** Clicking the volume glyph opens Windows' quick settings.
 - **The start menu's own search finds apps and commands only.** For files, settings and the web,
-  set the search button to open Windows Search.
+  use the search button next to Start, which opens Windows Search.
 - **Blurred and frosted look much alike.** How strong the blur is belongs to Windows.
 - **Bars blink when they move.** Moving a bar or its Start button closes and reopens that bar.
   Settings that change what the bars contain reopen all of them.

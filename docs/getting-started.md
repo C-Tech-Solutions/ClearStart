@@ -62,7 +62,8 @@ Two things a preview does not show, because they need ClearStart to be the only 
 
 | To do this | Do this |
 | --- | --- |
-| Open the start menu | Click **Start** (the four squares) or the magnifier |
+| Open the start menu | Click **Start** (the four squares) |
+| Search files, settings and the web | Click the magnifier next to Start. It opens Windows Search |
 | Move a bar | Right-click an empty part of it, then **Move this taskbar** |
 | Resize a bar | Drag the edge that faces the desktop |
 | Take a bar off a monitor | Right-click it, then **Hide this taskbar** |

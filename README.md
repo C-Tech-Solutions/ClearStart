@@ -136,7 +136,7 @@ ClearStart's bars appear next to the Windows taskbar. Nothing of Windows' is hid
 
 **3. Look around**
 
-- Click **Start** or the **magnifier** to open the start menu.
+- Click **Start** to open the start menu, or the **magnifier** next to it for Windows Search.
 - **Right-click an empty part of a bar** to move it, hide it, or open **Settings**.
 - **Drag the edge** of a bar that faces the desktop to resize it.
 
