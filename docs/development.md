@@ -159,7 +159,7 @@ The script finds its tools by itself, or you can point it at them:
 | **Where** | `%LOCALAPPDATA%\Programs\ClearStart`, for the one user, with no administrator rights. A shortcut goes in the Start menu. |
 | **Start with Windows** | An optional task, off by default while live mode is new. It writes the same entry the app's own switch writes (see [`src/AutoStart.cs`](../src/AutoStart.cs)), so the switch shows it as on. |
 | **Upgrading** | If the installed copy is running, Setup runs it with `--exit` first. |
-| **Uninstalling** | Runs `--restore`, then removes the files, and the Start with Windows entry if it starts this copy. The settings and the log stay. |
+| **Uninstalling** | Runs `--restore`, then removes the files, and the Start with Windows entry if it starts this copy. If ClearStart is still running after `--restore`, it stops before removing anything. The settings and the log stay. |
 
 `AppId` in `ClearStart.iss` ties every version together, so a new installer upgrades the old one
 in place. Never change it.

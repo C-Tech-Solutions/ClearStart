@@ -83,10 +83,6 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupA
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Start ClearStart now"; Flags: nowait postinstall skipifsilent
 
-[UninstallRun]
-; Close the running copy, and make sure the Windows taskbar is showing, before the files go.
-Filename: "{app}\{#AppExe}"; Parameters: "--restore"; Flags: runhidden waituntilterminated; RunOnceId: "RestoreWindowsTaskbar"
-
 [Code]
 const
   RunKey = 'Software\Microsoft\Windows\CurrentVersion\Run';
@@ -111,19 +107,46 @@ begin
               'choose Exit ClearStart, and then try again.';
 end;
 
+{ Before anything is removed: close the running copy and make sure the Windows taskbar is showing.
+  --restore gives up on a copy that does not close in a few seconds, so check, and stop the
+  uninstall rather than delete the files of a program that is still running. }
+procedure CloseRunningCopy;
+var
+  Exe: String;
+  ResultCode: Integer;
+begin
+  Exe := ExpandConstant('{app}\{#AppExe}');
+  if FileExists(Exe) then
+    Exec(Exe, '--restore', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  if CheckForMutexes(InstanceMutex) then
+  begin
+    Log('ClearStart is still running, so the uninstall stops here.');
+    if not UninstallSilent then
+      MsgBox('ClearStart is still running. Right-click an empty part of one of its taskbars, ' +
+             'choose Exit ClearStart, and then uninstall it again.', mbError, MB_OK);
+    Abort;
+  end;
+end;
+
 { "Start with Windows" can have been switched on by Setup or by the app itself. Either way, take it
   away with the program, but only when it starts this copy. }
-procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+procedure RemoveStartWithWindows;
 var
   Command: String;
 begin
-  if CurUninstallStep <> usPostUninstall then
-    Exit;
-
   if RegQueryStringValue(HKCU, RunKey, 'ClearStart', Command) and
      (Pos(Uppercase(ExpandConstant('{app}\{#AppExe}')), Uppercase(Command)) > 0) then
   begin
     RegDeleteValue(HKCU, RunKey, 'ClearStart');
     RegDeleteValue(HKCU, ApprovedKey, 'ClearStart');
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  case CurUninstallStep of
+    usUninstall: CloseRunningCopy;
+    usPostUninstall: RemoveStartWithWindows;
   end;
 end;
