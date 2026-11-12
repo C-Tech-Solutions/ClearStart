@@ -41,8 +41,8 @@ If the guarded Explorer has exited, the loader starts plain Explorer once. It ne
 an already running Explorer or hunts for processes by name. A later ordinary Explorer restart
 uses the out-of-process guard and may flash; reinjection into a running desktop is not attempted.
 
-Startup failures detected by the loader remove its own shell entry so the next sign-in uses
-Windows normally. Normal Exit keeps the entry for the next sign-in. The DLL stays loaded, inert,
+Startup failures, crashes and watchdog recovery detected by the loader remove its own shell entry
+so the next sign-in uses Windows normally. Normal Exit keeps the entry for the next sign-in. The DLL stays loaded, inert,
 until Explorer exits; restarting ClearStart in the same session uses the ordinary hiding guard.
 Neither recovery nor sign-in timing is verified yet. If the loader itself cannot start at all
 (for example its executable was deleted), its recovery code cannot run: use the manual route below.

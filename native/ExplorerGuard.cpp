@@ -111,10 +111,16 @@ static DWORD WINAPI Watch(LPVOID) {
     const ULONGLONG started = AwakeMilliseconds();
     HANDLE events[] = { releaseEvent, owner, app };
     while (Enabled()) {
-        if (WaitForMultipleObjects(3, events, FALSE, 250) != WAIT_TIMEOUT) break;
+        if (WaitForMultipleObjects(3, events, FALSE, 250) != WAIT_TIMEOUT) {
+            if (Enabled()) InterlockedExchange(&state->failed, 1);
+            break;
+        }
         const ULONGLONG now = AwakeMilliseconds();
         if ((!state->ready && now - started >= StartupTimeout)
-            || (state->ready && now - static_cast<ULONGLONG>(InterlockedCompareExchange64(&state->heartbeat, 0, 0)) >= HangTimeout)) break;
+            || (state->ready && HeartbeatExpired(state))) {
+            InterlockedExchange(&state->failed, 1);
+            break;
+        }
         if (state->ready && InterlockedExchange(&desktopPending, 0)) realSetEvent(desktopEvent);
     }
     InterlockedExchange(&state->enabled, 0);

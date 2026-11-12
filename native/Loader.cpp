@@ -49,8 +49,9 @@ static std::string DllPath(const std::wstring& path) {
     auto convert = [](const std::wstring& input) {
         char output[32768]{};
         BOOL usedDefault = FALSE;
-        int length = WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, input.c_str(), -1,
-            output, sizeof(output), nullptr, &usedDefault);
+        const bool utf8 = GetACP() == CP_UTF8;
+        int length = WideCharToMultiByte(CP_ACP, utf8 ? WC_ERR_INVALID_CHARS : WC_NO_BEST_FIT_CHARS, input.c_str(), -1,
+            output, sizeof(output), nullptr, utf8 ? nullptr : &usedDefault);
         return length > 0 && !usedDefault ? std::string(output) : std::string();
     };
     std::string result = convert(path);
@@ -110,7 +111,7 @@ static int Run() {
     if (success) {
         HANDLE running[] = { release, application.hProcess, explorer.hProcess };
         while (WaitForMultipleObjects(3, running, FALSE, 1000) == WAIT_TIMEOUT) {
-            if (AwakeMilliseconds() - static_cast<ULONGLONG>(InterlockedCompareExchange64(&state->heartbeat, 0, 0)) >= HangTimeout) {
+            if (HeartbeatExpired(state)) {
                 success = false;
                 break;
             }
@@ -124,6 +125,11 @@ static int Run() {
     SetEvent(release);
     if (!resumed && application.hProcess) TerminateProcess(application.hProcess, ERROR_PROCESS_ABORTED);
     Restore(state, release, application.hProcess);
+    // A release from the guard can beat this process's watchdog. Recheck after the child has stopped,
+    // so a managed fatal handler that released suppression before exiting is classified correctly too.
+    if (state->failed) success = false;
+    DWORD finalCode = 0;
+    if (application.hProcess && GetExitCodeProcess(application.hProcess, &finalCode) && finalCode != 0) success = false;
     if (!success) DisableOwnStartup();
     // If the guarded shell failed during startup or crashed later, start plain Explorer once.
     if (explorer.hProcess && WaitForSingleObject(explorer.hProcess, 0) == WAIT_TIMEOUT && !GetShellWindow()) {
@@ -134,7 +140,7 @@ static int Run() {
     // A newly started plain Explorer needs time to recreate its bars before we can restore auto-hide.
     if (!success) {
         for (int attempt = 0; attempt < 50 && !FindWindowW(L"Shell_TrayWnd", nullptr); ++attempt) Sleep(200);
-        EnumWindows(ShowNativeBar, reinterpret_cast<LPARAM>(state));
+        Restore(state, release, nullptr);
     }
     CloseProcess(application);
     CloseProcess(explorer);

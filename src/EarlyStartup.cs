@@ -68,8 +68,7 @@ internal static class EarlyStartup
         // Only an absent per-user override is accepted. No backup/replacement of somebody else's shell.
         if (current != null && !IsEnabled)
             throw new InvalidOperationException("A per-user shell is already configured; early startup leaves it alone");
-        if (AutoStart.Target is { } target && !string.Equals(target, AutoStart.ThisProgram, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Another ClearStart copy starts at sign-in; disable its startup entry first");
+        AutoStart.RequireOwnEntries();
         using var machine = Registry.LocalMachine.OpenSubKey(ShellKey);
         if (!string.Equals(machine?.GetValue("Shell") as string, "explorer.exe", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The machine uses a custom shell; early startup leaves it alone");

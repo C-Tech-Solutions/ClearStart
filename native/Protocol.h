@@ -9,7 +9,7 @@ struct SharedState {
     LONG version;                     // 0
     volatile LONG enabled;            // 4: one-way transition to zero
     DWORD appPid;                     // 8
-    LONG reserved;                    // 12
+    volatile LONG failed;             // 12: a watchdog initiated recovery
     volatile LONG64 heartbeat;        // 16: awake milliseconds on the UI thread
     volatile LONG ready;              // 24
     LONG taskbarState;                // 28: recorded before changing auto-hide
@@ -26,6 +26,12 @@ inline ULONGLONG AwakeMilliseconds() {
     ULONGLONG time = 0;
     QueryUnbiasedInterruptTime(&time);
     return time / 10000;
+}
+
+inline bool HeartbeatExpired(SharedState* shared) {
+    const auto beat = static_cast<ULONGLONG>(InterlockedCompareExchange64(&shared->heartbeat, 0, 0));
+    const auto now = AwakeMilliseconds();
+    return now >= beat && now - beat >= HangTimeout;
 }
 
 inline bool IsTaskbar(HWND window) {
@@ -73,4 +79,6 @@ inline void Restore(SharedState* state, HANDLE release, HANDLE app) {
     if (release) SetEvent(release);
     StopApp(app);
     EnumWindows(ShowNativeBar, reinterpret_cast<LPARAM>(state));
+    if (FindWindowW(L"Shell_TrayWnd", nullptr))
+        SendNotifyMessageW(HWND_BROADCAST, RegisterWindowMessageW(L"TaskbarCreated"), 0, 0);
 }

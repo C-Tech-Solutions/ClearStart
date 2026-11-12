@@ -84,7 +84,8 @@ internal static class LiveStart
     /// </summary>
     private static bool WaitForExplorer()
     {
-        if (ExplorerTaskbar.IsUp()) return true;
+        if (EarlySession.Released) return false;
+        if (ExplorerTaskbar.IsUp()) return !EarlySession.Released;
 
         Log.Info("Waiting for Explorer to put up the Windows taskbar");
         var waited = System.Diagnostics.Stopwatch.StartNew();
@@ -103,6 +104,6 @@ internal static class LiveStart
             }
         }
         Log.Info($"Explorer's taskbar is up, {StartTiming.Describe()}");
-        return true;
+        return !EarlySession.Released;
     }
 }

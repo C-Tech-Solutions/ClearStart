@@ -214,6 +214,13 @@ internal static class AutoStart
         if (SamePath(ReadTask(throwOnError: true)?.Program, ThisProgram)) DeleteTask();
     }
 
+    internal static void RequireOwnEntries()
+    {
+        foreach (string? target in new[] { ReadTask(throwOnError: true)?.Program, RunEntryTarget() })
+            if (target != null && !SamePath(target, ThisProgram))
+                throw new InvalidOperationException("Another ClearStart copy starts at sign-in; disable its startup entry first");
+    }
+
     private readonly record struct TaskInfo(bool Enabled, string? Program);
 
     /// <summary>The task, or null when there is none (or Task Scheduler cannot be asked).</summary>

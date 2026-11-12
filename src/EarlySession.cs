@@ -34,7 +34,7 @@ internal static class EarlySession
 
     public static void BarsReady()
     {
-        if (_state == null) return;
+        if (_state == null || _heartbeat != null) return;
         if (Released) { System.Windows.Application.Current.Shutdown(1); return; }
         Beat();
         _state.Write(24, 1);

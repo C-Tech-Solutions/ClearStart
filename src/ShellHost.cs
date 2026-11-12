@@ -203,8 +203,6 @@ internal sealed class ShellHost : IDisposable
         if (_disposed) return;
         Log.Info($"Taskbars on screen, {StartTiming.Describe()}");
 
-        if (Mode == HostMode.Live && _bars.Count > 0) EarlySession.BarsReady();
-
         if (Mode == HostMode.Live) StartTray();
         Weather.Start();
         Updates.Start();
@@ -690,6 +688,15 @@ internal sealed class ShellHost : IDisposable
         else
         {
             _rebuildRetries = 0;
+        }
+        if (Mode == HostMode.Live && _bars.Count > 0)
+        {
+            // A display can wake after the initial build failed. Every successful retry gets this check;
+            // EarlySession only signals once, after the queued render work has completed.
+            _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            {
+                if (!_disposed && _bars.Count > 0) EarlySession.BarsReady();
+            }));
         }
     }
 
@@ -1189,7 +1196,8 @@ internal sealed class ShellHost : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        bool keepAutoHide = Mode == HostMode.Live && !EarlySession.Active && sessionEnding && StartsAgainAtSignIn();
+        bool keepAutoHide = Mode == HostMode.Live && !EarlySession.Active && sessionEnding
+            && StartsAgainAtSignIn() && !EarlyStartup.IsEnabled;
         Log.Info(keepAutoHide ? "Shutting down; ClearStart starts again at the next sign-in" : "Shutting down");
 
         Step("remove the Win key hook", () => { _winKey?.Dispose(); _winKey = null; });
