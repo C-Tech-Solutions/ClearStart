@@ -74,7 +74,10 @@ internal static partial class SelfTest
 
             var trayItems = PathsOf(new[] { "Windows Security", "Phone Link", "Quick Assist" })
                 .Select(path => new ShellItem(path)).Where(item => item.Loaded).ToList();
-            foreach (var item in trayItems) _ = item.LargeIcon;
+            // Stand-ins for the tray icons behind the arrow beside the tray.
+            var hiddenItems = PathsOf(new[] { "Sticky Notes", "Clock", "Snipping Tool", "Task Manager", "Magnifier", "Voice access" })
+                .Select(path => new ShellItem(path)).Where(item => item.Loaded).ToList();
+            foreach (var item in trayItems.Concat(hiddenItems)) _ = item.LargeIcon;
 
             // Icons load in the background; give them time before anything is drawn.
             await Task.Delay(4000);
@@ -290,6 +293,16 @@ internal static partial class SelfTest
                 await DrawAsync(flyout, 380, 400, File("weather.png"));
             });
 
+            await Try("tray-overflow.png", async () =>
+            {
+                var panel = new TrayOverflowView(hiddenItems.Select(item => new SampleTrayIcon(item)).ToList(), 16, null)
+                {
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                await DrawAsync(panel, 260, 150, File("tray-overflow.png"));
+            });
+
             await Try("color-wheel.png", async () =>
             {
                 var wheel = new ColorWheel();
@@ -321,7 +334,7 @@ internal static partial class SelfTest
                 return Task.CompletedTask;
             });
 
-            foreach (var item in trayItems) item.Dispose();
+            foreach (var item in trayItems.Concat(hiddenItems)) item.Dispose();
         }
         catch (Exception ex)
         {

@@ -41,6 +41,10 @@ public partial class TaskbarView : UserControl
     private readonly int? _trayIconSizeOverride;
     private readonly TaskbarApps _apps;
     private readonly DispatcherTimer _clock;
+    // The tray icons that are not on the bar: what the arrow beside the tray opens.
+    private System.Collections.IEnumerable? HiddenIcons => _host.Shell.NotificationArea?.UnpinnedIcons;
+    // A tray icon dragged onto the arrow and held there opens the panel, so it can be dropped in.
+    private readonly DispatcherTimer _springOpen;
     private double _thickness;
     private double _iconSize = 24;
     // A made-up report the self-test puts on the bar, since it must not go and fetch a real one.
@@ -102,9 +106,24 @@ public partial class TaskbarView : UserControl
         AppList.ItemsSource = _apps.Items;
 
         TrayList.Visibility = _showTrayIcons ? Visibility.Visible : Visibility.Collapsed;
+        OverflowButton.Visibility = TrayList.Visibility;
         ClockButton.Visibility = _showClock ? Visibility.Visible : Visibility.Collapsed;
         QuickButton.Visibility = _showClock && settings.ShowQuickSettingsButton ? Visibility.Visible : Visibility.Collapsed;
-        if (_showTrayIcons) TrayList.ItemsSource = host.Shell.NotificationArea?.AllIcons;
+        CastButton.Visibility = _showClock && settings.ShowCastButton ? Visibility.Visible : Visibility.Collapsed;
+        if (_showTrayIcons && host.Shell.NotificationArea is { } tray)
+        {
+            // Only the icons kept on the bar; the arrow beside them opens the rest. The tray starts after
+            // the first bars are up, so its list may not be there yet: the binding picks it up when it is.
+            TrayList.SetBinding(ItemsControl.ItemsSourceProperty,
+                new System.Windows.Data.Binding(nameof(NotificationArea.PinnedIcons)) { Source = tray });
+        }
+
+        _springOpen = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(500) };
+        _springOpen.Tick += (_, _) =>
+        {
+            _springOpen.Stop();
+            OpenHiddenForDrag();
+        };
 
         _clock = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
         _clock.Tick += (_, _) => UpdateClock();
@@ -155,6 +174,8 @@ public partial class TaskbarView : UserControl
         _host.Weather.Changed -= RefreshWeather;
         _host.HidePreview();
         WeatherFlyout.Close();
+        TrayOverflowWindow.CloseFor(OverflowButton);
+        _springOpen.Stop();
         _clock.Stop();
         _apps.Dispose();
     }
@@ -207,6 +228,8 @@ public partial class TaskbarView : UserControl
             TrayList.ItemsPanel = (ItemsPanelTemplate)Resources["Wrap"];
             TrayList.HorizontalAlignment = HorizontalAlignment.Center;
             TrayList.Margin = new Thickness(0, 0, 0, 2);
+            OverflowButton.Padding = new Thickness(0, 4, 0, 4);
+            CastButton.Padding = new Thickness(2, 7, 2, 7);
             QuickButton.Padding = new Thickness(2, 7, 2, 7);
             ClockButton.Padding = new Thickness(3, 6, 3, 6);
             // The weather: its picture above the temperature.
@@ -219,6 +242,15 @@ public partial class TaskbarView : UserControl
             DayText.HorizontalAlignment = HorizontalAlignment.Center;
             DateText.HorizontalAlignment = HorizontalAlignment.Center;
         }
+
+        // The arrow points the way the panel of hidden icons opens: away from the screen edge.
+        OverflowGlyph.Text = _edge switch
+        {
+            AppBarEdge.Top => "",
+            AppBarEdge.Left => "",
+            AppBarEdge.Right => "",
+            _ => "",
+        };
 
         // The resize handle runs along the edge that faces the desktop.
         const double grip = 5;
@@ -312,6 +344,7 @@ public partial class TaskbarView : UserControl
         tray = Math.Clamp(tray, 12, 32);
         Resources["TrayIconSize"] = tray;
         Resources["TrayGlyphSize"] = Math.Round(tray * 15 / 16);
+        Resources["ChevronSize"] = Math.Max(10, Math.Round(tray * 0.75));
         // The weather picture is a little larger than a tray icon: it has more to show.
         Resources["WeatherIconSize"] = Math.Min(tray + 4, _vertical ? thickness - 16 : thickness - 8);
 
@@ -716,55 +749,153 @@ public partial class TaskbarView : UserControl
 
     // ------------------------------------------------------------------ tray
 
-    private void Tray_MouseEnter(object sender, MouseEventArgs e)
+    // The mouse on a tray icon goes to its app, unless the icon is being dragged: see TrayIconInput.
+    private void Tray_MouseEnter(object sender, MouseEventArgs e) => TrayIconInput.Enter(sender);
+
+    private void Tray_MouseLeave(object sender, MouseEventArgs e) => TrayIconInput.Leave(sender);
+
+    private void Tray_MouseMove(object sender, MouseEventArgs e) => TrayIconInput.Move(sender, e);
+
+    private void Tray_MouseDown(object sender, MouseButtonEventArgs e) => TrayIconInput.Down(sender, e);
+
+    private void Tray_MouseUp(object sender, MouseButtonEventArgs e) => TrayIconInput.Up(sender, e);
+
+    private void Tray_LostCapture(object sender, MouseEventArgs e) => TrayIconInput.LostCapture(sender);
+
+    private double TrayIconSize => Resources["TrayIconSize"] is double size ? size : 16;
+
+    /// <summary>The arrow opens (or closes) the panel of the tray icons that are not on the bar.</summary>
+    private void Overflow_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not FrameworkElement element || element.DataContext is not NotifyIcon icon) return;
-        Ui.Safe(() =>
+        _host.HidePreview();
+        Ui.Safe(() => TrayOverflowWindow.Toggle(OverflowButton, _monitor, _edge, HiddenIcons, TrayIconSize,
+            _host.UnpinTrayIcon), "Hidden icons");
+    }
+
+    private void OpenHiddenForDrag()
+    {
+        if (TrayIconInput.Dragging == null) return;
+        Ui.Safe(() => TrayOverflowWindow.OpenForDrag(OverflowButton, _monitor, _edge, HiddenIcons, TrayIconSize,
+            _host.UnpinTrayIcon), "Hidden icons");
+    }
+
+    private void Overflow_DragEnter(object sender, DragEventArgs e)
+    {
+        Overflow_DragOver(sender, e);
+        if (TrayIconInput.DraggedIcon(e) != null) _springOpen.Start();
+    }
+
+    private void Overflow_DragOver(object sender, DragEventArgs e)
+    {
+        HideDropMark();
+        // An icon from the bar dropped on the arrow goes behind it; one from the panel is there already.
+        e.Effects = TrayIconInput.DraggedIcon(e) is { IsPinned: true } ? DragDropEffects.Move : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void Overflow_DragLeave(object sender, DragEventArgs e) => _springOpen.Stop();
+
+    private void Overflow_Drop(object sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        _springOpen.Stop();
+        if (TrayIconInput.DraggedIcon(e) is not { IsPinned: true } icon) return;
+        // Once the drag is over: until then the icon on the bar is still what is being dragged.
+        Dispatcher.InvokeAsync(() => _host.UnpinTrayIcon(icon));
+    }
+
+    /// <summary>A tray icon dragged over the bar: a line shows where among the tray icons it would land.</summary>
+    private void Bar_DragOver(object sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        if (!_showTrayIcons || TrayIconInput.DraggedIcon(e) is not { } icon)
         {
-            // Apps ask where their icon is (to place flyouts); tell the tray service.
-            var origin = element.PointToScreen(new Point(0, 0));
-            double scale = PresentationSource.FromVisual(element)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
-            icon.Placement = new NativeMethods.Rect
+            e.Effects = DragDropEffects.None;
+            HideDropMark();
+            return;
+        }
+
+        e.Effects = DragDropEffects.Move;
+        var (_, mark, moves) = DropPlace(e.GetPosition(BarRoot), icon);
+        if (!moves)
+        {
+            HideDropMark();
+            return;
+        }
+        Canvas.SetLeft(DropMark, mark.Left);
+        Canvas.SetTop(DropMark, mark.Top);
+        DropMark.Width = mark.Width;
+        DropMark.Height = mark.Height;
+        DropMark.Visibility = Visibility.Visible;
+    }
+
+    private void Bar_DragLeave(object sender, DragEventArgs e) => HideDropMark();
+
+    private void Bar_Drop(object sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        HideDropMark();
+        if (!_showTrayIcons || TrayIconInput.DraggedIcon(e) is not { } icon) return;
+
+        var (before, _, moves) = DropPlace(e.GetPosition(BarRoot), icon);
+        if (!moves) return;
+        // Once the drag is over: until then the icon it came from is still what is being dragged.
+        Dispatcher.InvokeAsync(() => _host.PinTrayIcon(icon, before));
+    }
+
+    private void HideDropMark() => DropMark.Visibility = Visibility.Collapsed;
+
+    /// <summary>
+    /// Where a tray icon dropped at this point of the bar lands: just before the icon this returns (null:
+    /// after the last one), next to whichever icon on the bar is nearest. Also the line that shows that
+    /// spot, in the bar's own coordinates, and whether dropping there changes anything.
+    /// </summary>
+    private (NotifyIcon? Before, Rect Mark, bool Moves) DropPlace(Point at, NotifyIcon dragged)
+    {
+        const double line = 2;
+        var cells = new List<(NotifyIcon Icon, Rect Box)>();
+        for (int i = 0; i < TrayList.Items.Count; i++)
+        {
+            if (TrayList.ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement cell &&
+                cell.DataContext is NotifyIcon icon && cell.IsVisible)
             {
-                Left = (int)origin.X,
-                Top = (int)origin.Y,
-                Right = (int)(element.ActualWidth * scale),
-                Bottom = (int)(element.ActualHeight * scale),
-            };
-            icon.IconMouseEnter(MouseHelper.GetCursorPositionParam());
-        }, "Tray icon hover");
-    }
-
-    private void Tray_MouseLeave(object sender, MouseEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is NotifyIcon icon)
-        {
-            Ui.Safe(() => icon.IconMouseLeave(MouseHelper.GetCursorPositionParam()), "Tray icon hover");
+                cells.Add((icon, new Rect(cell.TransformToAncestor(BarRoot).Transform(new Point(0, 0)), cell.RenderSize)));
+            }
         }
-    }
 
-    private void Tray_MouseMove(object sender, MouseEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is NotifyIcon icon)
+        if (cells.Count == 0)
         {
-            Ui.Safe(() => icon.IconMouseMove(MouseHelper.GetCursorPositionParam()), "Tray icon hover");
+            // None on the bar yet: the first one goes just past the arrow.
+            var arrow = new Rect(OverflowButton.TransformToAncestor(BarRoot).Transform(new Point(0, 0)), OverflowButton.RenderSize);
+            var first = _vertical
+                ? new Rect(arrow.Left + 4, arrow.Bottom, Math.Max(0, arrow.Width - 8), line)
+                : new Rect(arrow.Right, arrow.Top + 4, line, Math.Max(0, arrow.Height - 8));
+            return (null, first, !dragged.IsPinned);
         }
-    }
 
-    private void Tray_MouseDown(object sender, MouseButtonEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is not NotifyIcon icon) return;
-        e.Handled = true;
-        Ui.Safe(() => icon.IconMouseDown(e.ChangedButton, MouseHelper.GetCursorPositionParam(),
-            (int)Native.GetDoubleClickTime()), "Tray icon click");
-    }
+        int nearest = 0;
+        double best = double.MaxValue;
+        for (int i = 0; i < cells.Count; i++)
+        {
+            var box = cells[i].Box;
+            double distance = (at - new Point(box.Left + box.Width / 2, box.Top + box.Height / 2)).LengthSquared;
+            if (distance < best)
+            {
+                best = distance;
+                nearest = i;
+            }
+        }
 
-    private void Tray_MouseUp(object sender, MouseButtonEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is not NotifyIcon icon) return;
-        e.Handled = true;
-        Ui.Safe(() => icon.IconMouseUp(e.ChangedButton, MouseHelper.GetCursorPositionParam(),
-            (int)Native.GetDoubleClickTime()), "Tray icon click");
+        // Rows run across in both layouts (a side bar wraps its icons into rows), so the side is left or right.
+        var near = cells[nearest].Box;
+        int spot = at.X > near.Left + near.Width / 2 ? nearest + 1 : nearest;
+        var before = spot < cells.Count ? cells[spot].Icon : null;
+        var after = spot > 0 ? cells[spot - 1].Icon : null;
+        // Dropped right beside itself, an icon on the bar stays where it is.
+        bool moves = !dragged.IsPinned || (!ReferenceEquals(before, dragged) && !ReferenceEquals(after, dragged));
+
+        double x = (spot > nearest ? near.Right : near.Left) - line / 2;
+        return (before, new Rect(x, near.Top + 4, line, Math.Max(0, near.Height - 8)), moves);
     }
 
     // ------------------------------------------------------------------ network, sound, clock
@@ -789,6 +920,8 @@ public partial class TaskbarView : UserControl
         Ui.Safe(() => Ui.ShowMenu(QuickButton, PlacementMode.MousePoint, network ? TrayMenus.Network() : TrayMenus.Sound()),
             "Tray menu");
     }
+
+    private void Cast_Click(object sender, RoutedEventArgs e) => _host.OpenCast();
 
     private void Clock_Click(object sender, RoutedEventArgs e) =>
         Ui.Safe(ShellHelper.ShowNotificationCenter, "Notification center");

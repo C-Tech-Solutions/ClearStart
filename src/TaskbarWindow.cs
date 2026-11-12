@@ -117,7 +117,7 @@ internal sealed class TaskbarWindow : AppBarWindow
     }
 
     /// <summary>Tells apps that ask "where is the tray?" where our main bar is.</summary>
-    private void ReportTrayPosition()
+    internal void ReportTrayPosition()
     {
         var area = _host.Shell.NotificationArea;
         if (area == null || !_host.IsMainBar(Screen)) return;

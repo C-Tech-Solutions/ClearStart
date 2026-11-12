@@ -9,7 +9,8 @@ Each monitor has its own bar, and each bar is set up on its own.
 </p>
 
 From left to right: **Start**, the **search button**, the **app buttons**, the **weather**, the
-**tray icons**, **network and volume**, and the **clock**.
+**tray icons** with the arrow for the hidden ones, **network and volume**, and the **clock**. A
+[Cast](#cast) button can join them.
 
 - [The bar's right-click menu](#the-bars-right-click-menu)
 - [Moving and resizing](#moving-and-resizing)
@@ -18,6 +19,8 @@ From left to right: **Start**, the **search button**, the **app buttons**, the *
 - [App buttons](#app-buttons)
 - [Pinned apps, bar by bar](#pinned-apps-bar-by-bar)
 - [Monitors without a bar](#monitors-without-a-bar)
+- [Tray icons](#tray-icons)
+- [Cast](#cast)
 - [The clock](#the-clock)
 - [Network and volume](#network-and-volume)
 - [Weather](#weather)
@@ -152,6 +155,40 @@ instead.
 The main bar is the main display's. If that one is hidden, it is the first monitor that still has
 a bar, which then also carries the tray icons, clock and weather when those are not on every bar.
 One monitor always keeps its bar, so there is a way back to the settings.
+
+## Tray icons
+
+Only the tray icons you choose sit on the bar. The rest wait behind the arrow beside them, as in
+Windows. At first only the battery icon (on a laptop) is on the bar.
+
+Windows' own network and volume icons are left out, because ClearStart's
+[network and volume button](#network-and-volume) next to the clock does their job. Switch that
+button off in the settings and they come back, behind the arrow.
+
+<p align="center">
+  <img src="images/tray-overflow.png" alt="The hidden tray icons, in the panel the arrow opens">
+</p>
+
+| Action | Result |
+| --- | --- |
+| Click the arrow | Opens the hidden icons. Click anywhere else, or press Esc, to close them |
+| Drag an icon from the panel onto the bar | Keeps it on the bar, where you drop it. A line shows the spot |
+| Drag an icon along the bar | Moves it |
+| Drag an icon from the bar onto the arrow or into the panel | Hides it behind the arrow again |
+| Click, double-click or right-click an icon | Goes to its app, on the bar or in the panel |
+
+Hold an icon on the arrow for a moment and the panel opens, so you can drop it in. Every bar shows
+the same icons, and the choice is kept in the settings file as
+[`taskbar.pinnedTrayIcons`](settings-file.md#taskbar). Tray icons need live mode: a preview has
+none.
+
+## Cast
+
+A screen with waves. A click opens Windows' Cast panel, the one Windows+K opens: pick a wireless
+display or a TV to show the screen on, or disconnect from one.
+
+It is off at first. Switch it on under **Settings → Taskbar → Cast button**, and it sits between
+the tray icons and the network glyph, on every bar that has the clock.
 
 ## The clock
 

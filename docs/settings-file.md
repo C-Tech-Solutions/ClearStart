@@ -75,10 +75,12 @@ Keys are written here with a dot: `taskbar.edge` is the `edge` key inside the `t
 
 | Key | Default | Meaning |
 | --- | --- | --- |
+| `taskbar.pinnedTrayIcons` | the battery | The tray icons kept on the bar, in order; the rest wait behind the arrow. Each is the ID Windows gives the icon. Set by dragging icons: see [Tray icons](taskbar.md#tray-icons) |
 | `taskbar.trayIconSize` | `16` | Size of the tray icons and the network and volume glyphs on every bar, 12 to 32. Shrunk to fit a thin bar |
 | `taskbar.trayOnAllMonitors` | `true` | The tray icons (the ones apps put next to the clock) on every bar, or only the main one. Live mode only: a preview has no tray icons |
-| `taskbar.clockOnAllMonitors` | `true` | The clock and the network and volume button on every bar, or only the main one |
-| `taskbar.showQuickSettingsButton` | `true` | The network and volume button |
+| `taskbar.clockOnAllMonitors` | `true` | The clock, the Cast button and the network and volume button on every bar, or only the main one |
+| `taskbar.showQuickSettingsButton` | `true` | The network and volume button. While it is on, Windows' own network and volume icons are left out of the tray |
+| `taskbar.showCastButton` | `false` | The Cast button, which opens the Windows Cast panel (the one Windows+K opens) |
 | `taskbar.showSeconds` | `false` | Seconds in the clock |
 
 ## Start menu
