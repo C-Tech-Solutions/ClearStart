@@ -121,7 +121,7 @@ installer, `ClearStart-Setup-<version>.exe`, about 55 MB and signed by C-Tech So
 | **Two choices** | Before it installs: start ClearStart when you sign in (off unless you tick it). At the end: start it now (ticked). Both start [live mode](#live-mode). |
 | **Upgrades in place** | A newer installer replaces the old copy, and closes it first if it is running. |
 | **Updates itself** | The installed copy can fetch and install newer versions from GitHub. See [Updates](updates.md). |
-| **Uninstall** | From **Settings → Apps → Installed apps**. It closes ClearStart, puts the Windows taskbar back as it was, and takes away Start with Windows if it starts this copy. Your settings stay. |
+| **Uninstall** | From **Settings → Apps → Installed apps**. It closes ClearStart, puts the Windows taskbar back as it was, and takes away Start with Windows if it starts this copy. If startup cleanup fails, uninstall stops and keeps the program files so you can retry. Your settings stay. |
 
 To check a download yourself, compare its SHA-256 with the one in the `.sha256.txt` file:
 
@@ -174,13 +174,16 @@ needs no administrator rights.
 
 - It starts **live mode**, not a preview.
 - It is a task in Task Scheduler, `ClearStart at sign-in` followed by your user ID, that runs as
-  you when you sign in. Windows runs it at once, without waiting for the desktop, so ClearStart can
-  hide the Windows taskbar as it appears. Programs in Task Manager's Startup list start only once
+  you when you sign in. This avoids the Startup-list delay, though Windows controls when the task
+  actually runs. Programs in Task Manager's Startup list start only once
   the desktop is up, and Windows holds them back for a while after that: on the PC ClearStart is
   written on, well over a minute.
 - Version 0.2.0 used an entry in that Startup list instead. The first time a newer copy runs in
   live mode, it moves the entry to the task. If Task Scheduler ever refuses the task, ClearStart
   uses the Startup list entry; the text under the switch says which one is in use.
+- Migration and changes to the switch run one at a time, so migration cannot undo a completed
+  switch-off. If an older task cannot be removed during fallback, an enabled Startup-list entry
+  still counts as on; the description also identifies an enabled task that starts another copy.
 - The task points at the copy of `ClearStart.exe` the switch was thrown in. If you move that
   copy, switch it off and on again.
 - Switching the task off in Task Scheduler works too, and shows in ClearStart as off.
@@ -188,11 +191,12 @@ needs no administrator rights.
 ### Between signing out and signing in
 
 When you sign out or shut down with Start with Windows on, ClearStart leaves the Windows taskbar
-set to **hide automatically**. After the next sign-in Explorer then starts its taskbar out of
-sight, and ClearStart hides it altogether as soon as it starts. Any other way of closing
+set to **hide automatically**. This reduces visibility at the next sign-in, but does not guarantee
+that Explorer never draws it. ClearStart hides it as soon as it can. Any other way of closing
 ClearStart (**Exit ClearStart**, `--exit`, `--restore`, uninstalling, or signing out with the
 switch off) puts back the setting the Windows taskbar had before ClearStart first hid it.
-ClearStart keeps that setting on file until then, across restarts.
+ClearStart keeps that setting on file until then, across restarts. If the original setting cannot
+be saved or read, ClearStart leaves auto-hide unchanged rather than changing it without a way back.
 
 If ClearStart does not start after you sign in, you see the Windows taskbar hiding itself: it
 slides up when the mouse reaches the edge of the screen. To have it back as it was, do one of
@@ -211,8 +215,9 @@ started again or you do one of the above.
 ### How soon it takes over
 
 ClearStart puts no code inside Explorer, so it cannot stop Explorer from drawing its taskbar. It
-can only hide it the moment Windows reports it, before ClearStart loads anything else. On a slow
-sign-in you may still glimpse the Windows taskbar for a frame, and ClearStart's own bars follow a
+can only react after Windows reports it, and its sign-in task may start after Explorer. Even with
+auto-hide retained, you may still glimpse the Windows taskbar; this approach does not meet a strict
+"never seen" requirement. ClearStart's own bars follow a
 moment after it has gone. The log says how long each step took after sign-in: look for
 `Windows taskbar hidden` and `Taskbars on screen`.
 

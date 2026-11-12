@@ -82,6 +82,9 @@ lines says how long it was since ClearStart started and since you signed in.
    again the moment it comes back, with a look every two seconds for anything missed. It also
    switches the Windows taskbar to auto-hide, so that it gives up its strip of the desktop, and
    notes the setting it had first in `%LOCALAPPDATA%\ClearStart\explorer-taskbar-state.txt`.
+   Auto-hide is changed only if that record can be saved or read. `Stop` waits for native hides and
+   auto-hide changes to complete and prevents new ones before restoration. A busy
+   Explorer can delay a native call, but WPF bar layout does not run on the guard thread.
    Log: `Windows taskbar hidden`, or `The Windows taskbar is not up yet` and then
    `Windows taskbar hidden as it appeared`.
 3. **It waits for Explorer**, for up to two minutes, if Explorer's taskbar is not up yet. The
@@ -113,7 +116,9 @@ ClearStart does not use them:
   would never start, but ClearStart would have to be the whole shell, and a failed start would
   leave no desktop at all.
 - **Writing Explorer's saved taskbar settings** directly. Leaving auto-hide on at sign-out gets the
-  same effect through the documented call.
+  supported setting through the documented call, but auto-hide is not a guarantee against drawing
+  a taskbar frame. A strict "never seen" sign-in needs a separate design; no Explorer component is
+  included here.
 
 ## The self-test
 
@@ -213,7 +218,7 @@ The script finds its tools by itself, or you can point it at them:
 | **Start with Windows** | An optional task, off by default while live mode is new. Setup runs `ClearStart.exe --start-with-windows on`, which does what the app's own switch does (see [`src/AutoStart.cs`](../src/AutoStart.cs)): a task in Task Scheduler that starts ClearStart at sign-in, or the Run key if Task Scheduler refuses the task. An update leaves it as it was; a live run moves an older version's Run key entry to the task. |
 | **Upgrading** | If the installed copy is running, Setup runs it with `--exit` first. |
 | **Updating** | ClearStart's updater runs Setup with `/VERYSILENT`, `/MERGETASKS="!startup"`, so that Start with Windows stays as it was, and `/RESTART=live` or `/RESTART=preview`. At the end Setup starts the installed copy again in that mode, unless a copy is already running. Without `/RESTART` it starts nothing. |
-| **Uninstalling** | Runs `--restore`, then `--start-with-windows off`, then removes the files. Start with Windows goes only if it starts this copy; an older version's Run key entry is checked too. If ClearStart is still running after `--restore`, it stops before removing anything. The settings and the log stay. |
+| **Uninstalling** | Runs `--restore`, then `--start-with-windows off`, then removes the files. Start with Windows goes only if it starts this copy; an older version's Run key entry is checked too. If ClearStart is still running after `--restore`, or startup cleanup fails, it stops before removing anything. A Task Scheduler read failure is an error, not proof the task is absent. The settings and the log stay. |
 
 `AppId` in `ClearStart.iss` ties every version together, so a new installer upgrades the old one
 in place. Never change it.

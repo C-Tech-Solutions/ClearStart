@@ -26,10 +26,11 @@ internal static class TaskbarGuard
     private static readonly string[] TaskbarClasses = { "Shell_TrayWnd", "Shell_SecondaryTrayWnd" };
     private static readonly uint OwnProcessId = (uint)Environment.ProcessId;
     private static readonly object Gate = new();
-    // Held while the auto-hide setting is being changed; once Stop has it, no change starts. So none can land
-    // after the taskbar has been put back.
+    // Stop drains both kinds of native changes before restoration. Keep their gates separate so an auto-hide
+    // query waiting on the shell cannot hold up the guard's window-hiding callback.
     private static readonly object AutoHideGate = new();
-    private static bool _stopped;
+    private static readonly object HideGate = new();
+    private static volatile bool _stopped;
     private static Thread? _thread;
     private static uint _threadId;
     // Kept here so the garbage collector cannot take it while Windows still calls it.
@@ -69,10 +70,11 @@ internal static class TaskbarGuard
         }
         if (thread == null) return;
 
-        Native.PostThreadMessage(_threadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
-        if (thread != Thread.CurrentThread) thread.Join(TimeSpan.FromSeconds(2));
         // Waits for a change in progress to finish (it asks Explorer, as putting the taskbar back does next).
         lock (AutoHideGate) _stopped = true;
+        lock (HideGate) { } // Any hide that passed its stopped check must finish before Restore shows the bar.
+        Native.PostThreadMessage(_threadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
+        if (thread != Thread.CurrentThread) thread.Join(TimeSpan.FromSeconds(2));
         Log.Info($"Stopped keeping the Windows taskbar hidden; it was hidden {_hiddenAgain} time(s) as it came back");
     }
 
@@ -187,13 +189,19 @@ internal static class TaskbarGuard
     }
 
     /// <summary>
-    /// Asks the window's own thread to hide it and leaves at once, so a busy Explorer cannot hold this thread up.
-    /// It goes to the bottom of the pile, so that if Explorer shows it again it is behind every window until it is
-    /// hidden. Putting it back puts it on top again (<see cref="ExplorerTaskbar.Restore"/>).
+    /// Completes the hide on this background thread before releasing the shutdown gate. Posting an asynchronous
+    /// hide could let it arrive after Restore's final show. A busy Explorer can delay this call, but WPF layout
+    /// does not. Putting the bar back restores its topmost position (<see cref="ExplorerTaskbar.Restore"/>).
     /// </summary>
-    private static void Hide(IntPtr hwnd) =>
-        Native.SetWindowPos(hwnd, Native.HWND_BOTTOM, 0, 0, 0, 0,
-            Native.SWP_HIDEWINDOW | Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE | Native.SWP_ASYNCWINDOWPOS);
+    private static void Hide(IntPtr hwnd)
+    {
+        lock (HideGate)
+        {
+            if (_stopped) return;
+            Native.SetWindowPos(hwnd, Native.HWND_BOTTOM, 0, 0, 0, 0,
+                Native.SWP_HIDEWINDOW | Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
+        }
+    }
 
     /// <summary>
     /// Auto-hide makes the hidden taskbar give up its strip of the desktop. The setting it had first is written
@@ -212,8 +220,7 @@ internal static class TaskbarGuard
                 if (_stopped) return;
                 try
                 {
-                    ExplorerTaskbar.RememberState(primary);
-                    ExplorerTaskbar.EnsureAutoHide(primary);
+                    if (ExplorerTaskbar.RememberState(primary)) ExplorerTaskbar.EnsureAutoHide(primary);
                 }
                 catch (Exception ex)
                 {

@@ -59,10 +59,12 @@ its content is laid out again for the new edge.
 size in the settings. While you drag, only the bar itself changes size. When you let go, Windows
 makes room for it, moving maximized windows out of its way, and the new size is saved.
 
-In live mode the Windows taskbar stays hidden through all of this. Explorer puts its taskbar back
+In live mode ClearStart works to keep the Windows taskbar hidden through all of this. Explorer puts its taskbar back
 on screen whenever the docked bars change: a bar moving or resizing, a monitor coming or going,
 Explorer itself restarting. ClearStart watches for that from a thread of its own and hides it
-again the moment Windows reports it, however busy the bars are.
+again when Windows reports it, independently of bar layout. Explorer may draw a frame before the
+guard receives that report; zero flashes are not guaranteed. Hides finish before shutdown restores
+the Windows taskbar, so a queued hide cannot arrive after that restoration.
 
 | | |
 | --- | --- |

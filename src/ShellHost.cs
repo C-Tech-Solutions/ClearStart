@@ -298,6 +298,12 @@ internal sealed class ShellHost : IDisposable
 
     // ------------------------------------------------------------------ start menu
 
+    /// <summary>All bars accompany the start menu, including bars behind fullscreen windows.</summary>
+    internal void SetStartMenuVisible(bool visible)
+    {
+        foreach (var bar in _bars) bar.SetStartMenuVisible(visible);
+    }
+
     /// <param name="monitor">Monitor to open on; zero = the one the mouse is on.</param>
     public void ToggleStartMenu(IntPtr monitor)
     {
@@ -648,6 +654,7 @@ internal sealed class ShellHost : IDisposable
         double size = Settings.Current.Taskbar.SizeFor(screen.DeviceName, IsSideBar(edge));
         var bar = new TaskbarWindow(this, screen, edge, size);
         bar.Show();
+        bar.SetStartMenuVisible(_startMenu?.IsVisible == true);
         Log.Info($"Taskbar on {TaskbarSettings.MonitorKey(screen.DeviceName)}: {edge} edge, {size} thick");
         return bar;
     }
@@ -1174,7 +1181,7 @@ internal sealed class ShellHost : IDisposable
     /// <param name="sessionEnding">
     /// The user is signing out or shutting down. When ClearStart starts again at the next sign-in, the Windows
     /// taskbar is left on auto-hide (see <see cref="ExplorerTaskbar.ShowForSignOut"/>), so that Explorer starts it
-    /// out of sight instead of showing it until ClearStart is back.
+    /// with reduced visibility until ClearStart is back; this cannot guarantee no taskbar frame is drawn.
     /// </param>
     public void Close(bool sessionEnding)
     {

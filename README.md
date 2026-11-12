@@ -30,6 +30,11 @@ is injected into Explorer, and closing it brings the Windows taskbar straight ba
 > Windows taskbar and hides nothing, and **live mode**, where ClearStart takes the Windows
 > taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
+The changes since 0.2.0 improve resize dragging, move bars without reopening them, and raise the
+bars with the start menu over fullscreen apps. They have been built but not run on a desktop.
+Start with Windows now prefers a sign-in task and hides Explorer's taskbar earlier, but cannot
+guarantee that the Windows taskbar is never drawn. See [startup limits](docs/getting-started.md#how-soon-it-takes-over).
+
 ## Contents
 
 - [What it does](#what-it-does)
@@ -208,6 +213,10 @@ src\bin\Release\net10.0-windows\ClearStart.exe --restore
 
 Uninstalling does the same before it removes anything. None of this can happen in a preview,
 because a preview never hides the Windows taskbar.
+
+Signing out with Start with Windows enabled leaves Windows' taskbar on auto-hide to reduce its
+visibility at the next sign-in. Normal Exit and `--restore` restore its previous setting. See
+[sign-out and recovery](docs/getting-started.md#between-signing-out-and-signing-in).
 
 ## Guides
 

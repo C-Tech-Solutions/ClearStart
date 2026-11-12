@@ -24,12 +24,14 @@ what has not, and what is missing.
 
 ## Known problems in 0.2.0
 
-These have been seen on that desktop. The fixes for all three are in the code but have not been
-run yet; see [Changed since 0.2.0, not run yet](#changed-since-020-not-run-yet).
+These have been seen on that desktop. Resize and fullscreen/menu fixes are in the code but have
+not been run yet. Taskbar flashing during moves and sign-in is mitigated, not guaranteed absent;
+see [Changed since 0.2.0, not run yet](#changed-since-020-not-run-yet).
 
 - **Resizing a bar is choppy.** Dragging a bar's edge does not follow the mouse smoothly.
 - **The Windows taskbar shows for a moment** when a bar is moved or resized in live mode.
 - **After a restart, the Windows taskbar shows until ClearStart has loaded.**
+- **Over a fullscreen window, the Windows key opens the menu but leaves the bars behind.**
 
 ## What has not been run
 
@@ -84,6 +86,13 @@ These are in the code, and build, but have not been run on a real desktop yet:
 - **Resizing a bar** changes only that bar while the mouse is down, and docks it once when it is
   let go.
 - **Moving a bar** keeps it open, instead of closing it and opening a new one.
+- **Opening the start menu over fullscreen windows** raises all bars until the menu closes,
+  then restores their normal fullscreen behavior.
+- **Startup migration and the startup switch** are serialized, including commands from Setup.
+  The switch also recognizes an enabled Run-key fallback when an older task remains.
+- **Uninstall stops if startup cleanup fails,** keeping the app files available for a retry.
+- **Auto-hide changes require a readable saved original setting,** and shutdown waits for native
+  hides and auto-hide changes before restoring Windows' taskbar.
 - **The tray, the weather, the update check and the list of apps** start after the bars are on
   screen.
 - **The installer's copy is compiled ahead of time** (ReadyToRun).

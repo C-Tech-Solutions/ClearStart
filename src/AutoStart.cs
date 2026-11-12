@@ -53,13 +53,15 @@ internal static class AutoStart
     {
         get
         {
-            if (ReadTask() is { } task) return task.Enabled && SamePath(task.Program, ThisProgram);
-            return SamePath(RunEntryTarget(), ThisProgram) && !SwitchedOffInWindows();
+            return (ReadTask() is { Enabled: true } task && SamePath(task.Program, ThisProgram))
+                || (SamePath(RunEntryTarget(), ThisProgram) && !SwitchedOffInWindows());
         }
     }
 
     /// <summary>Sets Windows to start this copy at sign-in, or to start no copy.</summary>
-    public static void Set(bool enabled)
+    public static void Set(bool enabled) => ChangeStartup(() => SetCore(enabled));
+
+    private static void SetCore(bool enabled)
     {
         if (!enabled)
         {
@@ -78,6 +80,8 @@ internal static class AutoStart
         }
         else
         {
+            try { DeleteTask(); }
+            catch (Exception ex) { Log.Warn("Could not remove the old sign-in task: " + ex.Message); }
             WriteRunEntry(program);
             Log.Info("Start with Windows: on, by the Run key (Task Scheduler would not take the task)");
         }
@@ -91,11 +95,14 @@ internal static class AutoStart
     {
         try
         {
-            string? program = ThisProgram;
-            if (program == null || !SamePath(RunEntryTarget(), program) || SwitchedOffInWindows()) return;
-            if (!RegisterTask(program)) return;
-            DeleteRunEntry();
-            Log.Info("Start with Windows moved from the Run key to a task in Task Scheduler, which starts ClearStart sooner");
+            ChangeStartup(() =>
+            {
+                string? program = ThisProgram;
+                if (program == null || !SamePath(RunEntryTarget(), program) || SwitchedOffInWindows()) return;
+                if (!RegisterTask(program)) return;
+                DeleteRunEntry();
+                Log.Info("Start with Windows moved from the Run key to a task in Task Scheduler, which starts ClearStart sooner");
+            });
         }
         catch (Exception ex)
         {
@@ -118,8 +125,11 @@ internal static class AutoStart
                     Set(true);
                     return 0;
                 case "off":
-                    if (SamePath(ReadTask()?.Program, ThisProgram)) DeleteTask();
-                    if (SamePath(RunEntryTarget(), ThisProgram)) DeleteRunEntry();
+                    ChangeStartup(() =>
+                    {
+                        if (SamePath(RunEntryTarget(), ThisProgram)) DeleteRunEntry();
+                        if (SamePath(ReadTask(throwOnError: true)?.Program, ThisProgram)) DeleteTask();
+                    });
                     Log.Info("Start with Windows: off for this copy");
                     return 0;
                 default:
@@ -138,7 +148,14 @@ internal static class AutoStart
     public static string Describe()
     {
         var task = ReadTask();
-        string? target = task?.Program ?? RunEntryTarget();
+        string? runTarget = RunEntryTarget();
+        if (SamePath(runTarget, ThisProgram) && !SwitchedOffInWindows()
+            && !(task is { Enabled: true } activeTask && SamePath(activeTask.Program, ThisProgram)))
+        {
+            return $"On: Windows starts {runTarget} from its Startup list."
+                + (task is { Enabled: true } ? $" A sign-in task also starts {task.Value.Program}." : "");
+        }
+        string? target = task?.Program ?? runTarget;
         if (target == null) return "Off: Windows does not start ClearStart.";
         if (!SamePath(target, ThisProgram))
         {
@@ -161,10 +178,28 @@ internal static class AutoStart
 
     // ------------------------------------------------------------------ the task
 
+    /// <summary>Serializes migration and explicit changes, including Setup's separate process.</summary>
+    private static void ChangeStartup(Action change)
+    {
+        string sid = UserSid.Value ?? throw new InvalidOperationException("Cannot identify the startup task's user");
+        using var mutex = new Mutex(false, @"Global\ClearStart.Startup." + sid);
+        try
+        {
+            if (!mutex.WaitOne(TimeSpan.FromSeconds(10)))
+                throw new TimeoutException("Another ClearStart copy is changing Start with Windows; try again");
+        }
+        catch (AbandonedMutexException)
+        {
+            // We own it now; re-read the entries inside the operation.
+        }
+        try { change(); }
+        finally { mutex.ReleaseMutex(); }
+    }
+
     private readonly record struct TaskInfo(bool Enabled, string? Program);
 
     /// <summary>The task, or null when there is none (or Task Scheduler cannot be asked).</summary>
-    private static TaskInfo? ReadTask()
+    private static TaskInfo? ReadTask(bool throwOnError = false)
     {
         if (TaskName is not { } name) return null;
         try
@@ -185,7 +220,7 @@ internal static class AutoStart
                 .Elements(TaskXml + "Command").Select(c => c.Value).FirstOrDefault();
             return new TaskInfo(enabled, ProgramIn(command));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!throwOnError)
         {
             Log.Warn("Could not read the sign-in task: " + ex.Message);
             return null;

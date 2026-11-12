@@ -15,6 +15,7 @@ internal sealed class TaskbarWindow : AppBarWindow
     private TaskbarView _view;
     private bool _sideBar;
     private double _size;
+    private bool _startMenuVisible;
 
     /// <param name="size">Thickness: the height of a top or bottom bar, the width of a side bar.</param>
     public TaskbarWindow(ShellHost host, AppBarScreen screen, AppBarEdge edge, double size)
@@ -37,6 +38,27 @@ internal sealed class TaskbarWindow : AppBarWindow
     public IntPtr Monitor => Screen.HMonitor;
 
     public AppBarEdge Edge => AppBarEdge;
+
+    /// <summary>Temporarily raises every bar with the menu, then resumes normal fullscreen handling.</summary>
+    public void SetStartMenuVisible(bool visible)
+    {
+        _startMenuVisible = visible;
+        if (visible)
+        {
+            base.OnFullScreenLeave();
+            return;
+        }
+
+        var fullscreen = _fullScreenHelper.FullScreenApps.FirstOrDefault(app =>
+            app.screen.DeviceName == Screen.DeviceName || app.screen.IsVirtualScreen);
+        if (fullscreen != null) base.OnFullScreenEnter(fullscreen);
+        else base.OnFullScreenLeave();
+    }
+
+    protected override void OnFullScreenEnter(FullScreenApp app)
+    {
+        if (!_startMenuVisible) base.OnFullScreenEnter(app);
+    }
 
     /// <summary>Shows or hides the resize handle after the "lock taskbar size" setting changed.</summary>
     public void RefreshLock() => _view.ApplyLock();

@@ -142,7 +142,17 @@ var
 begin
   Exe := ExpandConstant('{app}\{#AppExe}');
   if FileExists(Exe) then
-    Exec(Exe, '--start-with-windows off', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  begin
+    if not Exec(Exe, '--start-with-windows off', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or
+       (ResultCode <> 0) then
+    begin
+      Log('Could not remove Start with Windows, so the uninstall stops here.');
+      if not UninstallSilent then
+        MsgBox('ClearStart could not remove its Start with Windows entry. ' +
+               'Your files have been kept. Try uninstalling again after Task Scheduler is available.', mbError, MB_OK);
+      Abort;
+    end;
+  end;
 
   if RegQueryStringValue(HKCU, RunKey, 'ClearStart', Command) and
      (Pos(Uppercase(ExpandConstant('{app}\{#AppExe}')), Uppercase(Command)) > 0) then

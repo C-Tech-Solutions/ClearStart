@@ -175,7 +175,6 @@ internal static class Native
     internal const uint SWP_NOACTIVATE = 0x0010;
     internal const uint SWP_SHOWWINDOW = 0x0040;
     internal const uint SWP_HIDEWINDOW = 0x0080;
-    internal const uint SWP_ASYNCWINDOWPOS = 0x4000;
     internal static readonly IntPtr HWND_TOPMOST = new(-1);
     internal static readonly IntPtr HWND_BOTTOM = new(1);
 

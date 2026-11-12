@@ -473,10 +473,10 @@ public partial class TaskbarView : UserControl
     private void Grip_MouseDown(object sender, MouseButtonEventArgs e)
     {
         if (!Native.GetCursorPos(out _dragStart)) return;
+        if (!ResizeGrip.CaptureMouse()) return;
         _dragStartThickness = _thickness;
         _resizing = true;
         ResizeStarted?.Invoke();
-        ResizeGrip.CaptureMouse();
         e.Handled = true;
     }
 

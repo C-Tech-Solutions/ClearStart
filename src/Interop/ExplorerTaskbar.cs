@@ -22,19 +22,21 @@ internal static class ExplorerTaskbar
     /// "Start with Windows" on, which leaves auto-hide on until ClearStart is back (see <see cref="ShowForSignOut"/>).
     /// </summary>
     /// <param name="primary">Explorer's main taskbar window.</param>
-    public static void RememberState(IntPtr primary)
+    public static bool RememberState(IntPtr primary)
     {
         try
         {
-            if (File.Exists(StateFile)) return;
+            if (File.Exists(StateFile)) return int.TryParse(File.ReadAllText(StateFile).Trim(), out _);
             Directory.CreateDirectory(Log.DataDirectory);
             int state = GetState(primary);
             File.WriteAllText(StateFile, state.ToString());
             Log.Info($"Noted the Windows taskbar's own setting, to put back later: auto-hide {((state & ABS_AUTOHIDE) != 0 ? "on" : "off")}");
+            return true;
         }
         catch (Exception ex)
         {
             Log.Error("Could not record the Windows taskbar state", ex);
+            return false;
         }
     }
 
@@ -58,8 +60,8 @@ internal static class ExplorerTaskbar
     /// <summary>
     /// For signing out with "Start with Windows" on. Shows the Windows taskbar windows again, so a sign-out
     /// that is cancelled still leaves a taskbar, but leaves auto-hide on and keeps the record of the original
-    /// setting. At the next sign-in Explorer then starts its taskbar out of sight, and ClearStart, starting
-    /// moments later, hides it before it is ever in the way.
+    /// setting. This reduces visibility at the next sign-in, but does not guarantee that Explorer never draws
+    /// its taskbar before ClearStart can hide it.
     /// </summary>
     public static void ShowForSignOut()
     {
