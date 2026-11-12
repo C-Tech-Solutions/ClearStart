@@ -9,6 +9,7 @@ using ManagedShell.Common.Enums;
 using ManagedShell.Common.Logging;
 using ManagedShell.Common.Logging.Observers;
 using ManagedShell.WindowsTasks;
+using ManagedShell.WindowsTray;
 using Microsoft.Win32;
 
 namespace ClearStart;
@@ -68,6 +69,7 @@ internal sealed class ShellHost : IDisposable
     private string _screenSignature = "";
     private int _rebuildRetries;
     private bool _started;
+    private bool _trayStarted;
     private bool _disposed;
 
     public ShellHost(HostMode mode, string? logDirectory = null)
@@ -85,7 +87,10 @@ internal sealed class ShellHost : IDisposable
         config.TaskIconSize = IconSize.Large;
         bool hostTray = mode == HostMode.Live;
         config.EnableTrayService = hostTray;
-        config.AutoStartTrayService = hostTray;
+        // Not yet: StartTray does it, once the bars are up.
+        config.AutoStartTrayService = false;
+        // The tray icons kept on the bar; the rest wait behind the arrow beside them.
+        config.PinnedNotifyIcons = Settings.Current.Taskbar.PinnedTrayIcons.ToArray();
         Shell = new ShellManager(config);
 
         // One shared, ungrouped list of windows for every bar.
@@ -185,6 +190,81 @@ internal sealed class ShellHost : IDisposable
         UpdateWinKeyHook();
 
         Log.Info($"Started in {Mode} mode with {_bars.Count} taskbar(s)");
+
+        // Queued behind the drawing of the bars, so it runs when they are on screen.
+        if (Mode == HostMode.Live) _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(StartTray));
+    }
+
+    /// <summary>
+    /// Starts hosting the tray. That tells every app a new taskbar is here, and each one answers by handing
+    /// over its icon, giving up after about four seconds. So it waits until the bars are up and this thread
+    /// is free to answer: started while they are still being built, it loses most of the icons for good.
+    /// </summary>
+    private void StartTray()
+    {
+        if (_disposed || _trayStarted || Shell.NotificationArea is not { } area) return;
+        _trayStarted = true;
+        try
+        {
+            area.Initialize();
+            if (area.IsFailed)
+            {
+                Log.Warn("The tray could not be started; the bars will have no tray icons");
+                return;
+            }
+
+            // The tray's two lists, without the icons that do not belong in it.
+            area.PinnedIcons.Filter = item => item is NotifyIcon { IsPinned: true } icon && BelongsInTray(icon);
+            area.UnpinnedIcons.Filter = item => item is NotifyIcon { IsPinned: false } icon && BelongsInTray(icon);
+
+            // The tray's own window exists only now: say again where the main bar is.
+            foreach (var bar in _bars) bar.ReportTrayPosition();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not start the tray", ex);
+            return;
+        }
+
+        // How many apps answered, for the log: the number to look at when icons are missing.
+        var timer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
+        {
+            Interval = TimeSpan.FromSeconds(10),
+        };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            if (_disposed) return;
+            int shown = area.TrayIcons.Count(BelongsInTray);
+            int onBar = area.TrayIcons.Count(icon => icon.IsPinned && BelongsInTray(icon));
+            int leftOut = area.TrayIcons.Count(icon => !icon.IsHidden && !BelongsInTray(icon));
+            Log.Info($"Tray icons: {shown}, {onBar} of them on the taskbar"
+                + (leftOut > 0 ? $"; {leftOut} of Windows' own left out" : ""));
+        };
+        timer.Start();
+    }
+
+    // Windows' own volume and network icons.
+    private static readonly Guid[] WindowsOwnIcons =
+    {
+        new(NotificationArea.VOLUME_GUID),
+        new(NotificationArea.NETWORK_GUID),
+    };
+
+    /// <summary>
+    /// False for an icon its app has hidden, and for Windows' own volume and network icons while the
+    /// network and volume button is on the bars: that button does their job already.
+    /// </summary>
+    private static bool BelongsInTray(NotifyIcon icon) =>
+        !icon.IsHidden
+        && !(Settings.Current.Taskbar.ShowQuickSettingsButton && Array.IndexOf(WindowsOwnIcons, icon.GUID) >= 0);
+
+    /// <summary>Looks again at which icons belong in the tray, after a setting it goes by may have changed.</summary>
+    private void RefreshTrayLists()
+    {
+        if (Shell.NotificationArea is not { } area) return;
+        area.PinnedIcons?.Refresh();
+        area.UnpinnedIcons?.Refresh();
     }
 
     // ------------------------------------------------------------------ start menu
@@ -545,6 +625,7 @@ internal sealed class ShellHost : IDisposable
     {
         CloseBars();
         FindWindowsTaskbars();
+        RefreshTrayLists();
 
         _screenSignature = ScreenSignature();
         int failures = 0;
@@ -928,6 +1009,50 @@ internal sealed class ShellHost : IDisposable
         Ui.Safe(() => Native.TapShortcut(Native.VK_LWIN, Native.VK_S), "Windows Search");
     }
 
+    /// <summary>The Cast button was clicked: opens Windows' Cast panel, the way Win+K does.</summary>
+    public void OpenCast()
+    {
+        // As with the search: nothing of Windows' on the desktop during a self-test, and Win+K is the only way in.
+        if (_disposed || Mode == HostMode.SelfTest) return;
+        HidePreview();
+        Ui.Safe(() => Native.TapShortcut(Native.VK_LWIN, Native.VK_K), "Cast");
+    }
+
+    /// <summary>
+    /// Keeps a tray icon on the bar, just before another one there (null: after the last), or moves it there
+    /// when it is on the bar already. Every bar shows the same icons, so this changes them all.
+    /// </summary>
+    public void PinTrayIcon(NotifyIcon icon, NotifyIcon? before)
+    {
+        if (Shell.NotificationArea is not { } area) return;
+        Ui.Safe(() =>
+        {
+            // Places count in the saved list, which also holds icons whose apps are not running now.
+            int count = area.PinnedNotifyIcons.Length;
+            int position = before is { IsPinned: true } ? before.PinOrder : count;
+            icon.Pin(Math.Clamp(position, 0, count));
+            SaveTrayPins(area);
+        }, "Keep a tray icon on the taskbar");
+    }
+
+    /// <summary>Takes a tray icon off the bar, into the panel behind the arrow.</summary>
+    public void UnpinTrayIcon(NotifyIcon icon)
+    {
+        if (Shell.NotificationArea is not { } area) return;
+        Ui.Safe(() =>
+        {
+            icon.Unpin();
+            SaveTrayPins(area);
+        }, "Hide a tray icon");
+    }
+
+    private void SaveTrayPins(NotificationArea area)
+    {
+        Settings.Current.Taskbar.PinnedTrayIcons = area.PinnedNotifyIcons.ToList();
+        SaveSettings();
+        Log.Info($"Tray icons on the taskbar: {area.PinnedNotifyIcons.Length}");
+    }
+
     /// <summary>Writes the settings file. Our own saves do not come back as a "settings changed" event.</summary>
     private void SaveSettings()
     {
@@ -949,6 +1074,7 @@ internal sealed class ShellHost : IDisposable
             _rebuildPending = false;
 
             Pins.Reload();
+            Shell.NotificationArea?.SetPinnedIcons(Settings.Current.Taskbar.PinnedTrayIcons.ToArray());
             CloseStartMenu();
             RebuildBars();
             UpdateWinKeyHook();

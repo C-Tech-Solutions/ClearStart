@@ -95,7 +95,7 @@ taskbar, shows your apps' tray icons on its own bars, and opens its own start me
 key. Closing ClearStart undoes all three.
 
 > [!WARNING]
-> Live mode is written but **has not been run yet**. If you try it, keep this command to hand. It
+> Live mode has been run on **one PC only**. If you try it, keep this command to hand. It
 > closes ClearStart and forces the Windows taskbar back, even if ClearStart was ended without the
 > chance to clean up:
 >

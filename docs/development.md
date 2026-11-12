@@ -226,6 +226,8 @@ one whose files are named differently.
 | `TaskbarApps.cs` | The app buttons: windows grouped by app and merged with the pinned apps |
 | `PinStore.cs` | The pinned apps, for the taskbar and the start menu |
 | `ThumbnailWindow.cs`, `ThumbnailView.xaml` | The live previews |
+| `TrayIconInput.cs` | The mouse on a tray icon: clicks go to its app, a drag moves it on or off the bar |
+| `TrayOverflowWindow.cs`, `TrayOverflowView.xaml` | The panel of hidden tray icons that the arrow opens |
 | `TrayMenus.cs` | The right-click menus for volume and network |
 | `StartGlyph.cs` | The Start button's designs |
 

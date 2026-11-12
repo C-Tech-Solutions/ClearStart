@@ -134,6 +134,7 @@ sits, and which pinned apps it shows (all, a chosen few, or none).
 | Tray icons | The icons apps put next to the clock: on the main bar, or on every bar |
 | Clock, network and volume | On the main bar, or on every bar |
 | Network and volume button | Click it for quick settings; right-click for sound or network options |
+| Cast button | Off at first. Opens the Windows Cast panel, the one Windows+K opens. See [Cast](taskbar.md#cast) |
 | Show seconds on the clock | On or off |
 
 Sliders, colors, the pinned apps choices and the search button change the bars in place. The

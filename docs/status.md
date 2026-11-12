@@ -15,17 +15,14 @@ what has not, and what is missing.
 | | |
 | --- | --- |
 | **Preview mode** | Run on one desktop: Windows 11 25H2, four monitors at 100% scaling. |
+| **Live mode** | Run on that desktop in the Windows taskbar's place, with a bar on each of the four monitors: hiding the Windows taskbar and putting it back on exit, your apps' tray icons on the bars, the hidden ones behind the arrow, dragging icons on and off the bar, and the Cast button. |
 | **The self-test** | `ClearStart.exe --selftest` draws about eighty pictures of the bars, the start menu, the weather panel, the settings pages and the Start button designs, checks where things end up, and reports any error. It passes with no errors. |
 | **The installer** | Built and signed, then run on that desktop without its pages on screen: installing, installing again over a running copy, adding Start with Windows, and uninstalling. The installed copy passes the self-test. |
 
 ## What has not been run
 
-**Live mode.** Everything that only happens when ClearStart takes the Windows taskbar's place is
-written but has never been run:
+**Parts of live mode.** These are written but have not been run:
 
-- hiding the Windows taskbar and putting it back on exit;
-- showing your apps' tray icons on ClearStart's bars;
-- opening the start menu with the Windows key;
 - `ClearStart.exe --restore` after live mode. It has run only while a preview was up, when
   uninstalling, and there was nothing to put back;
 - starting with Windows (the switch starts live mode).
@@ -43,6 +40,7 @@ have not been tried.
 These are written, and the self-test covers what it can of them, but nobody has yet confirmed each
 one by clicking it on a real desktop:
 
+- the Windows key opening the start menu in live mode;
 - the search button opening **Windows Search**, and switching what it opens from its right-click
   menu and from the settings page;
 - **Show desktop**;
@@ -61,7 +59,6 @@ one by clicking it on a real desktop:
 - **No download yet.** You build it from source, or build [the installer](getting-started.md#the-installer)
   yourself. Nothing has been published, so the [updater](updates.md) has nothing to offer yet.
 - **No jump lists** on the app buttons.
-- **No tray overflow.** Every tray icon is shown on the bar; there is no flyout for the extra ones.
 - **No volume slider of its own.** Clicking the volume glyph opens Windows' quick settings.
 - **The start menu's own search finds apps and commands only.** For files, settings and the web,
   use the search button next to Start, which opens Windows Search.

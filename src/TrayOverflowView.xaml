@@ -1,0 +1,45 @@
+<UserControl x:Class="ClearStart.TrayOverflowView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="{StaticResource UiFont}" FontSize="13" Foreground="White"
+             UseLayoutRounding="True" SnapsToDevicePixels="True">
+
+    <UserControl.Resources>
+        <!-- A hidden tray icon. The mouse goes to its app, as on the bar; dragging it to the bar keeps it there. -->
+        <DataTemplate x:Key="IconTemplate">
+            <Border x:Name="Cell" Background="Transparent" CornerRadius="4" ToolTip="{Binding Title}"
+                    Width="{DynamicResource TrayCellSize}" Height="{DynamicResource TrayCellSize}"
+                    MouseEnter="Icon_MouseEnter" MouseLeave="Icon_MouseLeave" MouseMove="Icon_MouseMove"
+                    MouseDown="Icon_MouseDown" MouseUp="Icon_MouseUp" LostMouseCapture="Icon_LostCapture">
+                <Image Source="{Binding Icon}" Width="{DynamicResource TrayIconSize}" Height="{DynamicResource TrayIconSize}"
+                       RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="{Binding Title}"/>
+            </Border>
+            <DataTemplate.Triggers>
+                <Trigger SourceName="Cell" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Cell" Property="Background" Value="{StaticResource HoverBrush}"/>
+                </Trigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <!-- The whole panel takes a dropped icon: that hides it from the bar. -->
+    <Border Background="{StaticResource MenuBackgroundBrush}" BorderBrush="{StaticResource MenuBorderBrush}"
+            BorderThickness="1" CornerRadius="8" Padding="6" AllowDrop="True"
+            DragEnter="Panel_DragOver" DragOver="Panel_DragOver" Drop="Panel_Drop">
+        <Grid>
+            <ItemsControl x:Name="Icons" ItemTemplate="{StaticResource IconTemplate}" Focusable="False">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+
+            <StackPanel x:Name="Empty" Width="200" Margin="8,4,8,6" Visibility="Collapsed">
+                <TextBlock Text="No hidden icons" FontWeight="SemiBold"/>
+                <TextBlock Text="Drag an icon here from the taskbar to hide it." Margin="0,4,0,0" FontSize="12"
+                           Opacity="0.7" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

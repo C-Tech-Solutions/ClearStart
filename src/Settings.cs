@@ -208,6 +208,16 @@ public sealed class TaskbarSettings
     /// <summary>The tray icons (the ones apps put next to the clock) on every bar, or only on the main one.</summary>
     public bool TrayOnAllMonitors { get; set; } = true;
 
+    /// <summary>
+    /// The tray icons that sit on the bar, in order, by the names the tray gives them. All the others wait
+    /// behind the arrow beside them; dragging an icon from one place to the other moves it. At first only a
+    /// laptop's battery is out: the network and the volume have the quick settings button already.
+    /// </summary>
+    public List<string> PinnedTrayIcons { get; set; } = new() { BatteryTrayIcon };
+
+    /// <summary>The name of the battery icon Windows puts in the tray.</summary>
+    public const string BatteryTrayIcon = "7820ae75-23e3-4229-82c1-e41cb67d5b9c";
+
     /// <summary>The clock and the network/volume button on every bar, or only on the main one.</summary>
     public bool ClockOnAllMonitors { get; set; } = true;
 
@@ -222,6 +232,9 @@ public sealed class TaskbarSettings
 
     /// <summary>Button that opens the Windows quick settings panel (network, volume, battery).</summary>
     public bool ShowQuickSettingsButton { get; set; } = true;
+
+    /// <summary>Button that opens the Windows Cast panel, the one Win+K opens. Off until switched on.</summary>
+    public bool ShowCastButton { get; set; }
 
     public bool ShowSeconds { get; set; }
 
@@ -656,6 +669,8 @@ public sealed class Settings
         settings.Taskbar.StartButtonBackgroundColor ??= "";
         settings.Taskbar.StartButtonPicture ??= "";
         settings.Taskbar.StartButtonText = TaskbarSettings.ValidStartButtonText(settings.Taskbar.StartButtonText);
+        settings.Taskbar.PinnedTrayIcons ??= new List<string>();
+        settings.Taskbar.PinnedTrayIcons.RemoveAll(string.IsNullOrWhiteSpace);
 
         // Monitor names are matched without regard to case, and a hand-edited "DISPLAY1": null is tolerated.
         var monitors = new Dictionary<string, MonitorSettings>(StringComparer.OrdinalIgnoreCase);

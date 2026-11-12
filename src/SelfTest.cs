@@ -462,6 +462,28 @@ internal static partial class SelfTest
                 // Too big for a thin bar: it should be shrunk to fit rather than cut off.
                 await DrawBarAsync(host, primary, File("taskbar-thin-tray-32.png"), AppBarEdge.Top, 28, 1600, null, 1200, null, 32, sampleTray);
 
+                // The panel the arrow beside the tray opens: the same stand-ins as hidden icons, and with none.
+                var overflow = new TrayOverflowView(sampleTray, 16, null)
+                {
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                await DrawAsync(overflow, 320, 200, File("tray-overflow.png"));
+                var noneHidden = new TrayOverflowView(null, 16, null)
+                {
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                await DrawAsync(noneHidden, 320, 160, File("tray-overflow-empty.png"));
+                report["trayOverflow"] = new
+                {
+                    icons = overflow.IconCount,
+                    whenNoneHidden = noneHidden.IconCount,
+                    // Only the battery, unless the user has chosen others: the rest start behind the arrow.
+                    keptOnTheBarByDefault = new TaskbarSettings().PinnedTrayIcons,
+                    keptOnTheBarNow = Settings.Current.Taskbar.PinnedTrayIcons.Count,
+                };
+
                 // Tray icons, and the clock, on the main bar only or on every bar: a second display's bar drawn
                 // each way. The two settings are changed in memory only and put back; nothing is saved.
                 var second = screens.FirstOrDefault(s => !s.Primary && s.Bounds.Width / Native.ScaleOf(s.HMonitor) >= 900);
