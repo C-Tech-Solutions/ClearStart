@@ -52,7 +52,9 @@ settings page says so. Setup's log is `setup.log` in the same `updates` folder. 
 install that version again by itself; **Install** tries again.
 
 **Install updates automatically** is off unless you turn it on. When it is on, ClearStart downloads
-a newer version as soon as it finds one and installs it once nobody has used the PC for ten minutes.
+a newer version as soon as an automatic check finds one and installs it once nobody has used the PC
+for ten minutes. It works together with **Check for updates automatically**: with that off, nothing
+is downloaded until you click **Install**.
 
 ## Which copies update themselves
 

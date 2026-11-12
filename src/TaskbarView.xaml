@@ -131,7 +131,8 @@
         <StackPanel x:Name="EndGroup" Orientation="Horizontal" HorizontalAlignment="Right" SizeChanged="Layout_SizeChanged">
             <!-- A newer ClearStart is out: on the main bar only. Filled in by TaskbarView.Updates.cs. -->
             <Button x:Name="UpdateButton" Style="{StaticResource FlatButton}" Margin="{DynamicResource ButtonMargin}" Padding="8,0"
-                    Visibility="Collapsed" Click="Update_Click" Loaded="UpdateButton_Loaded" Unloaded="UpdateButton_Unloaded">
+                    Visibility="Collapsed" AutomationProperties.Name="Update ClearStart"
+                    Click="Update_Click" Loaded="UpdateButton_Loaded" Unloaded="UpdateButton_Unloaded">
                 <Grid>
                     <TextBlock x:Name="UpdateGlyph" FontFamily="{StaticResource IconFont}" FontSize="{DynamicResource TrayGlyphSize}"
                                Text="&#xE896;" VerticalAlignment="Center"/>

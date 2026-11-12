@@ -246,9 +246,10 @@ internal sealed class UpdateService : IDisposable
 
     private bool Allowed => !_disposed && _mode != HostMode.SelfTest;
 
+    // With automatic checks off, nothing goes to GitHub unless the user asks: not even a download of news found earlier.
     private bool WantsAutomaticDownload() =>
         Latest != null && State == UpdateState.Idle && CanInstall && Settings.Current.Updates.InstallAutomatically
-        && Latest.Version != _setupFailedFor;
+        && Settings.Current.Updates.CheckAutomatically && Latest.Version != _setupFailedFor;
 
     private void Tick()
     {

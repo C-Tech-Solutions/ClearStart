@@ -67,7 +67,7 @@ internal sealed partial class SettingsView
             Toggle(() => Settings.Current.Updates.CheckAutomatically,
                 value => Settings.Current.Updates.CheckAutomatically = value, SettingsChange.Updates)));
         page.Children.Add(Row("Install updates automatically",
-            "Downloads a newer version as soon as it is found, and installs it when the PC has not been used for a while",
+            "Downloads a newer version as soon as an automatic check finds it, and installs it when the PC has not been used for a while",
             Toggle(() => Settings.Current.Updates.InstallAutomatically,
                 value => Settings.Current.Updates.InstallAutomatically = value, SettingsChange.Updates)));
         page.Children.Add(elsewhere);
