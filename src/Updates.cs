@@ -88,6 +88,8 @@ internal sealed class UpdateService : IDisposable
     private bool _installWhenReady;
     // A version whose Setup ran and stopped without updating: not tried again by itself in this session.
     private Version? _setupFailedFor;
+    // Why that Setup did not update, for as long as its download is kept.
+    private string? _setupProblem;
     // The verified Setup, kept open so that nothing can change it before it runs.
     private FileStream? _verified;
     private bool _disposed;
@@ -141,7 +143,9 @@ internal sealed class UpdateService : IDisposable
                 case UpdateState.Downloading:
                     return $"Downloading version {version}… {Progress}%";
                 case UpdateState.Ready:
-                    return $"Version {version} is downloaded and checked, ready to install";
+                    return _setupProblem != null
+                        ? $"Version {version} is downloaded, but did not install. {_setupProblem}"
+                        : $"Version {version} is downloaded and checked, ready to install";
                 case UpdateState.Checking:
                     return "Checking for updates…";
             }
@@ -220,10 +224,11 @@ internal sealed class UpdateService : IDisposable
     /// Nothing can be checked, downloaded or started in the self-test whatever this says.
     /// </summary>
     internal void ShowSample(ReleaseInfo? latest, UpdateState state, int progress = 0, string? problem = null,
-        DateTime? lastChecked = null, bool canInstall = true)
+        DateTime? lastChecked = null, bool canInstall = true, string? setupProblem = null)
     {
         if (_mode != HostMode.SelfTest) return;
         _sampleCanInstall = canInstall;
+        _setupProblem = setupProblem;
         Latest = latest;
         State = state;
         Progress = progress;
@@ -499,12 +504,12 @@ internal sealed class UpdateService : IDisposable
             setup.Exited += (_, _) => _dispatcher.BeginInvoke(() => SetupEnded(release, setup));
             Log.Info($"Started Setup for version {release.VersionText}; it closes ClearStart and starts it again");
             State = UpdateState.Installing;
-            Problem = null;
+            Problem = _setupProblem = null;
         }
         catch (Exception ex)
         {
             Log.Error("Could not start Setup", ex);
-            Problem = "Setup could not start";
+            _setupProblem = "Setup could not start.";
             _setupFailedFor = release.Version;
         }
         Changed?.Invoke();
@@ -520,7 +525,7 @@ internal sealed class UpdateService : IDisposable
         Log.Warn($"Setup for version {release.VersionText} ended (code {code}) without updating; " +
             "its log is " + Path.Combine(Folder, "setup.log"));
         _setupFailedFor = release.Version;
-        Problem = "Setup stopped without updating. Its log is in " + Folder;
+        _setupProblem = "Setup stopped without updating; its log is in " + Folder;
         State = UpdateState.Ready;
         Changed?.Invoke();
     }
@@ -537,6 +542,7 @@ internal sealed class UpdateService : IDisposable
         string path = _verified.Name;
         _verified.Dispose();
         _verified = null;
+        _setupProblem = null;
         Delete(path);
         if (State == UpdateState.Ready) State = UpdateState.Idle;
     }

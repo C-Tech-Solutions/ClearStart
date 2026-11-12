@@ -271,6 +271,14 @@ internal static partial class SelfTest
                 updates.ShowSample(release, state, progress: 42);
                 statuses.Add(updates.Status);
             }
+            // A Setup that stopped without updating says so, and a failed check meanwhile does not hide it.
+            updates.ShowSample(release, UpdateState.Ready, problem: "Could not reach GitHub to check for updates",
+                setupProblem: "Setup could not start.");
+            statuses.Add(updates.Status);
+            if (!updates.Status.Contains("did not install. Setup could not start.", StringComparison.Ordinal))
+            {
+                errors.Add("updates: a Setup that did not start is not in the status: " + updates.Status);
+            }
             report["updateStatus"] = statuses;
 
             var screens = AppBarScreen.FromAllScreens();

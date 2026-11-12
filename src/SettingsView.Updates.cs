@@ -57,6 +57,8 @@ internal sealed partial class SettingsView
         {
             updates.Changed -= Show;
             updates.Changed += Show;
+            // Catch up with whatever changed while another page was showing.
+            Show();
         };
         card.Unloaded += (_, _) => updates.Changed -= Show;
 
