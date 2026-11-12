@@ -22,7 +22,7 @@ effect as you make them and are saved to [the settings file](settings-file.md).
 | **Taskbar** | Which monitors have a bar and where it sits, what the bars show, and how big the icons are |
 | **Start menu** | How the menu opens, its size and look, and the list of places. See [the start menu](start-menu.md) |
 | **Weather** | Show or hide, location, units, and how often to update |
-| **General** | Start with Windows, the settings file, the log folder, the version, exit |
+| **General** | Start with Windows, updates, the settings file, the log folder, the version, exit |
 
 ## Appearance
 
@@ -161,6 +161,9 @@ What is sent, and when, is under [Weather](taskbar.md#weather) in the taskbar gu
 | Setting | What it does |
 | --- | --- |
 | Start with Windows | Starts ClearStart when you sign in. See [Getting started](getting-started.md#start-with-windows) |
+| Updates | The version you are running and whether a newer one is out, with **What's new**, **Install** and **Check now** |
+| Check for updates automatically | On by default: asks GitHub about once a day. See [Updates](updates.md) |
+| Install updates automatically | Off by default: downloads a newer version when it is found and installs it while the PC is not in use |
 | Settings file | Where the settings are saved |
 | Log folder | What ClearStart did, and anything that went wrong |
 | About | The version you are running, and a button to exit ClearStart |

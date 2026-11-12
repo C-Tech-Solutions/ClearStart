@@ -471,6 +471,16 @@ public sealed class WeatherSettings
     public bool HasPlace => Latitude is >= -90 and <= 90 && Longitude is >= -180 and <= 180;
 }
 
+/// <summary>New versions from ClearStart's releases on GitHub: see docs/updates.md.</summary>
+public sealed class UpdateSettings
+{
+    /// <summary>Ask GitHub a few minutes after the start, and then once a day, whether there is a newer version.</summary>
+    public bool CheckAutomatically { get; set; } = true;
+
+    /// <summary>Download a newer version when one is found, and install it while the PC is not in use.</summary>
+    public bool InstallAutomatically { get; set; }
+}
+
 /// <summary>
 /// User settings, stored as JSON in %APPDATA%\ClearStart\settings.json.
 /// The file is watched: saving it in any editor applies the change immediately.
@@ -482,6 +492,8 @@ public sealed class Settings
     public StartMenuSettings StartMenu { get; set; } = new();
 
     public WeatherSettings Weather { get; set; } = new();
+
+    public UpdateSettings Updates { get; set; } = new();
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -631,6 +643,7 @@ public sealed class Settings
         settings.Weather ??= new WeatherSettings();
         settings.Weather.Place ??= "";
         settings.Weather.RefreshMinutes = Math.Clamp(settings.Weather.RefreshMinutes, 5, 240);
+        settings.Updates ??= new UpdateSettings();
 
         var (minHeight, maxHeight) = TaskbarSettings.SizeLimits(sideBar: false);
         var (minWidth, maxWidth) = TaskbarSettings.SizeLimits(sideBar: true);

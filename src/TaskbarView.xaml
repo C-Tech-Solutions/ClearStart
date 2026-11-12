@@ -126,6 +126,17 @@
         </DockPanel>
 
         <StackPanel x:Name="EndGroup" Orientation="Horizontal" HorizontalAlignment="Right" SizeChanged="Layout_SizeChanged">
+            <!-- A newer ClearStart is out: on the main bar only. Filled in by TaskbarView.Updates.cs. -->
+            <Button x:Name="UpdateButton" Style="{StaticResource FlatButton}" Margin="{DynamicResource ButtonMargin}" Padding="8,0"
+                    Visibility="Collapsed" Click="Update_Click" Loaded="UpdateButton_Loaded" Unloaded="UpdateButton_Unloaded">
+                <Grid>
+                    <TextBlock x:Name="UpdateGlyph" FontFamily="{StaticResource IconFont}" FontSize="{DynamicResource TrayGlyphSize}"
+                               Text="&#xE896;" VerticalAlignment="Center"/>
+                    <Ellipse Width="6" Height="6" Fill="#FF4CC2FF" HorizontalAlignment="Right" VerticalAlignment="Top"
+                             Margin="0,-1,-3,0"/>
+                </Grid>
+            </Button>
+
             <!-- The weather at the chosen place; a click opens the forecast. Filled in by the code-behind. -->
             <Button x:Name="WeatherButton" Style="{StaticResource FlatButton}" Margin="{DynamicResource ButtonMargin}" Padding="8,0"
                     Visibility="Collapsed" Click="Weather_Click" MouseRightButtonUp="Weather_RightClick">

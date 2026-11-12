@@ -30,6 +30,11 @@ written but has never been run:
   uninstalling, and there was nothing to put back;
 - starting with Windows (the switch starts live mode).
 
+**Updating.** The updater's parts are covered by the self-test: reading a release, comparing
+versions, the checksum and the signature checks, and refusing a download that fails them. No
+release has been published yet, so it has never fetched a real release, downloaded a real
+installer, or run Setup to update itself and start again.
+
 **Other setups.** Other versions of Windows, display scaling above 100%, and a PC with one monitor
 have not been tried.
 
@@ -54,7 +59,7 @@ one by clicking it on a real desktop:
 ## Not there yet
 
 - **No download yet.** You build it from source, or build [the installer](getting-started.md#the-installer)
-  yourself. Nothing has been published.
+  yourself. Nothing has been published, so the [updater](updates.md) has nothing to offer yet.
 - **No jump lists** on the app buttons.
 - **No tray overflow.** Every tray icon is shown on the bar; there is no flyout for the extra ones.
 - **No volume slider of its own.** Clicking the volume glyph opens Windows' quick settings.

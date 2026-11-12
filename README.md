@@ -200,16 +200,22 @@ because a preview never hides the Windows taskbar.
 | [The start menu](docs/start-menu.md) | Searching, pinned tiles, and the list of places |
 | [The settings window](docs/settings.md) | Every page, the Start button designs, colors, and clear, blurred and frosted |
 | [The settings file](docs/settings-file.md) | Every key in `settings.json`, with its default |
+| [Updates](docs/updates.md) | How ClearStart checks for a new version, what it sends, how it checks a download, and how to turn it off |
 | [Where it stands](docs/status.md) | What works, what is missing, and what has not been tried yet |
 | [Development](docs/development.md) | How the code is laid out, the self-test, how the pictures here are made, and building and signing the installer |
 
 ## Privacy
 
-ClearStart has no account, no telemetry and no update check. The one thing it fetches is the
-weather, from [Open-Meteo](https://open-meteo.com/), and only after you choose a location: the
-place name you type is sent once to look it up, and after that only the place's coordinates,
-rounded to about half a mile, and the units. Windows' location service is not used. Turning the
-weather off stops the requests.
+ClearStart has no account and no telemetry. It fetches two things:
+
+- **The weather**, from [Open-Meteo](https://open-meteo.com/), and only after you choose a location:
+  the place name you type is sent once to look it up, and after that only the place's coordinates,
+  rounded to about half a mile, and the units. Windows' location service is not used. Turning the
+  weather off stops the requests.
+- **Whether there is a newer version**, from GitHub, about once a day. The request carries
+  ClearStart's version and nothing about you or the PC. Updates are only installed when you click
+  **Install**, or when you have turned on installing them automatically. Turning the check off in
+  the settings stops the requests. See [Updates](docs/updates.md).
 
 ## Built on
 

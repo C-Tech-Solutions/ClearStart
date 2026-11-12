@@ -122,6 +122,7 @@ checksum next to it.
 | **For you alone** | It installs into `%LOCALAPPDATA%\Programs\ClearStart`, adds ClearStart to the Start menu, and asks for no administrator rights. |
 | **Two choices at the end** | Start ClearStart when you sign in (off unless you tick it), and start it now. Both start [live mode](#live-mode). |
 | **Upgrades in place** | A newer installer replaces the old copy, and closes it first if it is running. |
+| **Updates itself** | An installed, signed copy can fetch and install newer versions from GitHub. See [Updates](updates.md). |
 | **Uninstall** | From **Settings → Apps → Installed apps**. It closes ClearStart, makes sure the Windows taskbar is showing, and takes away the Start with Windows entry if it starts this copy. Your settings stay. |
 
 An installer built this way is not signed, so Windows warns before running it. A signed one is
@@ -143,8 +144,9 @@ you sign in. It needs no administrator rights.
 | --- | --- |
 | Settings | `%APPDATA%\ClearStart\settings.json` |
 | Log | `%LOCALAPPDATA%\ClearStart\logs\clearstart.log` |
+| Downloaded updates | `%LOCALAPPDATA%\ClearStart\updates`. A downloaded setup program is deleted once it has run; Setup's last log stays. |
 
-Both are created on the first run. [The settings file](settings-file.md) lists every key.
+The settings and the log are created on the first run. [The settings file](settings-file.md) lists every key.
 
 ## Removing it
 

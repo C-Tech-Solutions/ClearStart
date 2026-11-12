@@ -73,7 +73,8 @@ Start-Process src\bin\Release\net10.0-windows\ClearStart.exe -ArgumentList '--se
 It takes about a minute and a half and shows nothing on screen. In the folder afterwards:
 
 - **PNG files:** the bars at different sizes and edges, the start menu, the previews, the weather
-  panel, every settings page and the Start button designs. Look at the ones your change touches.
+  panel, every settings page, the Start button designs and the update button and settings with a
+  made-up newer version. Look at the ones your change touches.
 - **`selftest.json`:** what was measured, plus two lists that must be empty, `errors` and
   `bindingErrors`.
 
@@ -160,10 +161,50 @@ The script finds its tools by itself, or you can point it at them:
 | **Where** | `%LOCALAPPDATA%\Programs\ClearStart`, for the one user, with no administrator rights. A shortcut goes in the Start menu. |
 | **Start with Windows** | An optional task, off by default while live mode is new. It writes the same entry the app's own switch writes (see [`src/AutoStart.cs`](../src/AutoStart.cs)), so the switch shows it as on. |
 | **Upgrading** | If the installed copy is running, Setup runs it with `--exit` first. |
+| **Updating** | ClearStart's updater runs Setup with `/VERYSILENT` and `/RESTART=live` or `/RESTART=preview`. At the end Setup starts the installed copy again in that mode, unless a copy is already running. Without `/RESTART` it starts nothing. |
 | **Uninstalling** | Runs `--restore`, then removes the files, and the Start with Windows entry if it starts this copy. If ClearStart is still running after `--restore`, it stops before removing anything. The settings and the log stay. |
 
 `AppId` in `ClearStart.iss` ties every version together, so a new installer upgrades the old one
 in place. Never change it.
+
+### Publishing a release
+
+Copies of ClearStart find new versions in the repository's GitHub releases (see
+[Updates](updates.md)). `installer/publish-release.ps1` puts a built installer there in the shape
+they look for:
+
+1. Raise `<Version>` in `src/ClearStart.csproj`, as three numbers like `0.2.0`, and merge that to
+   `main`.
+2. With `main` checked out, build and sign the installer:
+
+   ```powershell
+   installer\build-installer.ps1 -Sign
+   ```
+
+3. Check what would be published, then publish it. This needs `gh`, signed in with an account that
+   may create releases:
+
+   ```powershell
+   installer\publish-release.ps1 -WhatIf
+   installer\publish-release.ps1 -NotesFile path\to\notes.md
+   ```
+
+The script refuses unless the installer is the version in the project file, is signed by
+C-Tech Solutions LLC and matches its `.sha256.txt` file, and unless the commit is on
+`origin/main` with no tag or release for the version yet. It then creates the release `v<version>`,
+marked as the latest one, with exactly two files attached:
+
+- `ClearStart-Setup-<version>.exe`
+- `ClearStart-Setup-<version>.exe.sha256.txt`
+
+Last, it reads the latest release back from GitHub's API the way the updater does and checks it.
+Without `-NotesFile`, GitHub writes the notes from the merged pull requests.
+
+The updater only takes a release that is neither a draft nor a pre-release, whose tag is `v` and
+three numbers higher than its own version, with both files attached under those names. It also
+checks that the installer is signed by the same publisher, with the same certificate subject, as
+the copy that is running. Installed copies will not install a release signed any other way, or
+one whose files are named differently.
 
 ## Where the code is
 
@@ -205,10 +246,12 @@ in place. Never change it.
 | `ColorWheel.cs` | The color wheel |
 | `Weather.cs`, `WeatherFlyout.cs`, `WeatherIcons.cs` | Fetching the forecast, the panel, and the weather pictures |
 | `AutoStart.cs` | Start with Windows |
+| `Updates.cs` | Checking for, downloading, checking and installing a newer version |
+| `TaskbarView.Updates.cs`, `SettingsView.Updates.cs` | The update button on the bar, and the Updates lines in the settings |
 | `AppIcon.cs` | Draws the app icon |
 | `Ui.cs` | Small helpers shared by the windows |
 | `Themes/Styles.xaml` | Styles for buttons, menus, sliders and the rest |
-| `SelfTest.cs`, `Screenshots.cs` | The self-test and the pictures for the docs |
+| `SelfTest.cs`, `SelfTest.Updates.cs`, `Screenshots.cs` | The self-test and the pictures for the docs |
 
 **Calls into Windows** (`Interop/`)
 
@@ -220,3 +263,4 @@ in place. Never change it.
 | `Audio.cs` | Output devices and spatial sound |
 | `Network.cs` | Whether the connection is wired, Wi-Fi or down |
 | `ShellLink.cs` | Reading shortcut files |
+| `Authenticode.cs` | Checking a program's signature and who signed it |

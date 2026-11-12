@@ -407,7 +407,7 @@ internal static partial class SelfTest
                     [SettingsPage.Taskbar] = 1640 + 210 * screens.Count,
                     [SettingsPage.StartMenu] = 1620,
                     [SettingsPage.Weather] = 860,
-                    [SettingsPage.About] = 680,
+                    [SettingsPage.About] = 960,
                 };
                 foreach (var (page, height) in heights)
                 {
@@ -881,6 +881,8 @@ internal static partial class SelfTest
             {
                 errors.Add("Window icons: " + ex);
             }
+
+            await CheckUpdatesAsync(host, directory, report, errors);
 
             // Start menu
             try

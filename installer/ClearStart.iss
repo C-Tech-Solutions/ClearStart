@@ -6,6 +6,10 @@
 ; The installer is for one user and needs no administrator rights. The app goes into
 ; %LOCALAPPDATA%\Programs\ClearStart. The settings and the log stay where the app keeps them
 ; (%APPDATA%\ClearStart and %LOCALAPPDATA%\ClearStart), and uninstalling leaves them there.
+;
+; ClearStart's updater (src\Updates.cs) runs this Setup with /VERYSILENT and /RESTART=live or
+; /RESTART=preview. Setup then closes ClearStart as usual, and starts it again when it is done (see
+; DeinitializeSetup below). The updater finds the next version by the file name below, so keep it.
 
 #ifndef PublishDir
   #define PublishDir AddBackslash(SourcePath) + "..\artifacts\publish\ClearStart-win-x64"
@@ -140,6 +144,33 @@ begin
   begin
     RegDeleteValue(HKCU, RunKey, 'ClearStart');
     RegDeleteValue(HKCU, ApprovedKey, 'ClearStart');
+  end;
+end;
+
+{ The updater asks for ClearStart to come back once Setup is done, in the mode it was running in. This
+  runs when Setup ends however it went: after a failed update the old copy is still there, and starting
+  it again brings back the taskbar the user had. }
+procedure DeinitializeSetup;
+var
+  Mode, Exe, Params: String;
+  ResultCode: Integer;
+begin
+  try
+    Mode := ExpandConstant('{param:RESTART|}');
+    if (Mode <> 'live') and (Mode <> 'preview') then
+      Exit;
+    Exe := ExpandConstant('{app}\{#AppExe}');
+    if not FileExists(Exe) or CheckForMutexes(InstanceMutex) then
+      Exit;
+    Params := '';
+    if Mode = 'preview' then
+      Params := '--preview';
+    Log('Starting ClearStart again: ' + Exe + ' ' + Params);
+    if not Exec(Exe, Params, ExpandConstant('{app}'), SW_SHOWNORMAL, ewNoWait, ResultCode) then
+      Log('ClearStart did not start again: ' + SysErrorMessage(ResultCode));
+  except
+    { Setup stopped before it knew where ClearStart is: there is nothing to start. }
+    Log('ClearStart was not started again: ' + GetExceptionMessage);
   end;
 end;
 
