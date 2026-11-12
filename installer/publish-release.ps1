@@ -98,7 +98,11 @@ if (Test-Path -LiteralPath $installed) {
     }
 }
 
-$hash = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+# Not Get-FileHash: in a dry run (-WhatIf), Windows PowerShell's Get-FileHash hashes nothing and returns null.
+$sha = [Security.Cryptography.SHA256]::Create()
+$stream = [IO.File]::OpenRead($setup)
+try { $hash = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '').ToLowerInvariant() }
+finally { $stream.Dispose(); $sha.Dispose() }
 $listed = (Get-Content -LiteralPath $checksum -Raw).Trim()
 if ($listed -ne "$hash  $setupName") {
     throw "$checksum does not match the installer. It should read: $hash  $setupName"
