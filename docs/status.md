@@ -6,6 +6,7 @@ ClearStart is at version 0.2.0 and is an early preview. This page says plainly w
 what has not, and what is missing.
 
 - [What has been run](#what-has-been-run)
+- [Known problems in 0.2.0](#known-problems-in-020)
 - [What has not been run](#what-has-not-been-run)
 - [Not confirmed by hand yet](#not-confirmed-by-hand-yet)
 - [Not there yet](#not-there-yet)
@@ -17,7 +18,16 @@ what has not, and what is missing.
 | **Preview mode** | Run on one desktop: Windows 11 25H2, four monitors at 100% scaling. |
 | **Live mode** | Run on that desktop in the Windows taskbar's place, with a bar on each of the four monitors: hiding the Windows taskbar and putting it back on exit, your apps' tray icons on the bars, the hidden ones behind the arrow, dragging icons on and off the bar, and the Cast button. |
 | **The self-test** | `ClearStart.exe --selftest` draws about eighty pictures of the bars, the start menu, the weather panel, the settings pages and the Start button designs, checks where things end up, and reports any error. It passes with no errors. |
-| **The installer** | Built and signed, then run on that desktop without its pages on screen: installing, installing again over a running copy, adding Start with Windows, and uninstalling. The installed copy passes the self-test. |
+| **The installer** | A build from before the updater was added was signed and run on that desktop without its pages on screen: installing, installing again over a running copy, adding Start with Windows, and uninstalling. The installed copy passed the self-test. |
+| **The release** | The [latest release](https://github.com/C-Tech-Solutions/ClearStart/releases/latest)'s installer was built from the tagged commit and signed. After it was published, its signature, its version and its SHA-256 were checked against the checksum file and GitHub's own record. The program in it passes the self-test, and GitHub's answer about the latest release passes every check the updater makes. It has been downloaded from the release, installed and run on that desktop. |
+
+## Known problems in 0.2.0
+
+These have been seen on that desktop and are being worked on:
+
+- **Resizing a bar is choppy.** Dragging a bar's edge does not follow the mouse smoothly.
+- **The Windows taskbar shows for a moment** when a bar is moved or resized in live mode.
+- **After a restart, the Windows taskbar shows until ClearStart has loaded.**
 
 ## What has not been run
 
@@ -28,9 +38,11 @@ what has not, and what is missing.
 - starting with Windows (the switch starts live mode).
 
 **Updating.** The updater's parts are covered by the self-test: reading a release, comparing
-versions, the checksum and the signature checks, and refusing a download that fails them. No
-release has been published yet, so it has never fetched a real release, downloaded a real
-installer, or run Setup to update itself and start again.
+versions, the checksum and the signature checks, and refusing a download that fails them. No copy
+has yet updated itself from one release to the next, which needs an installed, signed copy and a
+newer release than the one it runs. So it has never downloaded a real update or run Setup to
+install it and start again, and the update button on the bar has only been seen in the
+self-test's pictures, with a made-up version.
 
 **Other setups.** Other versions of Windows, display scaling above 100%, and a PC with one monitor
 have not been tried.
@@ -52,12 +64,10 @@ one by clicking it on a real desktop:
   folder pickers, and right-clicking a place in the start menu;
 - throwing the Start with Windows switch;
 - how Windows shows the app icon on the program file and in Alt+Tab;
-- the installer's own pages, and its **Start ClearStart now** at the end, which starts live mode.
+- the installer's **Start ClearStart now** at the end, which starts live mode.
 
 ## Not there yet
 
-- **No download yet.** You build it from source, or build [the installer](getting-started.md#the-installer)
-  yourself. Nothing has been published, so the [updater](updates.md) has nothing to offer yet.
 - **No jump lists** on the app buttons.
 - **No volume slider of its own.** Clicking the volume glyph opens Windows' quick settings.
 - **The start menu's own search finds apps and commands only.** For files, settings and the web,

@@ -24,8 +24,9 @@ ClearStart draws its own taskbar and its own start menu. It runs as an ordinary 
 is injected into Explorer, and closing it brings the Windows taskbar straight back.
 
 > [!IMPORTANT]
-> **This is an early preview.** There is no download yet: you build it from source, or build its
-> installer. It has been run on one PC so far, in both **preview mode**, which runs next to the
+> **This is an early preview.** Get the signed installer from the
+> [latest release](https://github.com/C-Tech-Solutions/ClearStart/releases/latest), or build it
+> from source. It has been run on one PC so far, in both **preview mode**, which runs next to the
 > Windows taskbar and hides nothing, and **live mode**, where ClearStart takes the Windows
 > taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
@@ -116,20 +117,23 @@ over a plain gradient in place of a wallpaper.</sub>
 
 ## Try it
 
-**You need** Windows 11 and the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+**You need** 64-bit Windows 11.
 
-**1. Get the code and build it**
+**1. Install it**
 
-```powershell
-git clone https://github.com/C-Tech-Solutions/ClearStart.git
-cd ClearStart
-dotnet build src/ClearStart.csproj -c Release
-```
+Download `ClearStart-Setup-<version>.exe` from the
+[latest release](https://github.com/C-Tech-Solutions/ClearStart/releases/latest) and run it. It is
+one file of about 55 MB, signed by C-Tech Solutions LLC, and carries its own copy of .NET, so the
+PC needs nothing else. It installs for you alone, into `%LOCALAPPDATA%\Programs\ClearStart`,
+without administrator rights, and uninstalls from Windows' list of apps.
+
+Setup's last page has **Start ClearStart now** ticked, which starts
+[live mode](#two-ways-to-run-it). To start with the preview, untick it.
 
 **2. Start the preview**
 
 ```powershell
-src\bin\Release\net10.0-windows\ClearStart.exe --preview
+& "$env:LOCALAPPDATA\Programs\ClearStart\ClearStart.exe" --preview
 ```
 
 ClearStart's bars appear next to the Windows taskbar. Nothing of Windows' is hidden or changed.
@@ -142,24 +146,38 @@ ClearStart's bars appear next to the Windows taskbar. Nothing of Windows' is hid
 
 **4. Close it**
 
+Right-click a bar and choose **Exit ClearStart**, or run:
+
 ```powershell
-src\bin\Release\net10.0-windows\ClearStart.exe --exit
+& "$env:LOCALAPPDATA\Programs\ClearStart\ClearStart.exe" --exit
 ```
 
-or right-click a bar and choose **Exit ClearStart**.
+[Getting started](docs/getting-started.md) goes through this step by step. An installed copy
+keeps itself up to date from the releases here: see [Updates](docs/updates.md).
 
-[Getting started](docs/getting-started.md) goes through this step by step.
+**Or build it from source**
 
-**Or build the installer**
+This needs the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+
+```powershell
+git clone https://github.com/C-Tech-Solutions/ClearStart.git
+cd ClearStart
+dotnet build src/ClearStart.csproj -c Release
+src\bin\Release\net10.0-windows\ClearStart.exe --preview
+```
+
+`src\bin\Release\net10.0-windows\ClearStart.exe --exit` closes it. A copy built this way says
+when a newer version is out, but does not install it.
+
+**Or build the installer yourself**
 
 ```powershell
 installer\build-installer.ps1
 ```
 
-This makes `artifacts\installer\ClearStart-Setup-0.2.0.exe`, one file of about 55 MB. It carries
-its own copy of .NET, so the PC it goes on needs nothing else. It installs for you alone, without
-administrator rights, and uninstalls from Windows' list of apps. Building it needs
-[Inno Setup 6](https://jrsoftware.org/isdl.php) as well. See
+This makes `artifacts\installer\ClearStart-Setup-<version>.exe`. Building it needs
+[Inno Setup 6](https://jrsoftware.org/isdl.php) as well. It is not signed unless you sign it, so
+Windows warns before running it, and the copy it installs does not update itself. See
 [the installer](docs/getting-started.md#the-installer).
 
 ## Two ways to run it
@@ -170,7 +188,7 @@ administrator rights, and uninstalls from Windows' list of apps. Building it nee
 | Windows taskbar | Stays where it is | Hidden while ClearStart runs |
 | Tray icons from your apps | Not shown | Shown on the bars |
 | Windows key | Opens the Windows start menu | Opens ClearStart's start menu |
-| Has it been run? | Yes, on a four-monitor desktop | **Not yet** |
+| Has it been run? | Yes, on a four-monitor desktop | Yes, on the same desktop |
 
 ## Getting the Windows taskbar back
 
@@ -178,13 +196,13 @@ Closing ClearStart puts the Windows taskbar back. If a copy was ended without th
 up (from Task Manager, say) and the Windows taskbar stays hidden, run:
 
 ```powershell
-src\bin\Release\net10.0-windows\ClearStart.exe --restore
+& "$env:LOCALAPPDATA\Programs\ClearStart\ClearStart.exe" --restore
 ```
 
-For a copy put there by the installer:
+For a copy you built from source:
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\ClearStart\ClearStart.exe" --restore
+src\bin\Release\net10.0-windows\ClearStart.exe --restore
 ```
 
 Uninstalling does the same before it removes anything. None of this can happen in a preview,
@@ -194,14 +212,14 @@ because a preview never hides the Windows taskbar.
 
 | Guide | What is in it |
 | --- | --- |
-| [Getting started](docs/getting-started.md) | Building, the first run, closing it, the installer, starting with Windows, removing it |
+| [Getting started](docs/getting-started.md) | Installing or building it, the first run, closing it, the installer, starting with Windows, removing it |
 | [The taskbar](docs/taskbar.md) | Moving and resizing bars, app buttons, pinned apps, the search button, the clock, sound, network and weather |
 | [The start menu](docs/start-menu.md) | Searching, pinned tiles, and the list of places |
 | [The settings window](docs/settings.md) | Every page, the Start button designs, colors, and clear, blurred and frosted |
 | [The settings file](docs/settings-file.md) | Every key in `settings.json`, with its default |
-| [Updates](docs/updates.md) | How ClearStart checks for a new version, what it sends, how it checks a download, and how to turn it off |
+| [Updates](docs/updates.md) | How ClearStart checks for a new version, what it sends, how it checks a download, which copies install updates, and how to turn it off |
 | [Where it stands](docs/status.md) | What works, what is missing, and what has not been tried yet |
-| [Development](docs/development.md) | How the code is laid out, the self-test, how the pictures here are made, and building and signing the installer |
+| [Development](docs/development.md) | How the code is laid out, the self-test, how the pictures here are made, and building, signing and publishing the installer |
 
 ## Privacy
 

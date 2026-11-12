@@ -162,9 +162,9 @@ What is sent, and when, is under [Weather](taskbar.md#weather) in the taskbar gu
 | Setting | What it does |
 | --- | --- |
 | Start with Windows | Starts ClearStart when you sign in. See [Getting started](getting-started.md#start-with-windows) |
-| Updates | The version you are running and whether a newer one is out, with **What's new**, **Install** and **Check now** |
-| Check for updates automatically | On by default: asks GitHub about once a day. See [Updates](updates.md) |
-| Install updates automatically | Off by default: downloads a newer version when it is found and installs it while the PC is not in use |
-| Settings file | Where the settings are saved |
-| Log folder | What ClearStart did, and anything that went wrong |
-| About | The version you are running, and a button to exit ClearStart |
+| Updates | The version you are running and what the updater is doing, with **Check now**. Once a newer version is out, **Install** and **What's new** join it. A copy that does not update itself shows **Download** instead, which opens the release on GitHub, and says why under the switches. See [Updates](updates.md) |
+| Check for updates automatically | On by default: asks GitHub about once a day |
+| Install updates automatically | Off by default: downloads a newer version as soon as an automatic check finds one, and installs it once nobody has used the PC for ten minutes. It needs **Check for updates automatically** on |
+| Settings file | Where the settings are saved, and a button that opens the file in Notepad |
+| Log folder | Where the log is, with what ClearStart did and anything that went wrong, and a button that opens the folder |
+| About | The version you are running, whether it runs in the Windows taskbar's place or as a preview, and a button to exit ClearStart |

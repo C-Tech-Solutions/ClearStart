@@ -1,5 +1,7 @@
 # Updates
 
+[← Back to the README](../README.md)
+
 ClearStart can tell you when a newer version is out, and install it for you. This page says what it
 checks, what it sends, how it makes sure a download is genuine, and how to turn it off.
 
@@ -18,7 +20,7 @@ release of ClearStart. That is one request to GitHub's public API:
 https://api.github.com/repos/C-Tech-Solutions/ClearStart/releases/latest
 ```
 
-It carries ClearStart's version (`ClearStart/0.2.0`) as its user agent and nothing else: no
+It carries ClearStart's version (`ClearStart/<version>`) as its user agent and nothing else: no
 account, no token, and nothing about you or the PC. Like any website, GitHub sees the address the
 request comes from. If GitHub cannot be reached, ClearStart tries again an hour later; the settings
 page and the log say so, and nothing pops up.
@@ -36,8 +38,8 @@ Nothing is downloaded until you ask, unless **Install updates automatically** is
 
 ## Installing
 
-1. ClearStart downloads the new version's setup program, `ClearStart-Setup-<version>.exe`, and the
-   checksum file that comes with it, from the release on GitHub into
+1. ClearStart reads the checksum file that comes with the new version's release on GitHub, then
+   downloads its setup program, `ClearStart-Setup-<version>.exe`, into
    `%LOCALAPPDATA%\ClearStart\updates`.
 2. It checks that the setup program's SHA-256 is the one the checksum file gives, and that the
    program carries a valid signature from **C-Tech Solutions LLC**, the same company whose
@@ -59,9 +61,13 @@ is downloaded until you click **Install**.
 ## Which copies update themselves
 
 Only the copy that Setup installed, in `%LOCALAPPDATA%\Programs\ClearStart`, updates itself, and
-only when that copy is itself signed by C-Tech Solutions LLC. A copy you built from source, or
-installed with an installer you built without signing it, still checks, and still says when a newer version is out, but its **Download** button opens the release
-page on GitHub instead of installing anything.
+only when that copy is itself signed by C-Tech Solutions LLC. The installer on the
+[releases page](https://github.com/C-Tech-Solutions/ClearStart/releases/latest) is, so a copy
+installed with it updates itself.
+
+A copy you built from source, or installed with an installer you built without signing it, still
+checks, and still says when a newer version is out, but its **Download** button opens the release
+page on GitHub instead of installing anything. The General page says so too.
 
 ## Turning it off
 
