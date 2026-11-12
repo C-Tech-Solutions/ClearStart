@@ -26,6 +26,10 @@ internal static class TaskbarGuard
     private static readonly string[] TaskbarClasses = { "Shell_TrayWnd", "Shell_SecondaryTrayWnd" };
     private static readonly uint OwnProcessId = (uint)Environment.ProcessId;
     private static readonly object Gate = new();
+    // Held while the auto-hide setting is being changed; once Stop has it, no change starts. So none can land
+    // after the taskbar has been put back.
+    private static readonly object AutoHideGate = new();
+    private static bool _stopped;
     private static Thread? _thread;
     private static uint _threadId;
     // Kept here so the garbage collector cannot take it while Windows still calls it.
@@ -43,6 +47,7 @@ internal static class TaskbarGuard
         lock (Gate)
         {
             if (_thread != null) return;
+            lock (AutoHideGate) _stopped = false;
             // Not disposed: if the wait below gives up, the thread still sets it later.
             var ready = new ManualResetEventSlim();
             var thread = new Thread(() => Run(ready)) { IsBackground = true, Name = "Windows taskbar guard" };
@@ -66,6 +71,8 @@ internal static class TaskbarGuard
 
         Native.PostThreadMessage(_threadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
         if (thread != Thread.CurrentThread) thread.Join(TimeSpan.FromSeconds(2));
+        // Waits for a change in progress to finish (it asks Explorer, as putting the taskbar back does next).
+        lock (AutoHideGate) _stopped = true;
         Log.Info($"Stopped keeping the Windows taskbar hidden; it was hidden {_hiddenAgain} time(s) as it came back");
     }
 
@@ -181,6 +188,8 @@ internal static class TaskbarGuard
 
     /// <summary>
     /// Asks the window's own thread to hide it and leaves at once, so a busy Explorer cannot hold this thread up.
+    /// It goes to the bottom of the pile, so that if Explorer shows it again it is behind every window until it is
+    /// hidden. Putting it back puts it on top again (<see cref="ExplorerTaskbar.Restore"/>).
     /// </summary>
     private static void Hide(IntPtr hwnd) =>
         Native.SetWindowPos(hwnd, Native.HWND_BOTTOM, 0, 0, 0, 0,
@@ -198,14 +207,18 @@ internal static class TaskbarGuard
         // thread has to stay free to hide the other taskbars as they appear, so the asking is done on another.
         ThreadPool.QueueUserWorkItem(_ =>
         {
-            try
+            lock (AutoHideGate)
             {
-                ExplorerTaskbar.RememberState(primary);
-                ExplorerTaskbar.EnsureAutoHide(primary);
-            }
-            catch (Exception ex)
-            {
-                Log.Error("Could not switch the Windows taskbar to auto-hide", ex);
+                if (_stopped) return;
+                try
+                {
+                    ExplorerTaskbar.RememberState(primary);
+                    ExplorerTaskbar.EnsureAutoHide(primary);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Could not switch the Windows taskbar to auto-hide", ex);
+                }
             }
         });
     }

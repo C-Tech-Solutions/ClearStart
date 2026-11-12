@@ -175,14 +175,17 @@ internal static class ExplorerTaskbar
         }
     }
 
-    /// <summary>Shows the taskbar windows and asks every app to put its notification icon back in the Windows tray.</summary>
+    /// <summary>
+    /// Shows the taskbar windows above other windows, where Windows keeps them, and asks every app to put its
+    /// notification icon back in the Windows tray. (Hiding put them at the bottom, which takes that away.)
+    /// </summary>
     private static void ShowBars(List<(IntPtr Hwnd, bool IsPrimary)> bars)
     {
         foreach (var (hwnd, _) in bars)
         {
             Native.ShowWindow(hwnd, 4 /* SW_SHOWNOACTIVATE */);
-            Native.SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
-                Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOZORDER | Native.SWP_NOACTIVATE | Native.SWP_SHOWWINDOW);
+            Native.SetWindowPos(hwnd, Native.HWND_TOPMOST, 0, 0, 0, 0,
+                Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE | Native.SWP_SHOWWINDOW);
         }
 
         uint taskbarCreated = Native.RegisterWindowMessage("TaskbarCreated");

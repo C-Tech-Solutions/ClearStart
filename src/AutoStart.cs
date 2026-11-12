@@ -63,8 +63,9 @@ internal static class AutoStart
     {
         if (!enabled)
         {
-            DeleteTask();
+            // The Run key first: it is what is used when Task Scheduler cannot be reached, and then so is deleting the task.
             DeleteRunEntry();
+            DeleteTask();
             Log.Info("Start with Windows: off");
             return;
         }
