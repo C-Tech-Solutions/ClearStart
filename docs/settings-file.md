@@ -13,6 +13,7 @@ and reopen, which takes a few seconds.
 - [Taskbar](#taskbar)
 - [Start menu](#start-menu)
 - [Weather](#weather)
+- [Updates](#updates)
 - [Per-monitor settings](#per-monitor-settings)
 - [Places](#places)
 
@@ -109,6 +110,15 @@ Keys are written here with a dot: `taskbar.edge` is the `edge` key inside the `t
 | `weather.showText` | `true` | The conditions in words next to the temperature |
 | `weather.allMonitors` | `false` | On every bar, or only the main one |
 | `weather.refreshMinutes` | `15` | How often to fetch, 5 to 240 |
+
+## Updates
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `updates.checkAutomatically` | `true` | Ask GitHub about once a day whether a newer version is out. With `false`, nothing is sent unless you click **Check now** |
+| `updates.installAutomatically` | `false` | Download a newer version as soon as an automatic check finds it, and install it once the PC has not been used for ten minutes. With `checkAutomatically` off, it downloads nothing |
+
+What is sent, and how a download is checked before it runs, is in [Updates](updates.md).
 
 ## Per-monitor settings
 

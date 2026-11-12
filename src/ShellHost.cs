@@ -39,6 +39,8 @@ internal enum SettingsChange
     StartMenu = 16,
     /// <summary>Something the bars only pick up by being reopened.</summary>
     Bars = 32,
+    /// <summary>Whether ClearStart checks for new versions, and installs them, by itself.</summary>
+    Updates = 64,
 }
 
 /// <summary>
@@ -74,6 +76,7 @@ internal sealed class ShellHost : IDisposable
     {
         Mode = mode;
         _dispatcher = Dispatcher.CurrentDispatcher;
+        Updates = new UpdateService(mode);
 
         AttachShellLog(logDirectory ?? Log.DefaultDirectory);
 
@@ -154,6 +157,9 @@ internal sealed class ShellHost : IDisposable
 
     public NetworkWatcher Network { get; } = new();
 
+    /// <summary>Looks for new versions of ClearStart. It waits a few minutes after the start before it asks.</summary>
+    public UpdateService Updates { get; }
+
     /// <summary>The name the start menu shows above its list of places. The screenshot mode puts a made-up one here.</summary>
     public string UserName { get; set; } = Environment.UserName;
 
@@ -177,6 +183,7 @@ internal sealed class ShellHost : IDisposable
         Network.Start();
         RebuildBars();
         Weather.Start();
+        Updates.Start();
 
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         Settings.Changed += OnSettingsChanged;
@@ -926,6 +933,7 @@ internal sealed class ShellHost : IDisposable
             UpdateWinKeyHook();
         }
         if (what.HasFlag(SettingsChange.Bars)) _rebuildPending = true;
+        if (what.HasFlag(SettingsChange.Updates)) Updates.SettingsChanged();
 
         _saveTimer.Stop();
         _saveTimer.Start();
@@ -1071,6 +1079,7 @@ internal sealed class ShellHost : IDisposable
             RebuildBars();
             UpdateWinKeyHook();
             Weather.SettingsChanged();
+            Updates.SettingsChanged();
             _settingsWindow?.Reload();
         }
         catch (Exception ex)
@@ -1133,6 +1142,7 @@ internal sealed class ShellHost : IDisposable
         });
         Step("close the settings window", () => { _settingsWindow?.Close(); _settingsWindow = null; });
         Step("stop the weather and network watchers", () => { Weather.Dispose(); Network.Dispose(); });
+        Step("stop the update checks", Updates.Dispose);
         Step("close the start menu", CloseStartMenu);
         Step("close the window previews", ClosePreviews);
         Step("signal shutdown", () => Shell.AppBarManager.SignalGracefulShutdown());

@@ -23,7 +23,7 @@ internal enum SettingsPage
 /// Everything is built in code, one line per setting, so that the self-test can draw each page.
 /// A change is applied to the settings in memory at once and the host is told what it touches.
 /// </summary>
-internal sealed class SettingsView : UserControl
+internal sealed partial class SettingsView : UserControl
 {
     private static readonly Color PageColor = Color.FromRgb(0x20, 0x20, 0x20);
     private static readonly Color NavColor = Color.FromRgb(0x1A, 0x1A, 0x1A);
@@ -502,7 +502,7 @@ internal sealed class SettingsView : UserControl
     private Panel AboutPage()
     {
         bool live = _host.Mode == HostMode.Live;
-        var page = NewPage("General", "Starting with Windows, where ClearStart keeps its files, and closing it.");
+        var page = NewPage("General", "Starting with Windows, updates, where ClearStart keeps its files, and closing it.");
 
         // The entry Windows reads at sign-in is written the moment the switch is thrown, not with the settings.
         page.Children.Add(Group("Startup"));
@@ -512,6 +512,8 @@ internal sealed class SettingsView : UserControl
         var startup = Hint("");
         _loaders.Add(() => startup.Text = AutoStart.Describe());
         page.Children.Add(startup);
+
+        AddUpdateRows(page);
 
         page.Children.Add(Group("Files"));
         page.Children.Add(Row("Settings file",
