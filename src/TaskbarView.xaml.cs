@@ -106,7 +106,9 @@ public partial class TaskbarView : UserControl
         AppList.ItemsSource = _apps.Items;
 
         TrayList.Visibility = _showTrayIcons ? Visibility.Visible : Visibility.Collapsed;
-        OverflowButton.Visibility = TrayList.Visibility;
+        // The arrow only where there is a tray: a preview hosts none, and its panel would always be empty.
+        OverflowButton.Visibility = _showTrayIcons && host.Shell.NotificationArea != null
+            ? Visibility.Visible : Visibility.Collapsed;
         ClockButton.Visibility = _showClock ? Visibility.Visible : Visibility.Collapsed;
         QuickButton.Visibility = _showClock && settings.ShowQuickSettingsButton ? Visibility.Visible : Visibility.Collapsed;
         CastButton.Visibility = _showClock && settings.ShowCastButton ? Visibility.Visible : Visibility.Collapsed;
@@ -148,8 +150,15 @@ public partial class TaskbarView : UserControl
     /// <summary>Looks again at which windows belong on this bar, after another display gained or lost its bar.</summary>
     internal void RefreshApps() => _apps.Refresh();
 
-    /// <summary>Fills the tray with stand-in icons (anything with Icon and Title) so the self-test can draw it.</summary>
-    internal void ShowSampleTray(System.Collections.IEnumerable icons) => TrayList.ItemsSource = icons;
+    /// <summary>
+    /// Fills the tray with stand-in icons (anything with Icon and Title) so the self-test can draw it, with the
+    /// arrow beside them.
+    /// </summary>
+    internal void ShowSampleTray(System.Collections.IEnumerable icons)
+    {
+        TrayList.ItemsSource = icons;
+        OverflowButton.Visibility = TrayList.Visibility;
+    }
 
     /// <summary>
     /// Fills the bar with stand-in app buttons (anything with the properties the button template reads)
