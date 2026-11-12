@@ -127,7 +127,7 @@ internal sealed class ShellHost : IDisposable
         }
 
         // The self-test reports on the app list straight away. Otherwise it loads once the bars are on screen
-        // (see AfterBarsShown): with its few hundred icons it is the slowest part of starting, and only the
+        // (see StartDeferredServices): with its few hundred icons it is the slowest part of starting, and only the
         // start menu needs it.
         if (mode == HostMode.SelfTest) Apps.Load();
 
@@ -197,16 +197,13 @@ internal sealed class ShellHost : IDisposable
         Log.Info($"Started in {Mode} mode with {_bars.Count} taskbar(s)");
 
         // Queued behind the drawing of the bars, so it runs when they are on screen.
-        _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(AfterBarsShown));
+        _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(StartDeferredServices));
     }
 
     /// <summary>Everything the bars do not need in order to appear, started once they are on screen.</summary>
-    private void AfterBarsShown()
+    private void StartDeferredServices()
     {
         if (_disposed) return;
-        HasRenderedBars = true;
-        Log.Info($"Taskbars on screen, {StartTiming.Describe()}");
-
         // Connection discovery can be slow at sign-in. The views follow Network.Changed when it finishes.
         Network.Start();
         if (Mode == HostMode.Live) StartTray();
@@ -702,13 +699,19 @@ internal sealed class ShellHost : IDisposable
         {
             _rebuildRetries = 0;
         }
-        if (Mode == HostMode.Live && _bars.Count > 0)
+        if (_bars.Count > 0)
         {
             // A display can wake after the initial build failed. Every successful retry gets this check;
             // EarlySession only signals once, after the queued render work has completed.
             _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
             {
-                if (!_disposed && _bars.Count > 0) EarlySession.BarsReady();
+                if (_disposed || _bars.Count == 0) return;
+                if (!HasRenderedBars)
+                {
+                    HasRenderedBars = true;
+                    Log.Info($"Taskbars on screen, {StartTiming.Describe()}");
+                }
+                if (Mode == HostMode.Live) EarlySession.BarsReady();
             }));
         }
     }

@@ -14,6 +14,7 @@ internal static class Program
         // These controls never acquire a window handle. No ClearStart host, Explorer hooks, settings files or screenshots.
         LazyPins();
         Together();
+        EmptyAndLatePins();
         FallbackAndReuse();
         AnimationAndDetach();
         Console.WriteLine("PASS: lazy pins, taskbar icon priority, grouped reveal, fallback/rebinding, animation and disposal");
@@ -70,6 +71,7 @@ internal static class Program
         var second = new Image();
         reveal.Add(first, 0);
         reveal.Add(second, 1);
+        reveal.Seal();
         Pump(120);
         Check(!reveal.Finished && first.Opacity == 0 && second.Opacity == 0, "An early icon must wait for its group");
         second.Source = Icon();
@@ -95,6 +97,7 @@ internal static class Program
         var image = (Image)template.FindName("Icon", presenter);
         using var reveal = new PinnedIconReveal(false, false);
         reveal.Add(image, 0);
+        reveal.Seal();
         Pump(2200);
         Check(reveal.Finished && image.Source != null && image.Opacity == 1, "A missing icon must not leave the group hidden");
         reveal.Remove(image);
@@ -113,6 +116,7 @@ internal static class Program
         var second = new Image { Source = Icon() };
         reveal.Add(second, 1);
         reveal.Add(first, 0);
+        reveal.Seal();
         Pump(90);
         Check(reveal.Finished && first.HasAnimatedProperties && second.HasAnimatedProperties, "On must attach reveal animations");
         Check(first.RenderTransform is TranslateTransform, "Reveal must use a transform, not change layout");
@@ -127,6 +131,25 @@ internal static class Program
         pending.Dispose();
         Pump(120);
         Check(absent.Opacity == 1 && !pending.Finished, "Disposal must cancel pending publication and restore visibility");
+    }
+
+    private static void EmptyAndLatePins()
+    {
+        using var empty = new PinnedIconReveal(true, false);
+        empty.Seal();
+        var later = new Image();
+        empty.Add(later, 0);
+        Pump(100);
+        Check(empty.Finished && later.Opacity == 1, "An empty initial pass must not hide a pin added later");
+
+        using var pending = new PinnedIconReveal(false, false);
+        var initial = new Image();
+        pending.Add(initial, 0);
+        pending.Seal();
+        pending.Add(later, 1);
+        Check(later.Opacity == 1 && initial.Opacity == 0, "Later pins must not join an already sealed startup batch");
+        pending.Remove(initial);
+        Check(pending.Finished, "Removing the entire sealed batch must finish it");
     }
 }
 

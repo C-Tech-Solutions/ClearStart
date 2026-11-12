@@ -101,6 +101,8 @@ shell services, pin loading, monitor planning, and each bar's content constructi
 from showing/docking it. The host construction time includes the shell-service and pin times;
 do not add those nested measurements together. These lines help distinguish work on the UI
 thread from waiting for Explorer. The icon reveal never gates the early-startup ready signal.
+The first successful rendered batch, including a retry after displays wake, records `Taskbars on
+screen`. An empty first pin pass is sealed too, so pins added later do not join the startup reveal.
 
 `dotnet run --project tests/StartupChecks/StartupChecks.csproj -c Release` runs focused checks
 for deferred pins, image request priority, grouped/animated reveal, timeouts and template reuse.

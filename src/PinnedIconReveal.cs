@@ -15,6 +15,7 @@ internal sealed class PinnedIconReveal : IDisposable
     private readonly DispatcherTimer _timer;
     private readonly Stopwatch _wait = new();
     private readonly bool _animate, _vertical;
+    private bool _accepting = true;
     private bool _disposed;
     internal bool Finished { get; private set; }
 
@@ -28,18 +29,34 @@ internal sealed class PinnedIconReveal : IDisposable
 
     public void Add(Image image, int order)
     {
-        if (_disposed || Finished || _images.ContainsKey(image)) return;
+        if (_disposed || !_accepting || Finished || _images.ContainsKey(image)) return;
         _images.Add(image, order);
         image.Opacity = 0;
         if (!_wait.IsRunning) _wait.Start();
         _timer.Start();
     }
 
+    /// <summary>Called after the first Loaded/render pass; later pins are not part of startup.</summary>
+    public void Seal()
+    {
+        if (_disposed || !_accepting) return;
+        _accepting = false;
+        if (_images.Count == 0)
+        {
+            Finished = true;
+            _timer.Stop();
+        }
+    }
+
     public void Remove(Image image)
     {
         if (!_images.Remove(image)) return;
         Reset(image);
-        if (_images.Count == 0) _timer.Stop();
+        if (_images.Count == 0)
+        {
+            _timer.Stop();
+            if (!_accepting) Finished = true;
+        }
     }
 
     private void Check(object? sender, EventArgs e)

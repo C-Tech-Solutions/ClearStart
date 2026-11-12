@@ -80,7 +80,11 @@ public partial class TaskbarView : UserControl
 
         var settings = Settings.Current.Taskbar;
         if (host.Mode != HostMode.SelfTest && !host.HasRenderedBars)
+        {
             _pinReveal = new PinnedIconReveal(settings.AnimatePinnedIcons && SystemParameters.ClientAreaAnimation, _vertical);
+            // Loaded is routed through the parent before all of its template children. Seal behind their callbacks.
+            Loaded += (_, _) => Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(_pinReveal.Seal));
+        }
         _centered = settings.Alignment == Alignment.Center;
         _showSeconds = settings.ShowSeconds;
         _startPlacement = startButton ?? settings.StartButtonFor(_device);
