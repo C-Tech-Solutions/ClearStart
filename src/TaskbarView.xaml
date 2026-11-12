@@ -63,13 +63,14 @@
             </DataTemplate.Triggers>
         </DataTemplate>
 
-        <!-- A notification-area icon. Mouse input is passed straight through to the owning app. -->
+        <!-- A notification-area icon. Mouse input goes to the owning app, except a drag: see TrayIconInput. -->
         <DataTemplate x:Key="TrayTemplate">
             <Border Background="Transparent" Padding="4,6" ToolTip="{Binding Title}"
                     MouseEnter="Tray_MouseEnter" MouseLeave="Tray_MouseLeave" MouseMove="Tray_MouseMove"
-                    MouseDown="Tray_MouseDown" MouseUp="Tray_MouseUp">
+                    MouseDown="Tray_MouseDown" MouseUp="Tray_MouseUp" LostMouseCapture="Tray_LostCapture">
+                <!-- Named for screen readers by what its app calls it. -->
                 <Image Source="{Binding Icon}" Width="{DynamicResource TrayIconSize}" Height="{DynamicResource TrayIconSize}"
-                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                       RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="{Binding Title}"/>
             </Border>
         </DataTemplate>
 
@@ -90,8 +91,10 @@
     <!--
         Written out here for a bar along the top or bottom; the code-behind turns it for a side bar.
         The 1/255 alpha layer is invisible but makes the whole bar clickable, even when fully clear.
+        A tray icon dragged onto any part of the bar lands among the tray icons, nearest where it was dropped.
     -->
-    <Grid x:Name="BarRoot" Background="#01000000" MouseRightButtonUp="Bar_RightClick" SizeChanged="Layout_SizeChanged">
+    <Grid x:Name="BarRoot" Background="#01000000" MouseRightButtonUp="Bar_RightClick" SizeChanged="Layout_SizeChanged"
+          AllowDrop="True" DragEnter="Bar_DragOver" DragOver="Bar_DragOver" DragLeave="Bar_DragLeave" Drop="Bar_Drop">
         <Border x:Name="TintLayer" IsHitTestVisible="False"/>
 
         <!-- Holds the Start button when it is set to sit in the corner. -->
@@ -140,8 +143,25 @@
                 </Viewbox>
             </Button>
 
+            <!-- Opens the tray icons that are not on the bar. An icon dropped on it goes there. -->
+            <Button x:Name="OverflowButton" Style="{StaticResource FlatButton}" Margin="{DynamicResource ButtonMargin}"
+                    Padding="6,0" ToolTip="Show hidden icons" AutomationProperties.Name="Show hidden icons" AllowDrop="True"
+                    Click="Overflow_Click" DragEnter="Overflow_DragEnter" DragOver="Overflow_DragOver"
+                    DragLeave="Overflow_DragLeave" Drop="Overflow_Drop">
+                <!-- Points away from the screen edge, toward where the panel opens: see ArrangeForEdge. -->
+                <TextBlock x:Name="OverflowGlyph" FontFamily="{StaticResource IconFont}" FontSize="{DynamicResource ChevronSize}"
+                           Text="&#xE70E;" IsHitTestVisible="False"/>
+            </Button>
+
+            <!-- Only the pinned tray icons; the rest are behind the arrow. -->
             <ItemsControl x:Name="TrayList" ItemTemplate="{StaticResource TrayTemplate}" ItemsPanel="{StaticResource Row}"
                           VerticalAlignment="Center" Margin="0,0,2,0" Focusable="False"/>
+
+            <!-- Opens the Windows Cast panel, the one Win+K opens. -->
+            <Button x:Name="CastButton" Style="{StaticResource FlatButton}" Margin="{DynamicResource ButtonMargin}" Padding="8,0"
+                    ToolTip="Cast (Windows+K)" AutomationProperties.Name="Cast" Click="Cast_Click">
+                <TextBlock FontFamily="{StaticResource IconFont}" FontSize="{DynamicResource TrayGlyphSize}" Text="&#xEC15;"/>
+            </Button>
 
             <!-- Left click: the Windows quick settings. Right click: a menu for whichever glyph is under the mouse. -->
             <Button x:Name="QuickButton" Style="{StaticResource FlatButton}" Margin="{DynamicResource ButtonMargin}" Padding="9,0"
@@ -174,6 +194,11 @@
             <!-- Holds the Start button when it is set to sit at the far end. -->
             <Border x:Name="EndStartHost"/>
         </StackPanel>
+
+        <!-- Shows where a tray icon being dragged over the bar would land. -->
+        <Canvas IsHitTestVisible="False">
+            <Border x:Name="DropMark" Background="{DynamicResource ForegroundBrush}" CornerRadius="1" Visibility="Collapsed"/>
+        </Canvas>
 
         <!-- Drag this edge (the one facing the desktop) to make the bar thicker or thinner. -->
         <Border x:Name="ResizeGrip" Background="Transparent" MouseLeftButtonDown="Grip_MouseDown" MouseMove="Grip_MouseMove"

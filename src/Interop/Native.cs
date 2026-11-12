@@ -174,7 +174,9 @@ internal static class Native
     internal static readonly IntPtr HWND_TOPMOST = new(-1);
 
     internal const int GWL_EXSTYLE = -20;
+    internal const int WS_EX_TRANSPARENT = 0x00000020;
     internal const int WS_EX_TOOLWINDOW = 0x00000080;
+    internal const int WS_EX_LAYERED = 0x00080000;
     internal const int WS_EX_NOACTIVATE = 0x08000000;
 
     internal const uint DWM_TNP_RECTDESTINATION = 0x1;
@@ -189,6 +191,7 @@ internal static class Native
 
     internal const ushort VK_LWIN = 0x5B;
     internal const ushort VK_S = 0x53;
+    internal const ushort VK_K = 0x4B;
 
     // ------------------------------------------------------------------ imports
 
@@ -392,6 +395,17 @@ internal static class Native
     {
         long style = GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64();
         SetWindowLongPtr(hwnd, GWL_EXSTYLE, new IntPtr(style | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE));
+    }
+
+    /// <summary>
+    /// For a picture that follows the mouse: the mouse goes straight through it to whatever is underneath,
+    /// so a drag still finds the place it is over.
+    /// </summary>
+    internal static void MakeClickThrough(IntPtr hwnd)
+    {
+        long style = GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64();
+        SetWindowLongPtr(hwnd, GWL_EXSTYLE,
+            new IntPtr(style | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_LAYERED | WS_EX_TRANSPARENT));
     }
 
     [DllImport("shell32.dll")]

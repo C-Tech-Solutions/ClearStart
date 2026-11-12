@@ -326,6 +326,8 @@ internal sealed class SettingsView : UserControl
                 ("Main taskbar", false), ("Every taskbar", true))));
         page.Children.Add(Row("Network and volume button", "Click for quick settings; right-click for sound or network options",
             Toggle(() => Taskbar.ShowQuickSettingsButton, value => Taskbar.ShowQuickSettingsButton = value, SettingsChange.Bars)));
+        page.Children.Add(Row("Cast button", "Opens the Windows Cast panel, the one Windows+K opens",
+            Toggle(() => Taskbar.ShowCastButton, value => Taskbar.ShowCastButton = value, SettingsChange.Bars)));
         page.Children.Add(Row("Show seconds on the clock", null,
             Toggle(() => Taskbar.ShowSeconds, value => Taskbar.ShowSeconds = value, SettingsChange.Bars)));
         page.Children.Add(Hint("Changes in the first and last groups reopen the taskbars, which takes a moment. " +

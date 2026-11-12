@@ -25,10 +25,9 @@ is injected into Explorer, and closing it brings the Windows taskbar straight ba
 
 > [!IMPORTANT]
 > **This is an early preview.** There is no download yet: you build it from source, or build its
-> installer. Only **preview mode**, which runs next to the Windows taskbar and hides nothing, has
-> been run so far. **Live mode**, where ClearStart takes the Windows taskbar's place, is written
-> but has not been run yet. Start with the preview. [Where it stands](docs/status.md) has the
-> full list.
+> installer. It has been run on one PC so far, in both **preview mode**, which runs next to the
+> Windows taskbar and hides nothing, and **live mode**, where ClearStart takes the Windows
+> taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
 ## Contents
 
