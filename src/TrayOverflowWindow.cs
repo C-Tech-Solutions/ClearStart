@@ -19,6 +19,8 @@ internal sealed class TrayOverflowWindow : Window
 {
     private static TrayOverflowWindow? _open;
     private static DateTime _closedAt = DateTime.MinValue;
+    // The arrow of the panel that closed last.
+    private static FrameworkElement? _closedArrow;
 
     private readonly TrayOverflowView _view;
     private readonly FrameworkElement _arrow;
@@ -71,10 +73,14 @@ internal sealed class TrayOverflowWindow : Window
             if (!ReferenceEquals(_open, this)) return;
             _open = null;
             _closedAt = DateTime.UtcNow;
+            _closedArrow = _arrow;
         };
     }
 
-    /// <summary>Opens the panel by the arrow, or closes it when it is open.</summary>
+    /// <summary>
+    /// Opens the panel by the arrow, or closes it when it is open from this arrow. Open from another bar's
+    /// arrow, it moves to this one.
+    /// </summary>
     /// <param name="arrow">The arrow on the bar; the panel opens against the bar, next to it.</param>
     /// <param name="hide">Takes an icon dropped in the panel off the bar.</param>
     public static void Toggle(FrameworkElement arrow, IntPtr monitor, AppBarEdge edge, IEnumerable? icons,
@@ -82,13 +88,14 @@ internal sealed class TrayOverflowWindow : Window
     {
         if (_open != null)
         {
+            bool sameArrow = ReferenceEquals(_open._arrow, arrow);
             _open.CloseNow();
-            return;
+            if (sameArrow) return;
         }
 
         // Clicking the arrow while the panel is open takes the focus from the panel, which closes it; without
-        // this pause that same click would open it again.
-        if ((DateTime.UtcNow - _closedAt).TotalMilliseconds < 300) return;
+        // this pause that same click would open it again. Another bar's arrow opens its panel straight away.
+        if (ReferenceEquals(_closedArrow, arrow) && (DateTime.UtcNow - _closedAt).TotalMilliseconds < 300) return;
 
         Open(new TrayOverflowWindow(arrow, monitor, edge, icons, iconSize, hide, forDrag: false));
     }
