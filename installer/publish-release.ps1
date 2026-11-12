@@ -110,6 +110,12 @@ Write-Host "Installer: $setupName, signed by $signer, SHA-256 $hash"
 Invoke-Native 'git fetch' { git -C $root fetch --quiet --tags origin main } | Out-Null
 if (-not $Target) { $Target = (Invoke-Native 'git rev-parse' { git -C $root rev-parse HEAD }) | Select-Object -First 1 }
 $Target = (Invoke-Native 'git rev-parse' { git -C $root rev-parse --verify "$Target^{commit}" }) | Select-Object -First 1
+# The tag has to point at the source of this version, not just at some commit on main.
+$targetProject = (Invoke-Native 'git show' { git -C $root show "${Target}:src/ClearStart.csproj" }) -join "`n"
+$targetVersion = ([xml]$targetProject).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+if ($targetVersion -ne $version) {
+    throw "Commit $Target is version '$targetVersion', not $version. Release the commit the installer was built from."
+}
 $ErrorActionPreference = 'Continue'
 git -C $root merge-base --is-ancestor $Target origin/main 2>&1 | Out-Null
 $onMain = $LASTEXITCODE -eq 0

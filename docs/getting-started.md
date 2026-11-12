@@ -144,7 +144,7 @@ you sign in. It needs no administrator rights.
 | --- | --- |
 | Settings | `%APPDATA%\ClearStart\settings.json` |
 | Log | `%LOCALAPPDATA%\ClearStart\logs\clearstart.log` |
-| Downloaded updates | `%LOCALAPPDATA%\ClearStart\updates`. A downloaded setup program is deleted once it has run; Setup's last log stays. |
+| Downloaded updates | `%LOCALAPPDATA%\ClearStart\updates`. A downloaded setup program is deleted once it has run; Setup's last log, and which version it was for, stay. |
 
 The settings and the log are created on the first run. [The settings file](settings-file.md) lists every key.
 

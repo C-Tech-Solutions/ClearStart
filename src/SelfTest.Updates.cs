@@ -211,6 +211,10 @@ internal static partial class SelfTest
                 var namesake = installedSignature with { Subject = installedSignature.Subject + ", OU=Somewhere else" };
                 checks["a namesake"] = Refused("a namesake", installed, null, namesake, errors);
             }
+            else
+            {
+                checks["the installed copy"] = "not checked: there is no signed installed copy on this PC";
+            }
             if (signed.Length > 0)
             {
                 string changed = Path.Combine(scratch, "changed.exe");
@@ -222,6 +226,8 @@ internal static partial class SelfTest
                     file.Position = file.Length / 2;
                     file.WriteByte((byte)(b ^ 0xFF));
                 }
+                // Windows itself has to see the change, whoever the signer is.
+                if (Authenticode.Check(changed).Valid) errors.Add("Updates: a signed file still counts as signed after a change");
                 checks["changed after signing"] = Refused("changed after signing", changed, null,
                     signed == installed ? installedSignature! : SampleSigner, errors);
             }
@@ -277,7 +283,7 @@ internal static partial class SelfTest
             statuses.Add(updates.Status);
             if (!updates.Status.Contains("did not install. Setup could not start.", StringComparison.Ordinal))
             {
-                errors.Add("updates: a Setup that did not start is not in the status: " + updates.Status);
+                errors.Add("Updates: a Setup that did not start is not in the status: " + updates.Status);
             }
             report["updateStatus"] = statuses;
 
@@ -286,12 +292,24 @@ internal static partial class SelfTest
             double flat = Settings.Current.Taskbar.Height;
             updates.ShowSample(release, UpdateState.Idle);
             var view = new TaskbarView(host, primary, AppBarEdge.Bottom, flat);
-            report["updateMenu"] = MenuLines(view.UpdateMenu(), "");
+            var menu = MenuLines(view.UpdateMenu(), "");
+            report["updateMenu"] = menu;
             view.Detach();
             updates.ShowSample(release, UpdateState.Idle, canInstall: false);
             view = new TaskbarView(host, primary, AppBarEdge.Bottom, flat);
-            report["updateMenuBuildCopy"] = MenuLines(view.UpdateMenu(), "");
+            var buildMenu = MenuLines(view.UpdateMenu(), "");
+            report["updateMenuBuildCopy"] = buildMenu;
             view.Detach();
+            // The installed copy offers to install; a copy built from source only points to GitHub.
+            if (!menu.Any(line => line.StartsWith("Install version", StringComparison.Ordinal)))
+            {
+                errors.Add("Updates: the bar's menu does not offer to install the update");
+            }
+            if (buildMenu.Any(line => line.StartsWith("Install", StringComparison.Ordinal))
+                || !buildMenu.Any(line => line.Contains("from GitHub", StringComparison.Ordinal)))
+            {
+                errors.Add("Updates: a copy built from source offers to install, or does not point to GitHub");
+            }
 
             updates.ShowSample(release, UpdateState.Idle);
             await DrawBarAsync(host, primary, Path.Combine(directory, "taskbar-update.png"), AppBarEdge.Bottom, flat, 1600, null, 1200);

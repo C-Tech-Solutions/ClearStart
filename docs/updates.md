@@ -47,9 +47,9 @@ Nothing is downloaded until you ask, unless **Install updates automatically** is
    shows for a moment), puts the new version in place, and starts ClearStart again the way it was
    running, live or as a preview. **Start with Windows** stays as it was.
 
-If Setup stops without updating, the old version keeps running and the settings page says so.
-Setup's log is `setup.log` in the same `updates` folder. ClearStart does not try that version again
-by itself until it is next started.
+If Setup stops without updating, the old version keeps running, or Setup starts it again, and the
+settings page says so. Setup's log is `setup.log` in the same `updates` folder. ClearStart does not
+install that version again by itself; **Install** tries again.
 
 **Install updates automatically** is off unless you turn it on. When it is on, ClearStart downloads
 a newer version as soon as it finds one and installs it once nobody has used the PC for ten minutes.

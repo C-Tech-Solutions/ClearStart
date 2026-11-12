@@ -149,7 +149,13 @@ internal sealed class UpdateService : IDisposable
                 case UpdateState.Checking:
                     return "Checking for updates…";
             }
-            if (Latest != null) return $"Version {version} is available" + (Problem != null ? ". " + Problem : "");
+            if (Latest != null)
+            {
+                string more = Problem != null ? ". " + Problem
+                    : Latest.Version == _setupFailedFor ? ". The last try to install it did not finish; Setup's log is in " + Folder
+                    : "";
+                return $"Version {version} is available" + more;
+            }
             if (Problem != null) return Problem;
             if (LastChecked is { } when)
             {
@@ -168,6 +174,7 @@ internal sealed class UpdateService : IDisposable
     {
         if (_disposed || _mode == HostMode.SelfTest || _timer.IsEnabled) return;
         _startedAt = DateTime.UtcNow;
+        _setupFailedFor = LastFailedAttempt();
         _timer.Start();
     }
 
@@ -494,6 +501,9 @@ internal sealed class UpdateService : IDisposable
         _installWhenReady = false;
         try
         {
+            // Setup closes this copy before it installs, and starts the old one again if it fails. Written down,
+            // the attempt tells that copy not to try this version again by itself.
+            File.WriteAllText(AttemptFile, release.VersionText);
             var start = new ProcessStartInfo(_verified.Name, SetupArguments(_mode, Path.Combine(Folder, "setup.log")))
             {
                 UseShellExecute = false,
@@ -545,6 +555,33 @@ internal sealed class UpdateService : IDisposable
         _setupProblem = null;
         Delete(path);
         if (State == UpdateState.Ready) State = UpdateState.Idle;
+    }
+
+    /// <summary>The version a Setup was last started for (see <see cref="Launch"/>).</summary>
+    private static string AttemptFile => Path.Combine(Folder, "last-attempt.txt");
+
+    /// <summary>
+    /// A version Setup was started for that is still newer than this one, so that Setup did not update it.
+    /// Once this copy is that version or later, the record has done its job and goes.
+    /// </summary>
+    private static Version? LastFailedAttempt()
+    {
+        try
+        {
+            if (!File.Exists(AttemptFile)) return null;
+            var tried = ParseTag("v" + File.ReadAllText(AttemptFile).Trim());
+            if (tried != null && IsNewer(tried, CurrentVersion))
+            {
+                Log.Warn($"Setup for version {tried.ToString(3)} did not update ClearStart; it is not installed again by itself");
+                return tried;
+            }
+            File.Delete(AttemptFile);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("Could not read the last update attempt: " + ex.Message);
+        }
+        return null;
     }
 
     /// <summary>Removes what earlier updates left behind. Setup's last log is kept.</summary>
