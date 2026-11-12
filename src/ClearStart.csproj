@@ -12,6 +12,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <!-- Program.Main hides the Windows taskbar before WPF loads; see Program.cs. -->
+    <StartupObject>ClearStart.Program</StartupObject>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- Drawn by AppIcon.cs. The self-test writes it out as app-icon.ico; copy that here after changing the drawing. -->
     <ApplicationIcon>ClearStart.ico</ApplicationIcon>

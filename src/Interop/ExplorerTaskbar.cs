@@ -12,24 +12,67 @@ internal static class ExplorerTaskbar
 {
     private const uint ABM_GETSTATE = 0x4;
     private const uint ABM_SETSTATE = 0xA;
+    private const int ABS_AUTOHIDE = 0x1;
 
     private static string StateFile => Path.Combine(Log.DataDirectory, "explorer-taskbar-state.txt");
 
     /// <summary>
-    /// Records the taskbar's auto-hide state before it is hidden. If a record is already there,
-    /// the previous run ended without restoring, and that older record is the true original.
+    /// Records the taskbar's auto-hide state before it is hidden. If a record is already there, it is
+    /// the true original: either the previous run ended without restoring, or the user signed out with
+    /// "Start with Windows" on, which leaves auto-hide on until ClearStart is back (see <see cref="ShowForSignOut"/>).
     /// </summary>
-    public static void RememberState()
+    /// <param name="primary">Explorer's main taskbar window.</param>
+    public static void RememberState(IntPtr primary)
     {
         try
         {
             if (File.Exists(StateFile)) return;
             Directory.CreateDirectory(Log.DataDirectory);
-            File.WriteAllText(StateFile, GetState().ToString());
+            int state = GetState(primary);
+            File.WriteAllText(StateFile, state.ToString());
+            Log.Info($"Noted the Windows taskbar's own setting, to put back later: auto-hide {((state & ABS_AUTOHIDE) != 0 ? "on" : "off")}");
         }
         catch (Exception ex)
         {
             Log.Error("Could not record the Windows taskbar state", ex);
+        }
+    }
+
+    /// <summary>Switches the Windows taskbar to auto-hide, so it keeps no strip of the desktop for itself.</summary>
+    public static void EnsureAutoHide(IntPtr primary)
+    {
+        int state = GetState(primary);
+        if ((state & ABS_AUTOHIDE) != 0) return;
+        var data = new Native.APPBARDATA
+        {
+            cbSize = Marshal.SizeOf<Native.APPBARDATA>(),
+            hWnd = primary,
+            lParam = new IntPtr(state | ABS_AUTOHIDE),
+        };
+        Native.SHAppBarMessage(ABM_SETSTATE, ref data);
+    }
+
+    /// <summary>True once Explorer has put up its taskbar (at sign-in ClearStart can be there first).</summary>
+    public static bool IsUp() => FindBars().Any(bar => bar.IsPrimary);
+
+    /// <summary>
+    /// For signing out with "Start with Windows" on. Shows the Windows taskbar windows again, so a sign-out
+    /// that is cancelled still leaves a taskbar, but leaves auto-hide on and keeps the record of the original
+    /// setting. At the next sign-in Explorer then starts its taskbar out of sight, and ClearStart, starting
+    /// moments later, hides it before it is ever in the way.
+    /// </summary>
+    public static void ShowForSignOut()
+    {
+        try
+        {
+            TaskbarGuard.Stop();
+            var bars = FindBars();
+            ShowBars(bars);
+            Log.Info($"Windows taskbar shown again, auto-hidden until ClearStart starts at the next sign-in ({bars.Count} bar(s))");
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not show the Windows taskbar", ex);
         }
     }
 
@@ -38,6 +81,9 @@ internal static class ExplorerTaskbar
     {
         try
         {
+            // Otherwise it would hide the taskbar again the moment it is shown.
+            TaskbarGuard.Stop();
+
             int state = 0;
             bool hadRecord = false;
             try
@@ -67,15 +113,8 @@ internal static class ExplorerTaskbar
                     };
                     Native.SHAppBarMessage(ABM_SETSTATE, ref data);
                 }
-
-                Native.ShowWindow(hwnd, 4 /* SW_SHOWNOACTIVATE */);
-                Native.SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
-                    Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOZORDER | Native.SWP_NOACTIVATE | Native.SWP_SHOWWINDOW);
             }
-
-            // Ask every app to put its notification icon back into the Windows tray.
-            uint taskbarCreated = Native.RegisterWindowMessage("TaskbarCreated");
-            Native.SendNotifyMessage(new IntPtr(0xFFFF), taskbarCreated, IntPtr.Zero, IntPtr.Zero);
+            ShowBars(bars);
 
             try
             {
@@ -136,15 +175,24 @@ internal static class ExplorerTaskbar
         }
     }
 
-    private static int GetState()
+    /// <summary>Shows the taskbar windows and asks every app to put its notification icon back in the Windows tray.</summary>
+    private static void ShowBars(List<(IntPtr Hwnd, bool IsPrimary)> bars)
     {
-        foreach (var (hwnd, isPrimary) in FindBars())
+        foreach (var (hwnd, _) in bars)
         {
-            if (!isPrimary) continue;
-            var data = new Native.APPBARDATA { cbSize = Marshal.SizeOf<Native.APPBARDATA>(), hWnd = hwnd };
-            return (int)Native.SHAppBarMessage(ABM_GETSTATE, ref data).ToUInt64();
+            Native.ShowWindow(hwnd, 4 /* SW_SHOWNOACTIVATE */);
+            Native.SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOZORDER | Native.SWP_NOACTIVATE | Native.SWP_SHOWWINDOW);
         }
-        return 0;
+
+        uint taskbarCreated = Native.RegisterWindowMessage("TaskbarCreated");
+        Native.SendNotifyMessage(new IntPtr(0xFFFF), taskbarCreated, IntPtr.Zero, IntPtr.Zero);
+    }
+
+    private static int GetState(IntPtr primary)
+    {
+        var data = new Native.APPBARDATA { cbSize = Marshal.SizeOf<Native.APPBARDATA>(), hWnd = primary };
+        return (int)Native.SHAppBarMessage(ABM_GETSTATE, ref data).ToUInt64();
     }
 
     /// <summary>Taskbar windows that belong to Explorer (ours use the same class name for the tray, so check the owner).</summary>

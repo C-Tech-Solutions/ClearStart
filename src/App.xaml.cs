@@ -12,11 +12,15 @@ namespace ClearStart;
 ///   ClearStart.exe --restore       same, and then force the Windows taskbar back even if nothing was running
 ///   ClearStart.exe --selftest DIR  draw the UI into image files in DIR without showing anything
 ///   ClearStart.exe --screenshots DIR  draw pictures for the documentation, with stand-in apps and default settings
+///   ClearStart.exe --start-with-windows on|off  switch "Start with Windows" for this copy (used by Setup)
+///
+/// A live run begins in <see cref="Program"/>, which hides the Windows taskbar before any of this loads.
 /// </summary>
 public partial class App : Application
 {
-    private const string MutexName = @"Local\ClearStart.SingleInstance";
-    private const string ExitEventName = @"Local\ClearStart.Exit";
+    internal const string MutexName = @"Local\ClearStart.SingleInstance";
+    internal const string ExitEventName = @"Local\ClearStart.Exit";
+    private static readonly string[] OtherModes = { "--preview", "--restore", "--exit", "--selftest", "--screenshots" };
 
     private readonly Queue<DateTime> _recentErrors = new();
     private Mutex? _mutex;
@@ -102,35 +106,48 @@ public partial class App : Application
 
     private static bool Has(string[] args, string flag) => args.Any(a => IsFlag(a, flag));
 
+    /// <summary>True when these arguments start ClearStart for real, in place of the Windows taskbar.</summary>
+    internal static bool IsLiveRun(string[] args) => !OtherModes.Any(mode => Has(args, mode));
+
     // ------------------------------------------------------------------ normal run
 
     private void RunShell(HostMode mode)
     {
-        var mutex = new Mutex(true, MutexName, out bool first);
-        if (!first)
-        {
-            // Already running; one copy is enough.
-            mutex.Dispose();
-            Shutdown(0);
-            return;
-        }
-        _mutex = mutex;
-
-        Log.Init();
-        Log.Info($"ClearStart {Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)} starting ({mode})");
         _live = mode == HostMode.Live;
+        if (_live && LiveStart.Mutex != null && LiveStart.ExitEvent != null)
+        {
+            // Program.Main got this far already: it holds the single-copy lock and has hidden the Windows taskbar.
+            _mutex = LiveStart.Mutex;
+            _exitEvent = LiveStart.ExitEvent;
+        }
+        else
+        {
+            var mutex = new Mutex(true, MutexName, out bool first);
+            if (!first)
+            {
+                // Already running; one copy is enough.
+                mutex.Dispose();
+                Shutdown(0);
+                return;
+            }
+            _mutex = mutex;
+
+            Log.Init();
+            Log.Info($"ClearStart {Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)} starting ({mode})");
+            _exitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ExitEventName);
+        }
         WatchForErrors();
 
         // "ClearStart.exe --exit" and "--restore" set this event to close us cleanly.
-        _exitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ExitEventName);
         _exitWait = ThreadPool.RegisterWaitForSingleObject(_exitEvent,
             (_, _) => Dispatcher.InvokeAsync(() => Shutdown(0)), null, Timeout.Infinite, true);
 
-        // Signing out or shutting down: put the Windows taskbar setting back before the session goes away.
+        // Signing out or shutting down: give the Windows taskbar back before the session goes away. (Windows
+        // goes on to close ClearStart either way.)
         SessionEnding += (_, _) =>
         {
             Log.Info("The Windows session is ending");
-            DisposeHost();
+            DisposeHost(sessionEnding: true);
         };
 
         Settings.Load();
@@ -140,14 +157,14 @@ public partial class App : Application
         _host.Start();
     }
 
-    private void DisposeHost()
+    private void DisposeHost(bool sessionEnding = false)
     {
         var host = _host;
         _host = null;
         if (host == null) return;
         try
         {
-            host.Dispose();
+            host.Close(sessionEnding);
         }
         catch (Exception ex)
         {

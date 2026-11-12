@@ -164,6 +164,9 @@ internal static class Native
 
     internal delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
 
+    internal delegate void WinEventProc(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild,
+        uint eventThread, uint eventTime);
+
     // ------------------------------------------------------------------ constants
 
     internal const uint SWP_NOSIZE = 0x0001;
@@ -171,7 +174,10 @@ internal static class Native
     internal const uint SWP_NOZORDER = 0x0004;
     internal const uint SWP_NOACTIVATE = 0x0010;
     internal const uint SWP_SHOWWINDOW = 0x0040;
+    internal const uint SWP_HIDEWINDOW = 0x0080;
+    internal const uint SWP_ASYNCWINDOWPOS = 0x4000;
     internal static readonly IntPtr HWND_TOPMOST = new(-1);
+    internal static readonly IntPtr HWND_BOTTOM = new(1);
 
     internal const int GWL_EXSTYLE = -20;
     internal const int WS_EX_TRANSPARENT = 0x00000020;
@@ -308,6 +314,22 @@ internal static class Native
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     internal static extern bool SendNotifyMessage(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    internal static extern IntPtr FindWindowEx(IntPtr parent, IntPtr childAfter, string? className, string? windowName);
+
+    [DllImport("user32.dll")]
+    internal static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr module, WinEventProc callback,
+        uint processId, uint threadId, uint flags);
+
+    [DllImport("user32.dll")]
+    internal static extern bool UnhookWinEvent(IntPtr hook);
+
+    [DllImport("user32.dll")]
+    internal static extern UIntPtr SetTimer(IntPtr hwnd, UIntPtr id, uint milliseconds, IntPtr callback);
+
+    [DllImport("user32.dll")]
+    internal static extern bool KillTimer(IntPtr hwnd, UIntPtr id);
 
     // ------------------------------------------------------------------ helpers
 

@@ -57,7 +57,9 @@ public partial class TaskbarView : UserControl
     private bool _resizing;
     private Native.POINT _dragStart;
     private double _dragStartThickness;
-    private DateTime _lastResize = DateTime.MinValue;
+    // The clock's text sizes, measured once: they depend only on the font, which a bar keeps.
+    private double? _digitHeight;
+    private double? _widestDayName;
 
     /// <param name="thickness">Height of a top or bottom bar, width of a side bar.</param>
     /// <param name="startButton">Where the Start button goes; null = what the settings say for this monitor.</param>
@@ -141,8 +143,14 @@ public partial class TaskbarView : UserControl
         RefreshWeather();
     }
 
+    /// <summary>The user took hold of the resize handle.</summary>
+    internal event Action? ResizeStarted;
+
     /// <summary>Raised while the user drags the resize handle: the bar should become this thick.</summary>
     internal event Action<double>? ThicknessRequested;
+
+    /// <summary>The user let go of the resize handle (or lost hold of it).</summary>
+    internal event Action? ResizeFinished;
 
     /// <summary>The app buttons currently on this bar, in order.</summary>
     internal IReadOnlyList<AppButton> AppButtons => _apps.Items;
@@ -379,15 +387,20 @@ public partial class TaskbarView : UserControl
     /// </summary>
     private bool DayFits(double thickness, double across)
     {
+        // Measured once and kept: this runs on every step of a resize drag.
         var typeface = new Typeface(FontFamily, FontStyle, FontWeight, FontStretch);
         FormattedText Measure(string text) => new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
             typeface, FontSize, Brushes.White, _scale);
 
-        if (!_vertical) return thickness - 2 * across >= 3 * Measure("0").Height;
+        if (!_vertical)
+        {
+            _digitHeight ??= Measure("0").Height;
+            return thickness - 2 * across >= 3 * _digitHeight.Value;
+        }
 
-        double widest = CultureInfo.CurrentCulture.DateTimeFormat.DayNames.Max(day => Measure(day).Width);
+        _widestDayName ??= CultureInfo.CurrentCulture.DateTimeFormat.DayNames.Max(day => Measure(day).Width);
         double room = thickness - 2 * across - ClockButton.Padding.Left - ClockButton.Padding.Right;
-        return widest * 0.9 <= room;
+        return _widestDayName.Value * 0.9 <= room;
     }
 
     /// <summary>The lines the clock shows, top to bottom: for the self-test's report.</summary>
@@ -462,6 +475,7 @@ public partial class TaskbarView : UserControl
         if (!Native.GetCursorPos(out _dragStart)) return;
         _dragStartThickness = _thickness;
         _resizing = true;
+        ResizeStarted?.Invoke();
         ResizeGrip.CaptureMouse();
         e.Handled = true;
     }
@@ -470,8 +484,8 @@ public partial class TaskbarView : UserControl
     {
         if (!_resizing || !Native.GetCursorPos(out var now)) return;
 
-        // Every step re-docks the bar and makes Windows move the other windows out of the way; do not flood it.
-        if ((DateTime.UtcNow - _lastResize).TotalMilliseconds < 50) return;
+        // Every step only resizes this bar's own window, so it can follow the mouse without a pause. The bar is
+        // docked again, and the other windows moved out of its way, once, when the mouse is let go.
         SetThickness(ThicknessAt(now));
     }
 
@@ -492,6 +506,7 @@ public partial class TaskbarView : UserControl
     private void FinishResize()
     {
         _resizing = false;
+        ResizeFinished?.Invoke();
         if (_thickness != _dragStartThickness) _host.SaveBarSize(_device, (int)_thickness);
     }
 
@@ -513,7 +528,6 @@ public partial class TaskbarView : UserControl
     private void SetThickness(double thickness)
     {
         if (thickness == _thickness) return;
-        _lastResize = DateTime.UtcNow;
         ApplyThickness(thickness);
         ThicknessRequested?.Invoke(thickness);
     }
