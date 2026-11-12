@@ -10,7 +10,8 @@ Each monitor has its own bar, and each bar is set up on its own.
 
 From left to right: **Start**, the **search button**, the **app buttons**, the **weather**, the
 **tray icons** with the arrow for the hidden ones, **network and volume**, and the **clock**. A
-[Cast](#cast) button can join them.
+[Cast](#cast) button can join them. While a newer version of ClearStart is out, a download button
+with a blue dot sits on the main bar next to the weather; see [Updates](updates.md).
 
 - [The bar's right-click menu](#the-bars-right-click-menu)
 - [Moving and resizing](#moving-and-resizing)

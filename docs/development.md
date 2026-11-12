@@ -24,7 +24,7 @@ ClearStart
 ├── THIRD-PARTY-NOTICES.md
 ├── docs/              the guides
 │   └── images/        the pictures they use
-├── installer/         the installer and the script that builds it
+├── installer/         the installer, and the scripts that build and publish it
 └── src/               the app
     ├── ClearStart.csproj
     ├── Interop/       calls into Windows
@@ -48,6 +48,10 @@ A running copy keeps the program file open, so close it before building again:
 ```powershell
 src\bin\Release\net10.0-windows\ClearStart.exe --exit
 ```
+
+Or build with `-c Debug`, which writes to `src\bin\Debug\net10.0-windows` and leaves a running
+Release copy alone. Note that `--exit` closes whichever copy is running, wherever it was started
+from.
 
 ## Command line
 
@@ -161,7 +165,7 @@ The script finds its tools by itself, or you can point it at them:
 | **Where** | `%LOCALAPPDATA%\Programs\ClearStart`, for the one user, with no administrator rights. A shortcut goes in the Start menu. |
 | **Start with Windows** | An optional task, off by default while live mode is new. It writes the same entry the app's own switch writes (see [`src/AutoStart.cs`](../src/AutoStart.cs)), so the switch shows it as on. |
 | **Upgrading** | If the installed copy is running, Setup runs it with `--exit` first. |
-| **Updating** | ClearStart's updater runs Setup with `/VERYSILENT` and `/RESTART=live` or `/RESTART=preview`. At the end Setup starts the installed copy again in that mode, unless a copy is already running. Without `/RESTART` it starts nothing. |
+| **Updating** | ClearStart's updater runs Setup with `/VERYSILENT`, `/MERGETASKS="!startup"`, so that Start with Windows stays as it was, and `/RESTART=live` or `/RESTART=preview`. At the end Setup starts the installed copy again in that mode, unless a copy is already running. Without `/RESTART` it starts nothing. |
 | **Uninstalling** | Runs `--restore`, then removes the files, and the Start with Windows entry if it starts this copy. If ClearStart is still running after `--restore`, it stops before removing anything. The settings and the log stay. |
 
 `AppId` in `ClearStart.iss` ties every version together, so a new installer upgrades the old one
@@ -175,10 +179,11 @@ they look for:
 
 1. Raise `<Version>` in `src/ClearStart.csproj`, as three numbers like `0.2.0`, and merge that to
    `main`.
-2. With `main` checked out, build and sign the installer:
+2. With that commit of `main` checked out, build and sign the installer, passing the metadata
+   file or setting `CLEARSTART_SIGNING_METADATA` (see [Signing it](#signing-it)):
 
    ```powershell
-   installer\build-installer.ps1 -Sign
+   installer\build-installer.ps1 -Sign -MetadataPath C:\path\to\azure-artifact-signing.json
    ```
 
 3. Check what would be published, then publish it. This needs `gh`, signed in with an account that
@@ -188,6 +193,12 @@ they look for:
    installer\publish-release.ps1 -WhatIf
    installer\publish-release.ps1 -NotesFile path\to\notes.md
    ```
+
+   The release is tagged on the commit checked out. If `main` has moved on since the installer was
+   built, without a new version, pass the commit it was built from with `-Target <commit>`; the
+   script checks that its project file has the installer's version. The script picks the
+   installer by the version in the project file checked out, so once `main` is at a newer
+   version, check out the commit the installer was built from instead.
 
 The script refuses unless the installer is the version in the project file, is signed by
 C-Tech Solutions LLC and matches its `.sha256.txt` file, and unless the commit is on

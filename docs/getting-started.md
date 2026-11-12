@@ -5,41 +5,46 @@
 This page takes you from nothing to ClearStart's bars on your screen, and back again.
 
 - [What you need](#what-you-need)
-- [1. Build it](#1-build-it)
+- [1. Install it](#1-install-it)
 - [2. Run the preview](#2-run-the-preview)
 - [3. Find your way around](#3-find-your-way-around)
 - [4. Close it](#4-close-it)
 - [Live mode](#live-mode)
 - [The installer](#the-installer)
+- [Building it from source](#building-it-from-source)
 - [Start with Windows](#start-with-windows)
 - [Where ClearStart keeps things](#where-clearstart-keeps-things)
 - [Removing it](#removing-it)
 
 ## What you need
 
-- **Windows 11.** It has been built and run on Windows 11 25H2 only.
-- **The [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)**, to build it. There is
-  no ready-made download yet, but you can build [the installer](#the-installer) yourself.
-- **Git**, or download the code as a ZIP from the green **Code** button on GitHub.
+- **64-bit Windows 11.** It has been built and run on Windows 11 25H2 only.
+- Nothing else to install it: Setup carries its own copy of .NET.
+- To [build it from source](#building-it-from-source) instead: the
+  [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0), and Git or the code as a ZIP
+  from the green **Code** button on GitHub.
 
-## 1. Build it
+## 1. Install it
 
-Open a terminal (PowerShell is fine) and run:
+Download `ClearStart-Setup-<version>.exe` from the
+[latest release](https://github.com/C-Tech-Solutions/ClearStart/releases/latest) and run it.
+[The installer](#the-installer) says what it does.
+
+Its last page has **Start ClearStart now** ticked. That starts [live mode](#live-mode), in the
+Windows taskbar's place. To look around in a preview first, untick it.
+
+The program is then at the place below, unless you chose another folder in Setup:
+
+```
+%LOCALAPPDATA%\Programs\ClearStart\ClearStart.exe
+```
+
+The commands on the rest of this page are written as `ClearStart.exe`. In PowerShell, put the full
+path in front, or run them as `.\ClearStart.exe` from that folder. For example:
 
 ```powershell
-git clone https://github.com/C-Tech-Solutions/ClearStart.git
-cd ClearStart
-dotnet build src/ClearStart.csproj -c Release
+& "$env:LOCALAPPDATA\Programs\ClearStart\ClearStart.exe" --preview
 ```
-
-The program is then at:
-
-```
-src\bin\Release\net10.0-windows\ClearStart.exe
-```
-
-The commands on the rest of this page are written as `ClearStart.exe`. Run them from that folder,
-or put the full path in front.
 
 ## 2. Run the preview
 
@@ -105,28 +110,62 @@ key. Closing ClearStart undoes all three.
 
 ## The installer
 
-To put ClearStart on a PC for good, build its installer. That needs
-[Inno Setup 6](https://jrsoftware.org/isdl.php) (6.7 or later) as well as the .NET SDK. From the
-folder you cloned, run:
+Each [release](https://github.com/C-Tech-Solutions/ClearStart/releases/latest) carries the
+installer, `ClearStart-Setup-<version>.exe`, about 55 MB and signed by C-Tech Solutions LLC, and
+`ClearStart-Setup-<version>.exe.sha256.txt`, which holds its SHA-256.
+
+| | |
+| --- | --- |
+| **Everything in one file** | It carries its own copy of .NET, so the PC needs nothing installed first. |
+| **For you alone** | It installs into `%LOCALAPPDATA%\Programs\ClearStart` unless you choose another folder, adds ClearStart to the Start menu, and asks for no administrator rights. |
+| **Two choices** | Before it installs: start ClearStart when you sign in (off unless you tick it). At the end: start it now (ticked). Both start [live mode](#live-mode). |
+| **Upgrades in place** | A newer installer replaces the old copy, and closes it first if it is running. |
+| **Updates itself** | The installed copy can fetch and install newer versions from GitHub. See [Updates](updates.md). |
+| **Uninstall** | From **Settings → Apps → Installed apps**. It closes ClearStart, makes sure the Windows taskbar is showing, and takes away the Start with Windows entry if it starts this copy. Your settings stay. |
+
+To check a download yourself, compare its SHA-256 with the one in the `.sha256.txt` file:
+
+```powershell
+Get-FileHash .\ClearStart-Setup-*.exe -Algorithm SHA256
+```
+
+The signature shows under the file's **Properties → Digital Signatures**.
+
+### Building the installer yourself
+
+That needs [Inno Setup 6](https://jrsoftware.org/isdl.php) (6.7 or later) as well as what
+[building from source](#building-it-from-source) needs. From the folder you cloned, run:
 
 ```powershell
 installer\build-installer.ps1
 ```
 
-It writes `artifacts\installer\ClearStart-Setup-0.2.0.exe`, about 55 MB, and its SHA-256
-checksum next to it.
+It writes `artifacts\installer\ClearStart-Setup-<version>.exe`, and its SHA-256 checksum next to
+it.
 
-| | |
-| --- | --- |
-| **Everything in one file** | It carries its own copy of .NET, so the PC needs nothing installed first. |
-| **For you alone** | It installs into `%LOCALAPPDATA%\Programs\ClearStart`, adds ClearStart to the Start menu, and asks for no administrator rights. |
-| **Two choices at the end** | Start ClearStart when you sign in (off unless you tick it), and start it now. Both start [live mode](#live-mode). |
-| **Upgrades in place** | A newer installer replaces the old copy, and closes it first if it is running. |
-| **Updates itself** | An installed, signed copy can fetch and install newer versions from GitHub. See [Updates](updates.md). |
-| **Uninstall** | From **Settings → Apps → Installed apps**. It closes ClearStart, makes sure the Windows taskbar is showing, and takes away the Start with Windows entry if it starts this copy. Your settings stay. |
+An installer built this way is not signed, so Windows warns before running it, and the copy it
+installs says when a newer version is out but does not install it. A signed one is built with
+`-Sign`; see [Development](development.md#the-installer).
 
-An installer built this way is not signed, so Windows warns before running it. A signed one is
-built with `-Sign`; see [Development](development.md#the-installer).
+## Building it from source
+
+Open a terminal (PowerShell is fine) and run:
+
+```powershell
+git clone https://github.com/C-Tech-Solutions/ClearStart.git
+cd ClearStart
+dotnet build src/ClearStart.csproj -c Release
+```
+
+The program is then at:
+
+```
+src\bin\Release\net10.0-windows\ClearStart.exe
+```
+
+The commands on this page work the same from there. A copy built this way checks for updates and
+says when a newer version is out, but does not install it; see
+[Updates](updates.md#which-copies-update-themselves).
 
 ## Start with Windows
 
@@ -142,21 +181,22 @@ you sign in. It needs no administrator rights.
 
 | What | Where |
 | --- | --- |
+| The program, when installed | `%LOCALAPPDATA%\Programs\ClearStart`, unless you chose another folder in Setup |
 | Settings | `%APPDATA%\ClearStart\settings.json` |
 | Log | `%LOCALAPPDATA%\ClearStart\logs\clearstart.log` |
-| Downloaded updates | `%LOCALAPPDATA%\ClearStart\updates`. A downloaded setup program is deleted once it has run; Setup's last log, and which version it was for, stay. |
+| Downloaded updates | `%LOCALAPPDATA%\ClearStart\updates`. A downloaded setup program is deleted after it has run; Setup's last log, `setup.log`, stays. |
 
 The settings and the log are created on the first run. [The settings file](settings-file.md) lists every key.
 
 ## Removing it
 
 **Installed:** uninstall it from **Settings → Apps → Installed apps**. To remove your settings
-too, delete the two folders in the table above afterwards.
+too, delete `%APPDATA%\ClearStart` and `%LOCALAPPDATA%\ClearStart` afterwards.
 
 **Built and run from the folder:**
 
 1. Switch off **Start with Windows** if you switched it on.
 2. Close ClearStart.
-3. Delete the folder you cloned, and the two folders in the table above.
+3. Delete the folder you cloned, and `%APPDATA%\ClearStart` and `%LOCALAPPDATA%\ClearStart`.
 
 ClearStart writes nothing else: no services, no drivers, and nothing in Explorer.
