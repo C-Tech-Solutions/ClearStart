@@ -9,8 +9,8 @@ namespace ClearStart;
 /// busy the UI thread is (building four bars can keep it busy for seconds). A look every two seconds catches
 /// anything the reports missed.
 ///
-/// Without code inside Explorer, which ClearStart does not put there, this is as soon as the taskbar can be
-/// hidden: the report comes just after the window was shown, so Explorer may still draw it for a frame.
+/// In ordinary startup mode the report comes after the window was shown, so Explorer may draw it for a frame.
+/// The optional early-startup guard also prevents shows inside Explorer, before these reports are sent.
 /// </summary>
 internal static class TaskbarGuard
 {
@@ -197,7 +197,7 @@ internal static class TaskbarGuard
     {
         lock (HideGate)
         {
-            if (_stopped) return;
+            if (_stopped || EarlySession.Released) return;
             Native.SetWindowPos(hwnd, Native.HWND_BOTTOM, 0, 0, 0, 0,
                 Native.SWP_HIDEWINDOW | Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
         }
@@ -217,7 +217,7 @@ internal static class TaskbarGuard
         {
             lock (AutoHideGate)
             {
-                if (_stopped) return;
+                if (_stopped || EarlySession.Released) return;
                 try
                 {
                     if (ExplorerTaskbar.RememberState(primary)) ExplorerTaskbar.EnsureAutoHide(primary);

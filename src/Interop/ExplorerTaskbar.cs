@@ -26,10 +26,16 @@ internal static class ExplorerTaskbar
     {
         try
         {
-            if (File.Exists(StateFile)) return int.TryParse(File.ReadAllText(StateFile).Trim(), out _);
+            if (File.Exists(StateFile))
+            {
+                if (!int.TryParse(File.ReadAllText(StateFile).Trim(), out int saved)) return false;
+                EarlySession.RecordTaskbarState(saved);
+                return true;
+            }
             Directory.CreateDirectory(Log.DataDirectory);
             int state = GetState(primary);
             File.WriteAllText(StateFile, state.ToString());
+            EarlySession.RecordTaskbarState(state);
             Log.Info($"Noted the Windows taskbar's own setting, to put back later: auto-hide {((state & ABS_AUTOHIDE) != 0 ? "on" : "off")}");
             return true;
         }
@@ -65,6 +71,7 @@ internal static class ExplorerTaskbar
     /// </summary>
     public static void ShowForSignOut()
     {
+        EarlySession.Release();
         try
         {
             TaskbarGuard.Stop();
@@ -81,6 +88,7 @@ internal static class ExplorerTaskbar
     /// <summary>Shows the Windows taskbar on every monitor again and restores its auto-hide setting.</summary>
     public static void Restore()
     {
+        EarlySession.Release();
         try
         {
             // Otherwise it would hide the taskbar again the moment it is shown.

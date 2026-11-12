@@ -41,6 +41,12 @@ see [Changed since 0.2.0, not run yet](#changed-since-020-not-run-yet).
   uninstalling, and there was nothing to put back;
 - starting with Windows (the switch starts live mode).
 
+**Experimental early startup.** The separate native loader and Explorer guard compile, but have
+never been loaded, registered, installed or run during this work. First-frame suppression, the
+desktop-ready handshake, missing-file recovery, crash/hang recovery, sleep/resume, and removal
+are all unverified. It remains disabled and outside the normal installer build. See
+[the isolated test plan](early-startup.md#validation-before-enabling-on-a-real-pc).
+
 **Updating.** The updater's parts are covered by the self-test: reading a release, comparing
 versions, the checksum and the signature checks, and refusing a download that fails them. No copy
 has yet updated itself from one release to the next, which needs an installed, signed copy and a
@@ -73,6 +79,10 @@ one by clicking it on a real desktop:
 ## Changed since 0.2.0, not run yet
 
 These are in the code, and build, but have not been run on a real desktop yet:
+
+- **Optional early-startup candidate:** a per-user loader starts Explorer with a taskbar guard
+  before its entry point, then starts ClearStart. Startup timeout, app exit, UI heartbeat timeout,
+  and loader death release suppression. Ordinary startup remains the default.
 
 - **Start with Windows is a task in Task Scheduler.** It starts ClearStart as you sign in, not
   once the desktop is up and Windows has held back its Startup list for a while. A live run moves

@@ -20,8 +20,10 @@
   <img src="docs/images/hero.png" alt="A desktop with ClearStart's see-through taskbar along the bottom and its start menu open above it">
 </p>
 
-ClearStart draws its own taskbar and its own start menu. It runs as an ordinary program: nothing
-is injected into Explorer, and closing it brings the Windows taskbar straight back.
+ClearStart draws its own taskbar and its own start menu. By default it runs as an ordinary
+program, and closing it brings the Windows taskbar back. An optional, experimental
+[early-startup loader](docs/early-startup.md) loads a guard inside Explorer before its taskbar
+is created. It is built separately, disabled by default, and has not been run on a desktop.
 
 > [!IMPORTANT]
 > **This is an early preview.** Get the signed installer from the
@@ -34,6 +36,8 @@ The changes since 0.2.0 improve resize dragging, move bars without reopening the
 bars with the start menu over fullscreen apps. They have been built but not run on a desktop.
 Start with Windows now prefers a sign-in task and hides Explorer's taskbar earlier, but cannot
 guarantee that the Windows taskbar is never drawn. See [startup limits](docs/getting-started.md#how-soon-it-takes-over).
+The separate early-startup candidate targets this gap and includes failure recovery. Its sign-in
+timing and recovery still need isolated desktop tests; a successful build is not that evidence.
 
 ## Contents
 
@@ -214,7 +218,7 @@ src\bin\Release\net10.0-windows\ClearStart.exe --restore
 Uninstalling does the same before it removes anything. None of this can happen in a preview,
 because a preview never hides the Windows taskbar.
 
-Signing out with Start with Windows enabled leaves Windows' taskbar on auto-hide to reduce its
+With ordinary startup, signing out with Start with Windows enabled leaves Windows' taskbar on auto-hide to reduce its
 visibility at the next sign-in. Normal Exit and `--restore` restore its previous setting. See
 [sign-out and recovery](docs/getting-started.md#between-signing-out-and-signing-in).
 

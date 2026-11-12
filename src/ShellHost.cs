@@ -203,6 +203,8 @@ internal sealed class ShellHost : IDisposable
         if (_disposed) return;
         Log.Info($"Taskbars on screen, {StartTiming.Describe()}");
 
+        if (Mode == HostMode.Live && _bars.Count > 0) EarlySession.BarsReady();
+
         if (Mode == HostMode.Live) StartTray();
         Weather.Start();
         Updates.Start();
@@ -1187,7 +1189,7 @@ internal sealed class ShellHost : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        bool keepAutoHide = Mode == HostMode.Live && sessionEnding && StartsAgainAtSignIn();
+        bool keepAutoHide = Mode == HostMode.Live && !EarlySession.Active && sessionEnding && StartsAgainAtSignIn();
         Log.Info(keepAutoHide ? "Shutting down; ClearStart starts again at the next sign-in" : "Shutting down");
 
         Step("remove the Win key hook", () => { _winKey?.Dispose(); _winKey = null; });
