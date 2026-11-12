@@ -18,7 +18,7 @@ release of ClearStart. That is one request to GitHub's public API:
 https://api.github.com/repos/C-Tech-Solutions/ClearStart/releases/latest
 ```
 
-It carries ClearStart's version (`ClearStart/0.1.0`) as its user agent and nothing else: no
+It carries ClearStart's version (`ClearStart/0.2.0`) as its user agent and nothing else: no
 account, no token, and nothing about you or the PC. Like any website, GitHub sees the address the
 request comes from. If GitHub cannot be reached, ClearStart tries again an hour later; the settings
 page and the log say so, and nothing pops up.

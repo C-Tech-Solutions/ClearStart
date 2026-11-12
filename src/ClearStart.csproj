@@ -15,7 +15,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- Drawn by AppIcon.cs. The self-test writes it out as app-icon.ico; copy that here after changing the drawing. -->
     <ApplicationIcon>ClearStart.ico</ApplicationIcon>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <!-- The Windows Forms analyzer objects to DPI settings in the manifest; for a WPF app that is where they belong. -->
     <NoWarn>$(NoWarn);WFAC010;WFO0003</NoWarn>
