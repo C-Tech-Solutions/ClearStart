@@ -23,7 +23,8 @@
 ClearStart draws its own taskbar and its own start menu. By default it runs as an ordinary
 program, and closing it brings the Windows taskbar back. An optional, experimental
 [early-startup loader](docs/early-startup.md) loads a guard inside Explorer before its taskbar
-is created. It is built separately, disabled by default, and has not been run on a desktop.
+is created. It is built separately and disabled by default. Colten reported a successful sign-in
+test on one PC; its failure recovery still needs desktop testing.
 
 > [!IMPORTANT]
 > **This is an early preview.** Get the signed installer from the
@@ -33,11 +34,13 @@ is created. It is built separately, disabled by default, and has not been run on
 > taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
 The changes since 0.2.0 improve resize dragging, move bars without reopening them, and raise the
-bars with the start menu over fullscreen apps. They have been built but not run on a desktop.
+bars with the start menu over fullscreen apps. Resize, move and fullscreen behavior still need
+explicit desktop verification.
 Start with Windows now prefers a sign-in task and hides Explorer's taskbar earlier, but cannot
 guarantee that the Windows taskbar is never drawn. See [startup limits](docs/getting-started.md#how-soon-it-takes-over).
-The separate early-startup candidate targets this gap and includes failure recovery. Its sign-in
-timing and recovery still need isolated desktop tests; a successful build is not that evidence.
+The separate early-startup candidate targets this gap and includes failure recovery. The first
+two logged sign-ins took 8.9 and 9.7 seconds to show the bars. Its next build uses precompilation
+and starts network discovery after the bars render; the speed improvement has not been measured yet.
 
 ## Contents
 

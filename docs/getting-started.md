@@ -224,7 +224,7 @@ moment after it has gone. The log says how long each step took after sign-in: lo
 There is also a separately built [experimental early-startup loader](early-startup.md). It starts
 Explorer with a guard already loaded and waits for ClearStart's bars before releasing Explorer's
 desktop-ready signal. It requires explicit opt-in, is not included by the normal installer build,
-and has not been run at sign-in. It restores the original auto-hide setting on sign-out as well
+and has had a successful sign-in test reported on one PC. It restores the original auto-hide setting on sign-out as well
 as Exit, and releases suppression if ClearStart fails or stops responding.
 
 ## Where ClearStart keeps things

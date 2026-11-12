@@ -2,10 +2,9 @@
 
 [Back to the README](../README.md)
 
-This separate candidate targets the Windows taskbar flash at sign-in. It is disabled by default,
-has been compiled only, and is not part of the normal installer build. No component has been
-installed, registered, loaded into Explorer, or run on the development PC. Do not enable it there
-until Colten approves a desktop test. It targets native x64 Windows 11; ARM64 is refused.
+This separate candidate targets the Windows taskbar flash at sign-in. It is disabled by default
+and is not part of the normal installer build. Colten approved and reported a successful test on
+his PC on November 12, 2026. It targets native x64 Windows 11; ARM64 is refused.
 
 ## How it starts
 
@@ -23,8 +22,14 @@ taskbar windows from becoming visible; the rest of Explorer remains the desktop 
 Explorer's `ShellDesktopSwitchEvent` signal is forwarded after ClearStart reports that its bars
 have rendered. The signal is deferred on a worker, so Explorer can still answer docking requests.
 The intended result is ClearStart's bars on the first visible desktop after sign-in. Windows boot,
-lock and sign-in screens are unchanged. This depends on Windows internals and has not been verified
-on any Windows build; it is not yet a promise that every first frame is clean.
+lock and sign-in screens are unchanged. This depends on Windows internals. The successful test on
+one PC does not establish that every first frame is clean on every Windows build.
+
+The first two sign-ins with candidate `75cc2a5` logged the bars on screen 8.9 and 9.7 seconds after
+sign-in, with Explorer ready at 2.7 and 1.6 seconds respectively. The next candidate enables
+ReadyToRun precompilation and defers network discovery until after the bars render. Discovery
+runs in the background, and the network glyph updates when it completes. Its timing improvement
+still needs a new sign-in measurement.
 
 ## Recovery
 
@@ -44,7 +49,7 @@ uses the out-of-process guard and may flash; reinjection into a running desktop 
 Startup failures, crashes and watchdog recovery detected by the loader remove its own shell entry
 so the next sign-in uses Windows normally. Normal Exit keeps the entry for the next sign-in. The DLL stays loaded, inert,
 until Explorer exits; restarting ClearStart in the same session uses the ordinary hiding guard.
-Neither recovery nor sign-in timing is verified yet. If the loader itself cannot start at all
+Crash/hang and missing-file recovery have not been tested yet. If the loader itself cannot start at all
 (for example its executable was deleted), its recovery code cannot run: use the manual route below.
 
 After approved testing, turn off early startup before moving/deleting its folder:
@@ -73,7 +78,7 @@ dotnet build src/ClearStart.csproj -c Release
 native/build.ps1
 ```
 
-The second command compiles the native targets and publishes a self-contained app to
+The second command compiles the native targets and publishes a self-contained ReadyToRun app to
 `artifacts/early-startup`, then stages the loader, guard and Detours license beside it. It runs
 none of those binaries and writes no startup settings. The ordinary installer and release asset
 names, AppId and application version are unchanged. These local candidates are unsigned.
@@ -82,8 +87,8 @@ names, AppId and application version are unchanged. These local candidates are u
 
 Use an isolated Windows 11 x64 test account/VM with a recovery snapshot, after approval. Build
 the candidate, move it to a stable local path, and explicitly run its `--early-startup on` command.
-Check the exit code and app log before signing out. None of these runtime steps were performed
-during implementation.
+Check the exit code and app log before signing out. The approved PC test covered successful
+sign-in only; the remaining cases below still need explicit verification.
 
 1. Sign in and cold restart, with one and multiple monitors. Verify that the first desktop frame
    has ClearStart bars, with no native taskbar frame. Check tray, desktop and File Explorer.

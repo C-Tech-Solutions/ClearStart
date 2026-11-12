@@ -41,10 +41,12 @@ see [Changed since 0.2.0, not run yet](#changed-since-020-not-run-yet).
   uninstalling, and there was nothing to put back;
 - starting with Windows (the switch starts live mode).
 
-**Experimental early startup.** The separate native loader and Explorer guard compile, but have
-never been loaded, registered, installed or run during this work. First-frame suppression, the
-desktop-ready handshake, missing-file recovery, crash/hang recovery, sleep/resume, and removal
-are all unverified. It remains disabled and outside the normal installer build. See
+**Experimental early startup.** Colten approved testing candidate `75cc2a5` on his PC and reported
+that it worked. The loader and Explorer guard ran at sign-in; two sessions logged the bars on
+screen at 8.9 and 9.7 seconds after sign-in. The next candidate precompiles the app and defers
+network discovery; its speed improvement has not been measured. First-frame suppression across
+Windows builds, missing-file recovery, crash/hang recovery, sleep/resume, and removal remain
+unverified. The feature is disabled by default and outside the normal installer build. See
 [the isolated test plan](early-startup.md#validation-before-enabling-on-a-real-pc).
 
 **Updating.** The updater's parts are covered by the self-test: reading a release, comparing

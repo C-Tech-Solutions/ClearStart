@@ -85,7 +85,6 @@ internal sealed class NetworkWatcher : IDisposable
     {
         if (_started || _disposed) return;
         _started = true;
-        ReadNow();
         try
         {
             Connectivity.NetworkInformation.NetworkStatusChanged += OnStatusChanged;
@@ -95,9 +94,10 @@ internal sealed class NetworkWatcher : IDisposable
             Log.Warn("Network changes will only be noticed by the timer: " + ex.Message);
         }
         _timer.Start();
+        ReadSoon();
     }
 
-    /// <summary>Looks right now, on the calling thread. Used before the first bar is drawn.</summary>
+    /// <summary>Looks synchronously for the self-test and screenshot capture.</summary>
     public void ReadNow() => Apply(Read());
 
     public void Dispose()

@@ -91,7 +91,7 @@ lines says how long it was since ClearStart started and since you signed in.
    bars dock through it, and ClearStart's tray would make Explorer think a taskbar was already
    running. Log: `Explorer's taskbar is up`.
 4. **The bars open.** Log: `Started in Live mode with <n> taskbar(s)`, then `Taskbars on screen`.
-5. **The rest follows:** the tray, the weather and the update check, and once the bars are idle
+5. **The rest follows:** network discovery, the tray, the weather and the update check, and once the bars are idle
    the list of apps for the start menu (`App list read`). Opening the start menu before then reads
    it on the spot.
 
@@ -99,8 +99,9 @@ The guard runs until ClearStart closes. Its last line, `Stopped keeping the Wind
 says how many times Explorer showed its taskbar again during the run. Shutting down logs each step
 that takes 300 ms or more.
 
-The installer's copy is published ReadyToRun, compiled ahead of time, so less of it is compiled
-while it starts. A `dotnet build` is not.
+The installer and optional native startup builds are published ReadyToRun, compiled ahead of
+time, so less code needs compiling while they start. A `dotnet build` is not. Network discovery
+runs off the UI thread after the bars render; the network glyph updates when the result arrives.
 
 ### Startup modes
 

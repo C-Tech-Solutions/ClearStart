@@ -182,9 +182,6 @@ internal sealed class ShellHost : IDisposable
             FindWindowsTaskbars();
         }
 
-        // Before the bars, so they open with the right network glyph. (The self-test never gets here: it
-        // builds its bars itself, and asks nothing of the weather service.)
-        Network.Start();
         RebuildBars();
 
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
@@ -203,6 +200,8 @@ internal sealed class ShellHost : IDisposable
         if (_disposed) return;
         Log.Info($"Taskbars on screen, {StartTiming.Describe()}");
 
+        // Connection discovery can be slow at sign-in. The views follow Network.Changed when it finishes.
+        Network.Start();
         if (Mode == HostMode.Live) StartTray();
         Weather.Start();
         Updates.Start();
