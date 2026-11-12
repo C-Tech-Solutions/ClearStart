@@ -60,8 +60,8 @@ is downloaded until you click **Install**.
 
 ## Which copies update themselves
 
-Only the copy that Setup installed, in `%LOCALAPPDATA%\Programs\ClearStart`, updates itself, and
-only when that copy is itself signed by C-Tech Solutions LLC. The installer on the
+Only the copy that Setup installed, by default in `%LOCALAPPDATA%\Programs\ClearStart`, updates
+itself, and only when that copy is itself signed by C-Tech Solutions LLC. The installer on the
 [releases page](https://github.com/C-Tech-Solutions/ClearStart/releases/latest) is, so a copy
 installed with it updates itself.
 

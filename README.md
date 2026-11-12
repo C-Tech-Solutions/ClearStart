@@ -124,8 +124,9 @@ over a plain gradient in place of a wallpaper.</sub>
 Download `ClearStart-Setup-<version>.exe` from the
 [latest release](https://github.com/C-Tech-Solutions/ClearStart/releases/latest) and run it. It is
 one file of about 55 MB, signed by C-Tech Solutions LLC, and carries its own copy of .NET, so the
-PC needs nothing else. It installs for you alone, into `%LOCALAPPDATA%\Programs\ClearStart`,
-without administrator rights, and uninstalls from Windows' list of apps.
+PC needs nothing else. It installs for you alone, by default into
+`%LOCALAPPDATA%\Programs\ClearStart`, without administrator rights, and uninstalls from Windows'
+list of apps. If you choose another folder in Setup, use it in the commands below.
 
 Setup's last page has **Start ClearStart now** ticked, which starts
 [live mode](#two-ways-to-run-it). To start with the preview, untick it.

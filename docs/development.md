@@ -194,9 +194,11 @@ they look for:
    installer\publish-release.ps1 -NotesFile path\to\notes.md
    ```
 
-   The release is tagged on the commit checked out. If that is no longer the one the installer
-   was built from, pass that commit with `-Target <commit>`; the script checks that its project
-   file has the installer's version.
+   The release is tagged on the commit checked out. If `main` has moved on since the installer was
+   built, without a new version, pass the commit it was built from with `-Target <commit>`; the
+   script checks that its project file has the installer's version. The script picks the
+   installer by the version in the project file checked out, so once `main` is at a newer
+   version, check out the commit the installer was built from instead.
 
 The script refuses unless the installer is the version in the project file, is signed by
 C-Tech Solutions LLC and matches its `.sha256.txt` file, and unless the commit is on

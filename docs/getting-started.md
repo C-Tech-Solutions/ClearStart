@@ -33,7 +33,7 @@ Download `ClearStart-Setup-<version>.exe` from the
 Its last page has **Start ClearStart now** ticked. That starts [live mode](#live-mode), in the
 Windows taskbar's place. To look around in a preview first, untick it.
 
-The program is then at:
+The program is then at the place below, unless you chose another folder in Setup:
 
 ```
 %LOCALAPPDATA%\Programs\ClearStart\ClearStart.exe
@@ -117,7 +117,7 @@ installer, `ClearStart-Setup-<version>.exe`, about 55 MB and signed by C-Tech So
 | | |
 | --- | --- |
 | **Everything in one file** | It carries its own copy of .NET, so the PC needs nothing installed first. |
-| **For you alone** | It installs into `%LOCALAPPDATA%\Programs\ClearStart`, adds ClearStart to the Start menu, and asks for no administrator rights. |
+| **For you alone** | It installs into `%LOCALAPPDATA%\Programs\ClearStart` unless you choose another folder, adds ClearStart to the Start menu, and asks for no administrator rights. |
 | **Two choices** | Before it installs: start ClearStart when you sign in (off unless you tick it). At the end: start it now (ticked). Both start [live mode](#live-mode). |
 | **Upgrades in place** | A newer installer replaces the old copy, and closes it first if it is running. |
 | **Updates itself** | The installed copy can fetch and install newer versions from GitHub. See [Updates](updates.md). |
@@ -181,7 +181,7 @@ you sign in. It needs no administrator rights.
 
 | What | Where |
 | --- | --- |
-| The program, when installed | `%LOCALAPPDATA%\Programs\ClearStart` |
+| The program, when installed | `%LOCALAPPDATA%\Programs\ClearStart`, unless you chose another folder in Setup |
 | Settings | `%APPDATA%\ClearStart\settings.json` |
 | Log | `%LOCALAPPDATA%\ClearStart\logs\clearstart.log` |
 | Downloaded updates | `%LOCALAPPDATA%\ClearStart\updates`. A downloaded setup program is deleted after it has run; Setup's last log, `setup.log`, stays. |
