@@ -91,13 +91,29 @@ internal sealed class PinStore
 {
     public ObservableCollection<PinnedItem> Taskbar { get; } = new();
 
-    public ObservableCollection<PinnedItem> Start { get; } = new();
+    private readonly ObservableCollection<PinnedItem> _start = new();
+    private bool _startLoaded;
+
+    // The taskbar does not need Start-menu shortcuts, shell metadata or their larger icons.
+    public ObservableCollection<PinnedItem> Start
+    {
+        get
+        {
+            if (!_startLoaded)
+            {
+                _startLoaded = true;
+                Fill(_start, Settings.Current.StartMenu.Pinned ?? ReadWindowsPins("StartMenu"));
+                Log.Info($"Start-menu pins loaded: {_start.Count}");
+            }
+            return _start;
+        }
+    }
 
     public void Reload()
     {
-        Fill(Taskbar, Settings.Current.Taskbar.Pinned ?? ReadWindowsPins("TaskBar"));
-        Fill(Start, Settings.Current.StartMenu.Pinned ?? ReadWindowsPins("StartMenu"));
-        Log.Info($"Pins loaded: {Taskbar.Count} on the taskbar, {Start.Count} in the start menu");
+        Fill(Taskbar, Settings.Current.Taskbar.Pinned ?? ReadWindowsPins("TaskBar"), taskbar: true);
+        if (_startLoaded) Fill(_start, Settings.Current.StartMenu.Pinned ?? ReadWindowsPins("StartMenu"));
+        Log.Info($"Taskbar pins loaded: {Taskbar.Count}; Start-menu pins {(_startLoaded ? "refreshed" : "deferred")}");
     }
 
     public bool IsPinnedToStart(string? path) => Contains(Start, path);
@@ -133,7 +149,7 @@ internal sealed class PinStore
         }
     }
 
-    private static void Fill(ObservableCollection<PinnedItem> target, IEnumerable<string> paths)
+    private static void Fill(ObservableCollection<PinnedItem> target, IEnumerable<string> paths, bool taskbar = false)
     {
         var old = target.ToList();
         target.Clear();
@@ -146,22 +162,20 @@ internal sealed class PinStore
         foreach (string path in paths)
         {
             if (string.IsNullOrWhiteSpace(path) || !seen.Add(path)) continue;
-            var item = Create(path);
+            var item = Create(path, taskbar);
             if (item != null) target.Add(item);
         }
     }
 
-    private static PinnedItem? Create(string path)
+    private static PinnedItem? Create(string path, bool taskbar)
     {
         try
         {
             var item = new ShellItem(path);
             if (item.Loaded)
             {
-                // Asking for an icon starts loading it in the background; ask now so the taskbar
-                // button and the start menu tile have theirs by the time they are first shown.
-                _ = item.LargeIcon;
-                _ = item.ExtraLargeIcon;
+                // Prioritize the one size taskbar buttons use. Start tiles request their own size on demand.
+                if (taskbar) _ = item.LargeIcon;
                 return new PinnedItem(path, item);
             }
 
@@ -181,7 +195,7 @@ internal sealed class PinStore
     private void Add(ObservableCollection<PinnedItem> list, string path)
     {
         if (string.IsNullOrWhiteSpace(path) || Contains(list, path)) return;
-        var item = Create(path);
+        var item = Create(path, ReferenceEquals(list, Taskbar));
         if (item == null) return;
         list.Add(item);
         Persist(list);
@@ -199,7 +213,7 @@ internal sealed class PinStore
     private void Persist(ObservableCollection<PinnedItem> list)
     {
         var paths = list.Select(p => p.Path).ToList();
-        if (ReferenceEquals(list, Start))
+        if (ReferenceEquals(list, _start))
         {
             Settings.Current.StartMenu.Pinned = paths;
         }

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="System.IO" />
+    <Compile Include="../../src/PinStore.cs" Link="PinStore.cs" />
+    <Compile Include="../../src/PinnedIconReveal.cs" Link="PinnedIconReveal.cs" />
+  </ItemGroup>
+</Project>

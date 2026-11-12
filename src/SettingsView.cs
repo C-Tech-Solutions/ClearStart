@@ -259,6 +259,12 @@ internal sealed partial class SettingsView : UserControl
             Toggle(() => Taskbar.CombineWindows, value => Taskbar.CombineWindows = value, SettingsChange.Bars)));
         page.Children.Add(Row("Show window titles next to the icons", null,
             Toggle(() => Taskbar.ShowLabels, value => Taskbar.ShowLabels = value, SettingsChange.Bars)));
+        page.Children.Add(Row("Animate pinned icons at startup", "Applies next start. Off shows them together; follows Windows animation settings",
+            Toggle(() => Taskbar.AnimatePinnedIcons, value =>
+            {
+                Taskbar.AnimatePinnedIcons = value;
+                _host.Edited(SettingsChange.None); // Save for next launch without reopening today's bars.
+            }, SettingsChange.None)));
         page.Children.Add(Row("App buttons", "Where the row of apps sits on the bar",
             Choice(() => Taskbar.Alignment, value => Taskbar.Alignment = value, SettingsChange.Bars,
                 ("Centered", Alignment.Center), ("At the start", Alignment.Left))));

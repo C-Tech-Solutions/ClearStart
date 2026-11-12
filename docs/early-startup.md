@@ -26,10 +26,12 @@ lock and sign-in screens are unchanged. This depends on Windows internals. The s
 one PC does not establish that every first frame is clean on every Windows build.
 
 The first two sign-ins with candidate `75cc2a5` logged the bars on screen 8.9 and 9.7 seconds after
-sign-in, with Explorer ready at 2.7 and 1.6 seconds respectively. The next candidate enables
-ReadyToRun precompilation and defers network discovery until after the bars render. Discovery
-runs in the background, and the network glyph updates when it completes. Its timing improvement
-still needs a new sign-in measurement.
+sign-in, with Explorer ready at 2.7 and 1.6 seconds respectively. Candidate `b5905ea` enabled
+ReadyToRun precompilation and deferred network discovery until after rendering. Its two logged
+sign-ins took 8.7 and 8.9 seconds, a modest improvement with a small sample. The next pass defers
+Start-menu pins, prioritizes taskbar-sized images, and measures construction/docking stages.
+Its timing and the optional icon animation still need a new sign-in test. Icon loading and
+animation do not delay the ready signal or change the native fallback mechanism.
 
 ## Recovery
 

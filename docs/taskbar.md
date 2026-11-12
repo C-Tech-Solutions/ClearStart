@@ -112,6 +112,17 @@ Choose under **Settings → Taskbar → Search button opens**, or right-click th
 
 ## App buttons
 
+At startup the bar, Start button and clock do not wait for pinned icons. Each bar prepares its
+initial pinned icons together. With **Settings → Taskbar → Animate pinned icons at startup** off
+(the default), they appear together. With it on, they fade and slide into their reserved positions
+in pinned order, in a sequence lasting under a second. Windows' animation preference takes priority.
+The setting applies next launch; moving a bar or opening another app does not replay the animation.
+
+An icon that has not arrived within two seconds of the controls loading gets a generic fallback,
+so it cannot leave the group hidden indefinitely. A late icon replaces that fallback when Windows
+provides it. This reveal affects pinned app images only, not the notification area or running-window
+icons. The animation and grouped reveal have headless checks; their desktop appearance is not yet verified.
+
 Each app has one button, with all of its windows behind it. A bar lists only the windows that are
 on its own monitor. A mark under a button means the app is open, two marks mean it has more than
 one window, and the app in front is highlighted.

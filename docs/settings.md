@@ -111,6 +111,7 @@ set.
 | Search button opens | Windows Search (the default), or ClearStart's menu. See [the search button](taskbar.md#the-search-button) |
 | One button per app | All of an app's windows sit behind one button, with previews |
 | Show window titles next to the icons | Titles beside the icons of running apps |
+| Animate pinned icons at startup | Off by default: initial pinned icons appear together. On: a short fade and slide in pinned order. Applies next launch and follows Windows animation settings |
 | App buttons | Centered, or at the start of the bar |
 | Lock taskbar size | Stops the bars being resized by dragging their edge |
 
@@ -139,6 +140,7 @@ sits, and which pinned apps it shows (all, a chosen few, or none).
 
 Sliders, colors, the pinned apps choices and the search button change the bars in place. The
 other switches in the first and last groups reopen the bars, which takes a few seconds.
+The startup animation switch saves without reopening the bars and applies next launch.
 
 ## Weather
 
