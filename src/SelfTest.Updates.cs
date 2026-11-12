@@ -187,6 +187,14 @@ internal static partial class SelfTest
             checks["wrong checksum"] = Refused("wrong checksum", plain, new string('0', 64), SampleSigner, errors);
             checks["not signed"] = Refused("not signed", plain, null, SampleSigner, errors);
 
+            // Only a copy signed by the publisher offers to install; an unsigned one could never pass the check above.
+            if (!UpdateService.SignedByPublisher(SampleSigner)
+                || UpdateService.SignedByPublisher(Authenticode.Check(plain))
+                || UpdateService.SignedByPublisher(SampleSigner with { Name = "Someone Else LLC" }))
+            {
+                errors.Add("Updates: the test for a copy signed by the publisher gives the wrong answer");
+            }
+
             // A signed file by someone else: the .NET runtime's own, signed by Microsoft.
             string other = typeof(object).Assembly.Location;
             var otherSignature = Authenticode.Check(other);

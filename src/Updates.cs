@@ -98,7 +98,7 @@ internal sealed class UpdateService : IDisposable
     {
         _mode = mode;
         _dispatcher = Dispatcher.CurrentDispatcher;
-        _canInstall = new Lazy<bool>(() => mode != HostMode.SelfTest && IsInstalledCopy());
+        _canInstall = new Lazy<bool>(() => mode != HostMode.SelfTest && IsInstalledCopy() && IsSignedCopy());
         // Looks once a minute whether a check is due; this also catches up by itself after the PC has slept.
         _timer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher) { Interval = TimeSpan.FromMinutes(1) };
         _timer.Tick += (_, _) => Tick();
@@ -122,8 +122,8 @@ internal sealed class UpdateService : IDisposable
     public DateTime? LastChecked { get; private set; }
 
     /// <summary>
-    /// True for the copy Setup installed, which is the only one that updates itself. A copy run from a build
-    /// folder can still say that a newer version is out.
+    /// True for the copy Setup installed, when it is signed by <see cref="Publisher"/>: the only one that updates
+    /// itself. Any other copy can still say that a newer version is out, and points to GitHub for it.
     /// </summary>
     public bool CanInstall => _sampleCanInstall ?? _canInstall.Value;
 
@@ -478,7 +478,7 @@ internal sealed class UpdateService : IDisposable
     /// </summary>
     public static string? Judge(SignatureInfo setup, SignatureInfo running)
     {
-        if (!running.Valid || running.Name != Publisher || string.IsNullOrEmpty(running.Subject))
+        if (!SignedByPublisher(running))
         {
             return $"this copy of ClearStart is not signed by {Publisher}, so it cannot tell who made the update";
         }
@@ -753,6 +753,23 @@ internal sealed class UpdateService : IDisposable
             return false;
         }
     }
+
+    /// <summary>
+    /// True when the running program file is signed by <see cref="Publisher"/>. Without that no download can pass
+    /// <see cref="Judge"/>, so a copy installed from an unsigned build of the installer points to GitHub instead.
+    /// The check stays offline; each download's own check asks about revocation.
+    /// </summary>
+    private static bool IsSignedCopy()
+    {
+        string? running = Environment.ProcessPath;
+        if (running != null && SignedByPublisher(Authenticode.Check(running))) return true;
+        Log.Info($"This copy of ClearStart is not signed by {Publisher}, so it does not install updates itself");
+        return false;
+    }
+
+    /// <summary>A valid signature that says exactly who <see cref="Publisher"/> is.</summary>
+    internal static bool SignedByPublisher(SignatureInfo signer) =>
+        signer.Valid && signer.Name == Publisher && !string.IsNullOrEmpty(signer.Subject);
 
     internal static bool SameFolder(string a, string b) => string.Equals(
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(a)),

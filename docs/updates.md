@@ -59,8 +59,8 @@ is downloaded until you click **Install**.
 ## Which copies update themselves
 
 Only the copy that Setup installed, in `%LOCALAPPDATA%\Programs\ClearStart`, updates itself, and
-only when that copy is itself signed by C-Tech Solutions LLC. A copy you built from source still
-checks, and still says when a newer version is out, but its **Download** button opens the release
+only when that copy is itself signed by C-Tech Solutions LLC. A copy you built from source, or
+installed with an installer you built without signing it, still checks, and still says when a newer version is out, but its **Download** button opens the release
 page on GitHub instead of installing anything.
 
 ## Turning it off
