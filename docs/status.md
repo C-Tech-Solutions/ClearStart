@@ -2,7 +2,7 @@
 
 [← Back to the README](../README.md)
 
-ClearStart is at version 0.1.0 and is an early preview. This page says plainly what has been run,
+ClearStart is at version 0.2.0 and is an early preview. This page says plainly what has been run,
 what has not, and what is missing.
 
 - [What has been run](#what-has-been-run)

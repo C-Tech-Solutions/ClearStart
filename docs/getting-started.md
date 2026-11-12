@@ -113,7 +113,7 @@ folder you cloned, run:
 installer\build-installer.ps1
 ```
 
-It writes `artifacts\installer\ClearStart-Setup-0.1.0.exe`, about 55 MB, and its SHA-256
+It writes `artifacts\installer\ClearStart-Setup-0.2.0.exe`, about 55 MB, and its SHA-256
 checksum next to it.
 
 | | |

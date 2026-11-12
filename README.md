@@ -156,7 +156,7 @@ or right-click a bar and choose **Exit ClearStart**.
 installer\build-installer.ps1
 ```
 
-This makes `artifacts\installer\ClearStart-Setup-0.1.0.exe`, one file of about 55 MB. It carries
+This makes `artifacts\installer\ClearStart-Setup-0.2.0.exe`, one file of about 55 MB. It carries
 its own copy of .NET, so the PC it goes on needs nothing else. It installs for you alone, without
 administrator rights, and uninstalls from Windows' list of apps. Building it needs
 [Inno Setup 6](https://jrsoftware.org/isdl.php) as well. See
