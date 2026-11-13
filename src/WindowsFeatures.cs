@@ -94,7 +94,7 @@ internal static class WindowsFeatures
         new("Device Manager", "devmgmt.msc", 0xE772, "drivers", "devmgmt", "hardware"),
         new("Disk Management", "diskmgmt.msc", 0xEDA2, "partitions", "format a drive", "drive letters", "diskmgmt"),
         new("Computer Management", "compmgmt.msc", 0xE7F8, "compmgmt"),
-        new("Services", "services.msc", 0xE912, "services.msc"),
+        new("Services", "services.msc", 0xE912),
         new("Event Viewer", "eventvwr.msc", 0xE7C3, "event log", "logs", "eventvwr"),
         new("Task Scheduler", "taskschd.msc", 0xE823, "scheduled tasks", "taskschd"),
         new("Local Group Policy Editor", "gpedit.msc", 0xE912, "group policy", "gpedit", "policies"),

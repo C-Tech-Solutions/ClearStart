@@ -925,7 +925,7 @@ internal static partial class SelfTest
                 {
                     "calc", "note", "term", "paint", "vsc", "zzzzqq",
                     "power options", "control panel", "add or remove", "regedit", "dark mode", "p",
-                    "appwiz.cpl", "devmgmt.msc", "regedit.exe", "ms-settings:network", "ms-settings:netw",
+                    "appwiz.cpl", "devmgmt.msc", "regedit.exe", "ms-settings:network", "ms-settings:netw", "services.ms",
                 })
                 {
                     menu.SetQuery(query);
@@ -951,9 +951,9 @@ internal static partial class SelfTest
                 ExpectFeature("regedit.exe", "Registry Editor", first: true);
                 ExpectFeature("ms-settings:network", "Network & internet", first: true);
                 // A command typed in part finds nothing, so Enter runs it as typed.
-                if (searches["ms-settings:netw"].Count > 0)
+                foreach (string part in new[] { "ms-settings:netw", "services.ms" })
                 {
-                    errors.Add("Search \"ms-settings:netw\" found " + string.Join(", ", searches["ms-settings:netw"]));
+                    if (searches[part].Count > 0) errors.Add($"Search \"{part}\" found " + string.Join(", ", searches[part]));
                 }
                 var oneLetter = searches["p"].Where(name => WindowsFeatures.All.Any(feature => feature.Name == name)
                     && !host.Apps.Apps.Any(app => app.DisplayName == name)).ToList();
