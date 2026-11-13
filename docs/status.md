@@ -76,6 +76,9 @@ one by clicking it on a real desktop:
 - dragging the start menu's pinned tiles to move them or make folders, dragging an app from the
   list onto the pins, renaming a folder in its header, and the tiles' and folders' right-click
   entries;
+- the start menu's motion with a real mouse: the icon floating under the pointer, flying to its
+  place or back, the tiles sliding, and a folder opening out of its tile (the self-test checks
+  that it all comes to rest, and pictures it part of the way);
 - throwing the Start with Windows switch;
 - how Windows shows the app icon on the program file and in Alt+Tab;
 - the installer's **Start ClearStart now** at the end, which starts live mode.

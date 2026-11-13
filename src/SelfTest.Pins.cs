@@ -98,6 +98,28 @@ internal static partial class SelfTest
         pins.Ungroup((PinFolder)start[0]);
         Expect("ungrouped", "1 0 3");
 
+        // The same with the motion: the icon lifted and flown to its place, a folder opened out of its tile and
+        // closed again before it was done. Pictures part of the way, and once it is all over, nothing is left
+        // moved, faint or shown. The tiles were made again just now; their icons come first.
+        await Task.Delay(1000);
+        menu.DropOnTile(Pin(3), 0, 0.1, lift: true);
+        Expect("3 lifted and dropped first", "3 1 0");
+        if (Motion.On && !menu.Floating) errors.Add("Pinned folders: a dropped tile's icon should fly to its place");
+        await Task.Delay(80);
+        stage.Save(Path.Combine(directory, "startmenu-pin-landing.png"));
+        await Task.Delay(500);
+        menu.DropOnTile(Pin(0), 1, 0.5, lift: true);
+        Expect("0 lifted and dropped on 1", "3 [Folder: 1 0]");
+        await Task.Delay(500);
+        menu.ShowFolder((PinFolder)start[1], animate: true);
+        await Task.Delay(90);
+        stage.Save(Path.Combine(directory, "startmenu-folder-opening.png"));
+        menu.ShowFolder(null, animate: true);
+        await Task.Delay(90);
+        stage.Save(Path.Combine(directory, "startmenu-folder-closing.png"));
+        await Task.Delay(1000);
+        if (menu.Unsettled() is { } left) errors.Add("Pinned folders: after the animations, " + left);
+
         // Edited by hand: a folder listing an app that is not pinned, and an app listed in two folders (the first keeps it).
         settings.Pinned = new List<string> { paths[0], paths[1], paths[3] };
         settings.PinFolders = new List<PinFolderEntry>

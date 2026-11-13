@@ -60,7 +60,13 @@ opens Windows Search.
 ## Folders of pins
 
 Drop one pinned tile on another to put them in a folder. The folder's tile shows its first four
-apps; click it to open it.
+apps; click it to open it. The folder opens out of its tile, on a card of its own, and closes back
+into it.
+
+While you drag a tile or an app, its icon floats under the pointer. Let go and it flies into its
+new place while the other tiles slide aside; let go anywhere else and it flies back. A tile you
+can drop into grows a little as you pass over it. All of this follows Windows' animation effects
+setting: with animations off, things just move.
 
 <p align="center">
   <img src="images/start-menu-folder.png" width="480" alt="The start menu's pinned tiles, with a folder named Tools among them showing four small icons">

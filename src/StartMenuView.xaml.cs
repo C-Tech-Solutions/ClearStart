@@ -6,6 +6,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ManagedShell.Common.Helpers;
 using ManagedShell.ShellFolders;
@@ -43,6 +44,7 @@ public partial class StartMenuView : UserControl
         _host = host;
         _close = close;
         InitializeComponent();
+        SetUpMotion();
 
         var settings = Settings.Current.StartMenu;
         Chrome.Background = Ui.Backdrop(settings.Appearance,
@@ -73,6 +75,8 @@ public partial class StartMenuView : UserControl
         SearchBox.Clear();
         AppList.SelectedIndex = -1;
         ScrollToTop();
+        EndMotion();
+        _pinsOffset = 0;
         OpenFolder(null);
     }
 
@@ -85,6 +89,7 @@ public partial class StartMenuView : UserControl
     /// <summary>Called when the menu window closes, so the shared app list does not keep this view alive.</summary>
     internal void Detach()
     {
+        EndMotion();
         CollectionChangedEventManager.RemoveHandler(_host.Pins.Start, Pins_Changed);
         ((INotifyCollectionChanged)_apps).CollectionChanged -= Apps_Changed;
         AppList.ItemsSource = null;
@@ -258,7 +263,7 @@ public partial class StartMenuView : UserControl
             case Key.Escape:
                 e.Handled = true;
                 if (SearchBox.Text.Length > 0) SearchBox.Clear();
-                else if (_openFolder != null) OpenFolder(null);
+                else if (_openFolder != null) OpenFolder(null, animate: true);
                 else _close();
                 break;
         }
@@ -396,7 +401,7 @@ public partial class StartMenuView : UserControl
                 Ui.Safe(() => Open(pin.Item, elevated), "Open");
                 break;
             case PinFolder folder:
-                Ui.Safe(() => OpenFolder(folder), "Open folder");
+                Ui.Safe(() => OpenFolder(folder, animate: true), "Open folder");
                 break;
         }
     }
@@ -432,8 +437,8 @@ public partial class StartMenuView : UserControl
             new(null, null),
         };
 
-        if (pins.IsPinnedToStart(path)) entries.Add(new("Unpin from Start", () => pins.UnpinFromStart(path!)));
-        else entries.Add(new("Pin to Start", hasPath ? () => pins.PinToStart(path!) : null));
+        if (pins.IsPinnedToStart(path)) entries.Add(new("Unpin from Start", () => Rearrange(() => pins.UnpinFromStart(path!))));
+        else entries.Add(new("Pin to Start", hasPath ? () => Rearrange(() => pins.PinToStart(path!)) : null));
 
         if (pins.IsPinnedToTaskbar(path)) entries.Add(new("Unpin from taskbar", () => pins.UnpinFromTaskbar(path!)));
         else entries.Add(new("Pin to taskbar", hasPath ? () => pins.PinToTaskbar(path!) : null));
@@ -455,7 +460,7 @@ public partial class StartMenuView : UserControl
         int at = list.IndexOf(pin);
 
         var folders = pins.Start.OfType<PinFolder>().Where(other => !ReferenceEquals(other, folder))
-            .Select(other => new MenuEntry(other.Name, () => pins.MoveStart(pin, other, -1)))
+            .Select(other => new MenuEntry(other.Name, () => Rearrange(() => pins.MoveStart(pin, other, -1))))
             .ToList();
         if (folders.Count > 0) folders.Add(new(null, null));
         folders.Add(new("New folder", () =>
@@ -466,11 +471,11 @@ public partial class StartMenuView : UserControl
         var entries = new List<MenuEntry>
         {
             new(null, null),
-            new("Move to front", at > 0 ? () => pins.MoveStart(pin, folder, 0) : null),
+            new("Move to front", at > 0 ? () => Rearrange(() => pins.MoveStart(pin, folder, 0)) : null),
             new("Move to folder", null, Children: folders),
         };
-        if (folder != null) entries.Add(new("Take out of folder", () => pins.MoveOutOfFolder(pin)));
-        entries.Add(new("Sort A to Z", list.Count > 1 ? () => pins.SortStart(folder) : null));
+        if (folder != null) entries.Add(new("Take out of folder", () => Rearrange(() => pins.MoveOutOfFolder(pin))));
+        entries.Add(new("Sort A to Z", list.Count > 1 ? () => Rearrange(() => pins.SortStart(folder)) : null));
         return entries;
     }
 
@@ -480,13 +485,13 @@ public partial class StartMenuView : UserControl
         int at = pins.Start.IndexOf(folder);
         if (at < 0) return;
         Ui.ShowMenu(target,
-            ("Open", () => OpenFolder(folder)),
+            ("Open", () => OpenFolder(folder, animate: true)),
             ("Rename", () => RenameFolder(folder)),
             (null, null),
-            ("Move to front", at > 0 ? () => pins.MoveStart(folder, null, 0) : null),
+            ("Move to front", at > 0 ? () => Rearrange(() => pins.MoveStart(folder, null, 0)) : null),
             ("Sort its apps A to Z", folder.Items.Count > 1 ? () => pins.SortStart(folder) : null),
             (null, null),
-            ("Ungroup apps", () => pins.Ungroup(folder)));
+            ("Ungroup apps", () => Rearrange(() => pins.Ungroup(folder))));
     }
 
     /// <summary>Right-click between the tiles.</summary>
@@ -499,13 +504,13 @@ public partial class StartMenuView : UserControl
         IList list = folder == null ? pins.Start : folder.Items;
         if (folder == null)
         {
-            Ui.ShowMenu(PinsArea, ("Sort A to Z", list.Count > 1 ? () => pins.SortStart(null) : null));
+            Ui.ShowMenu(PinsArea, ("Sort A to Z", list.Count > 1 ? () => Rearrange(() => pins.SortStart(null)) : null));
         }
         else
         {
             Ui.ShowMenu(PinsArea,
-                ("Back to the pins", () => OpenFolder(null)),
-                ("Sort A to Z", list.Count > 1 ? () => pins.SortStart(folder) : null));
+                ("Back to the pins", () => OpenFolder(null, animate: true)),
+                ("Sort A to Z", list.Count > 1 ? () => Rearrange(() => pins.SortStart(folder)) : null));
         }
     }
 
@@ -521,25 +526,54 @@ public partial class StartMenuView : UserControl
 
     // ------------------------------------------------------------------ folders
 
-    /// <summary>Shows a folder's pins in place of the start menu's own (null: back to those).</summary>
-    private void OpenFolder(PinFolder? folder)
+    /// <summary>
+    /// Shows a folder's pins in place of the start menu's own (null: back to those). With <paramref name="animate"/>,
+    /// the folder grows out of its tile, and closing, goes back into it.
+    /// </summary>
+    private void OpenFolder(PinFolder? folder, bool animate = false)
     {
         CommitFolderName();
         if (folder != null && !_host.Pins.Start.Contains(folder)) folder = null;
         if (ReferenceEquals(folder, _openFolder) && PinList.ItemsSource != null) return;
+        var from = _openFolder;
+        StopFolderMotion();
+        BitmapSource? before = null;
+        Rect? tile = null;
+        if (animate && Motion.On && IsVisible)
+        {
+            UpdateLayout();
+            before = Snapshot(PinStage);
+            if (folder != null) tile = TileBounds(folder);
+        }
+
+        if (from == null) _pinsOffset = PinScroller.VerticalOffset;
         _openFolder = folder;
         PinList.ItemsSource = folder == null ? _host.Pins.Start : folder.Items;
+        PinCard.Background = folder == null ? null : FolderCardBrush;
+        PinCard.Padding = new Thickness(folder == null ? 0 : 4);
         PinsHeader.Visibility = folder == null ? Visibility.Visible : Visibility.Hidden;
         FolderHeader.Visibility = folder == null ? Visibility.Collapsed : Visibility.Visible;
         FolderName.Text = folder?.Name ?? "";
-        PinScroller.ScrollToTop();
+        // Back at the pins, they are where they were left.
+        PinScroller.ScrollToVerticalOffset(folder == null ? _pinsOffset : 0);
         UpdatePinHint();
+        if (before == null) return;
+
+        UpdateLayout();
+        FrameworkElement? closedInto = null;
+        if (folder == null && from != null)
+        {
+            tile = TileBounds(from);
+            closedInto = TileOf(from);
+        }
+        Motion.To(folder == null ? PinsHeader : FolderHeader, OpacityProperty, 1, 200, Motion.Out, from: 0);
+        PlayFolderMotion(before, opening: folder != null, tile, closedInto);
     }
 
     /// <summary>Opens the folder and puts the cursor in its name, all of it chosen, ready to be typed over.</summary>
     private void RenameFolder(PinFolder folder)
     {
-        OpenFolder(folder);
+        OpenFolder(folder, animate: true);
         if (_openFolder != folder) return;
         FolderName.Focus();
         Keyboard.Focus(FolderName);
@@ -557,7 +591,8 @@ public partial class StartMenuView : UserControl
     private void FolderName_LostFocus(object sender, KeyboardFocusChangedEventArgs e) =>
         Ui.Safe(CommitFolderName, "Rename folder");
 
-    private void FolderBack_Click(object sender, RoutedEventArgs e) => Ui.Safe(() => OpenFolder(null), "Close folder");
+    private void FolderBack_Click(object sender, RoutedEventArgs e) =>
+        Ui.Safe(() => OpenFolder(null, animate: true), "Close folder");
 
     // ------------------------------------------------------------------ dragging
 
@@ -585,26 +620,31 @@ public partial class StartMenuView : UserControl
         Math.Abs(now.X - _pressedAt.X) >= SystemParameters.MinimumHorizontalDragDistance
         || Math.Abs(now.Y - _pressedAt.Y) >= SystemParameters.MinimumVerticalDragDistance;
 
-    /// <summary>Drags a tile, or an app's pin path, until it is dropped. The one dragged is dimmed meanwhile.</summary>
+    /// <summary>
+    /// Drags a tile, or an app's pin path, until it is dropped. Its icon floats under the pointer meanwhile, and the
+    /// one dragged stays faint in its place; let go anywhere else, the icon goes back there.
+    /// </summary>
     private void Drag(FrameworkElement source, object dragged)
     {
         _dragging = dragged;
         _pressedApp = null;
         _pressedTile = null;
-        double opacity = source.Opacity;
+        _dropped = false;
         try
         {
             // The button or list keeps the mouse otherwise, and would take the drop for a click.
             Mouse.Capture(null);
-            source.Opacity = 0.5;
+            LiftGhost(source, dragged);
+            Motion.Set(source, OpacityProperty, source.DataContext is IStartTile ? 0.25 : 0.6);
             DragDrop.DoDragDrop(source, new DataObject(DragFormat, "ClearStart"),
                 dragged is string ? DragDropEffects.Copy : DragDropEffects.Move);
         }
         finally
         {
-            source.Opacity = opacity;
             _dragging = null;
             HideDropMarks();
+            if (_dropped) Restore(source);
+            else ReturnGhost(source);
         }
     }
 
@@ -712,8 +752,7 @@ public partial class StartMenuView : UserControl
         if (_dragging is not { } dragged || !e.Data.GetDataPresent(DragFormat)) return;
         var drop = DropPlace(dragged, e.GetPosition(DropLayer));
         var folder = _openFolder;
-        // Once the drag is over and the dragged tile is itself again.
-        Dispatcher.InvokeAsync(() => Ui.Safe(() => Place(dragged, drop, folder), "Pin"));
+        AfterDrop(dragged, () => Place(dragged, drop, folder));
     }
 
     /// <summary>Puts what was dropped where the drop showed it would go, in the folder that was open then (or none).</summary>
@@ -759,6 +798,7 @@ public partial class StartMenuView : UserControl
             HideDropMarks();
             return;
         }
+        HoverOnto(drop.Onto);
         var shown = drop.Onto != null ? DropTarget : DropLine;
         var hidden = drop.Onto != null ? DropLine : DropTarget;
         var mark = drop.Onto != null ? Rect.Inflate(drop.Mark, -2, -2) : drop.Mark;
@@ -774,6 +814,7 @@ public partial class StartMenuView : UserControl
     {
         DropLine.Visibility = Visibility.Collapsed;
         DropTarget.Visibility = Visibility.Collapsed;
+        HoverOnto(null);
     }
 
     /// <summary>A pin dropped on the arrow back to the pins comes out of the open folder.</summary>
@@ -789,7 +830,7 @@ public partial class StartMenuView : UserControl
     {
         e.Handled = true;
         if (_dragging is not PinnedItem pin || _openFolder == null || !_openFolder.Items.Contains(pin)) return;
-        Dispatcher.InvokeAsync(() => Ui.Safe(() => _host.Pins.MoveOutOfFolder(pin), "Take out of folder"));
+        AfterDrop(pin, () => _host.Pins.MoveOutOfFolder(pin));
     }
 
     // ------------------------------------------------------------------ right column
@@ -929,20 +970,40 @@ public partial class StartMenuView : UserControl
 
     internal int VisibleAppCount => _apps.Count;
 
-    internal void ShowFolder(PinFolder? folder) => OpenFolder(folder);
+    internal void ShowFolder(PinFolder? folder, bool animate = false) => OpenFolder(folder, animate);
 
     internal PinFolder? ShownFolder => _openFolder;
 
     /// <summary>
     /// Drops a tile, or an app's pin path, on a tile shown as a drag would: that far across it (0 to 1), halfway down.
+    /// With <paramref name="lift"/>, the dragged tile's icon floats there first, and flies to where it lands.
     /// </summary>
-    internal void DropOnTile(object dragged, int tile, double across)
+    internal void DropOnTile(object dragged, int tile, double across, bool lift = false)
     {
         UpdateLayout();
         if (PinList.ItemContainerGenerator.ContainerFromIndex(tile) is not FrameworkElement cell) return;
         var bounds = cell.TransformToVisual(DropLayer).TransformBounds(new Rect(cell.RenderSize));
-        var drop = DropPlace(dragged, new Point(bounds.Left + bounds.Width * across, bounds.Top + bounds.Height / 2));
-        Place(dragged, drop, _openFolder);
+        var at = new Point(bounds.Left + bounds.Width * across, bounds.Top + bounds.Height / 2);
+        if (lift && TileOf(dragged) is { } source) LiftGhost(source, dragged, DropLayer.TranslatePoint(at, MotionLayer));
+        var drop = DropPlace(dragged, at);
+        Settle(dragged, () => Place(dragged, drop, _openFolder));
+    }
+
+    internal bool Floating => Ghost.Visibility == Visibility.Visible;
+
+    /// <summary>What is still moved, scaled, faint or shown once every animation should be over; null when nothing.</summary>
+    internal string? Unsettled()
+    {
+        if (Ghost.Visibility == Visibility.Visible) return "the dragged icon is still floating";
+        if (PinsBefore.Visibility == Visibility.Visible) return "the picture of the pins before is still shown";
+        if (_stageScale.ScaleX != 1 || _stageScale.ScaleY != 1 || PinStage.Opacity != 1) return "the pins are not back at full size";
+        foreach (var item in PinList.Items)
+        {
+            if (TileOf(item) is not { } tile) continue;
+            if (tile.Opacity != 1) return $"a tile is at opacity {tile.Opacity}";
+            if (!tile.RenderTransform.Value.IsIdentity) return "a tile is still moved or scaled";
+        }
+        return null;
     }
 
     internal List<string> TopResults(int count) =>
