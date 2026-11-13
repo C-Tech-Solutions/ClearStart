@@ -71,7 +71,8 @@ Under that is the list, a line for each entry:
 **Add…** offers:
 
 - ready-made entries: folders such as Music, Videos and Desktop; Windows pages such as Installed
-  apps and Windows Update; tools such as Task Manager and Terminal;
+  apps, Programs and Features (the Control Panel's list for removing a program) and Windows
+  Update; tools such as Task Manager and Terminal;
 - a folder, or a program or file, chosen from disk;
 - an empty entry to type a web address or command into;
 - a divider line, to split the list into groups.

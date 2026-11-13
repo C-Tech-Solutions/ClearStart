@@ -429,6 +429,8 @@ public sealed class StartMenuSettings
         ("Windows", PlaceEntry.Of("Settings", "ms-settings:", 0xE713)),
         ("Windows", PlaceEntry.Of("Control Panel", "control.exe", 0xE9E9)),
         ("Windows", PlaceEntry.Of("Installed apps", "ms-settings:appsfeatures", 0xE71D)),
+        // The Control Panel's list, for removing or repairing a program: the one "Add or remove programs" was.
+        ("Windows", PlaceEntry.Of("Programs and Features", "appwiz.cpl", 0xE7B8)),
         ("Windows", PlaceEntry.Of("Windows Update", "ms-settings:windowsupdate", 0xE895)),
         ("Windows", PlaceEntry.Of("Bluetooth and devices", "ms-settings:bluetooth", 0xE702)),
         ("Windows", PlaceEntry.Of("Device Manager", "devmgmt.msc", 0xE772)),
@@ -446,7 +448,7 @@ public sealed class StartMenuSettings
         0xE80F, 0xE7F8, 0xE7F4, 0xE772, 0xE968, 0xE774, 0xE753, 0xE74D, 0xE713, 0xE9E9, 0xE771, 0xE90F,
         0xE756, 0xE943, 0xE9D9, 0xE8A7, 0xE71D, 0xE721, 0xE895, 0xE702, 0xE715, 0xE787, 0xE77B, 0xE716,
         0xE8BD, 0xE717, 0xE7BF, 0xE719, 0xE8F1, 0xE82D, 0xE7BE, 0xE70F, 0xE8EC, 0xE718, 0xE734, 0xEB51,
-        0xE72E, 0xE83D, 0xE8D7, 0xE7E8, 0xE946, 0xEA80, 0xE7C1, 0xE81D,
+        0xE72E, 0xE83D, 0xE8D7, 0xE7E8, 0xE946, 0xEA80, 0xE7C1, 0xE81D, 0xE7B8,
     };
 }
 
