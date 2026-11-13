@@ -36,7 +36,9 @@ public sealed class WindowsFeature
 
     /// <summary>
     /// How well it matches what was typed, as <see cref="StartMenuView.Rank"/> counts. A keyword counts only when one
-    /// of its words starts with what was typed, and never above an app whose name starts with it.
+    /// of its words starts with what was typed, and never above an app whose name starts with it. So does the command
+    /// that opens it, typed as far as its "." or ":" or further ("appwiz.cpl", "ms-settings:"), but not its first
+    /// letters alone, which would bring up every settings page for "ms".
     /// </summary>
     public int Rank(string query)
     {
@@ -46,6 +48,10 @@ public sealed class WindowsFeature
             best = Better(best, StartMenuView.Rank(Name.Replace("&", "and"), query));
         }
         if (Keywords.Any(keyword => StartMenuView.Rank(keyword, query) is >= 0 and <= 2)) best = Better(best, 2);
+        if (query.IndexOfAny(new[] { '.', ':' }) >= 0 && Target.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+        {
+            best = Better(best, 2);
+        }
         return best;
     }
 

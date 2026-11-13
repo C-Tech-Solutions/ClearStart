@@ -925,6 +925,7 @@ internal static partial class SelfTest
                 {
                     "calc", "note", "term", "paint", "vsc", "zzzzqq",
                     "power options", "control panel", "add or remove", "regedit", "dark mode", "p",
+                    "appwiz.cpl", "devmgmt.msc", "regedit.exe",
                 })
                 {
                     menu.SetQuery(query);
@@ -945,6 +946,9 @@ internal static partial class SelfTest
                 ExpectFeature("add or remove", "Programs and Features", first: false);
                 ExpectFeature("regedit", "Registry Editor", first: true);
                 ExpectFeature("dark mode", "Colors", first: true);
+                ExpectFeature("appwiz.cpl", "Programs and Features", first: true);
+                ExpectFeature("devmgmt.msc", "Device Manager", first: true);
+                ExpectFeature("regedit.exe", "Registry Editor", first: true);
                 var oneLetter = searches["p"].Where(name => WindowsFeatures.All.Any(feature => feature.Name == name)
                     && !host.Apps.Apps.Any(app => app.DisplayName == name)).ToList();
                 if (oneLetter.Count > 0) errors.Add("Search \"p\" found Windows settings: " + string.Join(", ", oneLetter));
