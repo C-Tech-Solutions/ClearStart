@@ -182,7 +182,7 @@ public partial class App : Application
     /// Asks a running copy to close and waits until it has. Closing can take a while when it puts the Windows taskbar
     /// back on another edge: Explorer is restarted for that, after it has run long enough (see TaskbarEdge).
     /// </summary>
-    /// <returns>False if a copy is still running.</returns>
+    /// <returns>False if a copy is still running, or may be.</returns>
     private static bool StopRunningInstance()
     {
         try
@@ -212,8 +212,10 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
+            // A copy may still be running (one started as administrator can refuse the signal), so Explorer must not be
+            // restarted under it.
             Log.Warn("Could not signal the running copy: " + ex.Message);
-            return true;
+            return false;
         }
     }
 

@@ -134,7 +134,18 @@ internal static class TaskbarEdge
                     return;
                 }
                 // A record that is there already holds the true edges: an earlier run left the taskbar at the bottom.
-                if (ReadRecord() == null) WriteRecord(entries);
+                // Windows adds an entry for a monitor the first time it is connected; one added since is written down
+                // with the edge it has now, or moving it would lose that edge.
+                var record = ReadRecord();
+                if (record == null)
+                {
+                    WriteRecord(entries);
+                }
+                else if (entries.Where(entry => !record.Any(saved => saved.Key == entry.Key && saved.Name == entry.Name))
+                             .ToList() is { Count: > 0 } added)
+                {
+                    File.AppendAllLines(RecordFile, added.Select(entry => $"{entry.Key}\t{entry.Name}\t{entry.Edge}"));
+                }
                 _moving = moving = true;
             }
             Log.Info($"The Windows taskbar is on the {Describe(entries)}, where Windows cannot auto-hide it; " +
