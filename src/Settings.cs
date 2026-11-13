@@ -88,6 +88,18 @@ public enum PlacesSide
     Left,
 }
 
+/// <summary>
+/// How big a pinned tile is in the start menu. Small is a quarter of medium, four to a medium tile's place; wide is two
+/// medium tiles side by side, large two by two.
+/// </summary>
+public enum TileSize
+{
+    Medium,
+    Small,
+    Wide,
+    Large,
+}
+
 /// <summary>What the search button on the bars opens.</summary>
 public enum SearchOpens
 {
@@ -339,6 +351,17 @@ public sealed class TaskbarSettings
     }
 }
 
+/// <summary>A folder of pinned tiles in the start menu: its name and the pins in it, in order.</summary>
+public sealed class PinFolderEntry
+{
+    public string Name { get; set; } = "";
+
+    public List<string> Items { get; set; } = new();
+
+    /// <summary>The size of the folder's own tile.</summary>
+    public TileSize Size { get; set; }
+}
+
 public sealed class PlaceEntry
 {
     public string Name { get; set; } = "";
@@ -380,8 +403,20 @@ public sealed class StartMenuSettings
     /// <summary>Open this menu with the Windows key (and Ctrl+Esc) instead of the system one.</summary>
     public bool TakeOverWinKey { get; set; } = true;
 
-    /// <summary>Pinned tiles, in order. null = follow the Windows "pinned to Start" folder.</summary>
+    /// <summary>
+    /// Pinned tiles, in order. null = follow the Windows "pinned to Start" folder. The pins in folders are here too,
+    /// each folder's together where the folder is, so a version of ClearStart without folders still shows them all.
+    /// </summary>
     public List<string>? Pinned { get; set; }
+
+    /// <summary>Which of the pinned tiles are in folders. null = none.</summary>
+    public List<PinFolderEntry>? PinFolders { get; set; }
+
+    /// <summary>The size of each pinned app that is not medium, by its entry in <see cref="Pinned"/>. null = all medium.</summary>
+    public Dictionary<string, TileSize>? TileSizes { get; set; }
+
+    /// <summary>How big the pinned tiles are drawn, in percent of their usual size. 70 to 150.</summary>
+    public int PinScale { get; set; } = 100;
 
     /// <summary>The column of places: folders, tools and anything else the Run dialog accepts.</summary>
     public List<PlaceEntry> Places { get; set; } = DefaultPlaces();
@@ -429,6 +464,8 @@ public sealed class StartMenuSettings
         ("Windows", PlaceEntry.Of("Settings", "ms-settings:", 0xE713)),
         ("Windows", PlaceEntry.Of("Control Panel", "control.exe", 0xE9E9)),
         ("Windows", PlaceEntry.Of("Installed apps", "ms-settings:appsfeatures", 0xE71D)),
+        // The Control Panel's list, for removing or repairing a program: the one "Add or remove programs" was.
+        ("Windows", PlaceEntry.Of("Programs and Features", "appwiz.cpl", 0xE7B8)),
         ("Windows", PlaceEntry.Of("Windows Update", "ms-settings:windowsupdate", 0xE895)),
         ("Windows", PlaceEntry.Of("Bluetooth and devices", "ms-settings:bluetooth", 0xE702)),
         ("Windows", PlaceEntry.Of("Device Manager", "devmgmt.msc", 0xE772)),
@@ -446,7 +483,7 @@ public sealed class StartMenuSettings
         0xE80F, 0xE7F8, 0xE7F4, 0xE772, 0xE968, 0xE774, 0xE753, 0xE74D, 0xE713, 0xE9E9, 0xE771, 0xE90F,
         0xE756, 0xE943, 0xE9D9, 0xE8A7, 0xE71D, 0xE721, 0xE895, 0xE702, 0xE715, 0xE787, 0xE77B, 0xE716,
         0xE8BD, 0xE717, 0xE7BF, 0xE719, 0xE8F1, 0xE82D, 0xE7BE, 0xE70F, 0xE8EC, 0xE718, 0xE734, 0xEB51,
-        0xE72E, 0xE83D, 0xE8D7, 0xE7E8, 0xE946, 0xEA80, 0xE7C1, 0xE81D,
+        0xE72E, 0xE83D, 0xE8D7, 0xE7E8, 0xE946, 0xEA80, 0xE7C1, 0xE81D, 0xE7B8,
     };
 }
 
@@ -674,8 +711,17 @@ public sealed class Settings
             place.Target ??= "";
             place.Glyph ??= PlaceEntry.FolderGlyph;
         }
+        // The same for a hand-edited folder of pins.
+        settings.StartMenu.PinFolders?.RemoveAll(folder => folder == null);
+        foreach (var folder in settings.StartMenu.PinFolders ?? new List<PinFolderEntry>())
+        {
+            folder.Name ??= "";
+            folder.Items ??= new List<string>();
+            folder.Items.RemoveAll(string.IsNullOrWhiteSpace);
+        }
         settings.StartMenu.PlacesWidth = Math.Clamp(settings.StartMenu.PlacesWidth, 140, 340);
         settings.StartMenu.PlacesRowHeight = Math.Clamp(settings.StartMenu.PlacesRowHeight, 28, 52);
+        settings.StartMenu.PinScale = Math.Clamp(settings.StartMenu.PinScale, 70, 150);
         settings.Weather ??= new WeatherSettings();
         settings.Weather.Place ??= "";
         settings.Weather.RefreshMinutes = Math.Clamp(settings.Weather.RefreshMinutes, 5, 240);

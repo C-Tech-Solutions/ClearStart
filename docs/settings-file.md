@@ -92,6 +92,9 @@ Keys are written here with a dot: `taskbar.edge` is the `edge` key inside the `t
 | `startMenu.appearance`, `startMenu.tint` | `acrylic`, `#CC1C1C1C` | Menu background, written the same way as the taskbar's |
 | `startMenu.takeOverWinKey` | `true` | Win key and Ctrl+Esc open this menu (live mode only) |
 | `startMenu.pinned` | `null` | Pinned tiles. `null` follows what is pinned in Windows |
+| `startMenu.pinFolders` | `null` | The folders among the pinned tiles: each a `name`, the `items` in it (paths from `pinned`) and the `size` of its tile |
+| `startMenu.tileSizes` | `null` | The size of each pinned tile that is not medium, by its path: `small`, `wide` or `large` |
+| `startMenu.pinScale` | `100` | How big the pinned tiles are drawn, 70 to 150 percent |
 | `startMenu.showPlaces` | `true` | The list of places. `false` leaves its column with only your name and the settings and power buttons |
 | `startMenu.placesSide` | `right` | Which side of the menu the column is on: `right` or `left` |
 | `startMenu.placesWidth` | `180` | Width of the column, 140 to 340. A narrow menu narrows it further, to leave room for the apps |

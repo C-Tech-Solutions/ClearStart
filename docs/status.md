@@ -69,8 +69,20 @@ one by clicking it on a real desktop:
 - the weather's location search against the live service;
 - hiding and showing a bar from the right-click menu;
 - choosing which pinned apps a bar shows, from the menus and from the chips on the Taskbar page;
+- opening Windows' settings and tools from the start menu's search, and adding one to the
+  places from its right-click menu;
 - the list of places in the settings window: the icon sheet, the "Add…" menu and the file and
   folder pickers, and right-clicking a place in the start menu;
+- dragging the start menu's pinned tiles to move them or make folders, dragging an app from the
+  list onto the pins, renaming a folder in its header, and the tiles' and folders' right-click
+  entries;
+- the start menu's motion with a real mouse: the icon floating under the pointer, flying to its
+  place or back, the tiles sliding, and a folder opening out of its tile (the self-test checks
+  that it all comes to rest, and pictures it part of the way);
+- resizing a pinned tile or folder from its right-click menu, dragging tiles of different sizes,
+  and the **Pinned tile scale** slider;
+- **Properties** on the start menu's right-click menus, which opens Windows' Properties window
+  (the self-test checks when it is offered but opens no window);
 - throwing the Start with Windows switch;
 - how Windows shows the app icon on the program file and in Alt+Tab;
 - the installer's **Start ClearStart now** at the end, which starts live mode.
@@ -97,8 +109,9 @@ These are in the code, and build, but have not been run on a real desktop yet:
 
 - **No jump lists** on the app buttons.
 - **No volume slider of its own.** Clicking the volume glyph opens Windows' quick settings.
-- **The start menu's own search finds apps and commands only.** For files, settings and the web,
-  use the search button next to Start, which opens Windows Search.
+- **The start menu's own search finds apps, commands and a set list of Windows settings and
+  tools,** not files or the web. For those, use the search button next to Start, which opens
+  Windows Search.
 - **Blurred and frosted look much alike.** How strong the blur is belongs to Windows.
 - **Bars blink when some settings change.** Settings that change what the bars contain reopen
   all of them. Moving a bar or its Start button keeps the bar open, and lays out only what is on it

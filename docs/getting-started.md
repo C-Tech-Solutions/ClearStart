@@ -73,7 +73,7 @@ Two things a preview does not show, because they need ClearStart to be the only 
 | Move a bar | Right-click an empty part of it, then **Move this taskbar** |
 | Resize a bar | Drag the edge that faces the desktop |
 | Take a bar off a monitor | Right-click it, then **Hide this taskbar** |
-| Open the settings | Right-click a bar, then **Settings**, or click the gear in the start menu |
+| Open the settings | Right-click a bar, then **Settings**, or right-click the gear in the start menu |
 | Set up the weather | Click **Set location** on the bar |
 
 Each monitor's bar is set up on its own, so moving one leaves the others where they are.

@@ -93,6 +93,55 @@ internal static class Launcher
         }
     }
 
+    /// <summary>Whether <see cref="ShowProperties"/> can be offered for a target: a full path or a shell: location.</summary>
+    public static bool HasProperties(string? target)
+    {
+        if (string.IsNullOrWhiteSpace(target)) return false;
+        string expanded = Environment.ExpandEnvironmentVariables(target.Trim());
+        // The apps folder's items have no Properties window of their own.
+        return (expanded.StartsWith("shell:", StringComparison.OrdinalIgnoreCase)
+                && !expanded.StartsWith("shell:AppsFolder", StringComparison.OrdinalIgnoreCase))
+            || Path.IsPathFullyQualified(expanded);
+    }
+
+    /// <summary>
+    /// Opens Windows' Properties window for a file, a folder or a shell: location, the one Explorer shows. A shortcut
+    /// shows its own, with the Shortcut tab. The window stays open on its own.
+    /// </summary>
+    public static void ShowProperties(string target)
+    {
+        ShellItem? item = null;
+        try
+        {
+            item = new ShellItem(Environment.ExpandEnvironmentVariables(target.Trim()));
+            if (!item.Loaded || item.AbsolutePidl == IntPtr.Zero)
+            {
+                Log.Warn($"Could not show the properties of '{target}': not found");
+                return;
+            }
+            var info = new Native.SHELLEXECUTEINFO
+            {
+                cbSize = Marshal.SizeOf<Native.SHELLEXECUTEINFO>(),
+                fMask = SEE_MASK_INVOKEIDLIST,
+                lpVerb = "properties",
+                lpIDList = item.AbsolutePidl,
+                nShow = 1, // SW_SHOWNORMAL
+            };
+            if (!Native.ShellExecuteEx(ref info))
+            {
+                Log.Warn($"Could not show the properties of '{target}' (error {Marshal.GetLastWin32Error()})");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Could not show the properties of '{target}'", ex);
+        }
+        finally
+        {
+            item?.Dispose();
+        }
+    }
+
     public static void EditInNotepad(string path)
     {
         try
