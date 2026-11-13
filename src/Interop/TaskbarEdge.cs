@@ -16,9 +16,10 @@ namespace ClearStart;
 ///
 /// Explorer reads the edge only as it starts, and writes its own as it closes, so the edge is changed while Explorer
 /// is closed. The Restart Manager closes it the way Windows does for an update, the edge is written, and the Restart
-/// Manager starts it again; folder windows stay open. This takes under a second. An Explorer that does not close when
-/// asked is ended and started afresh instead. Under the early-startup loader the taskbar is left where it is: the
-/// loader watches the Explorer it started, and takes its closing for a failure.
+/// Manager starts it again; folder windows stay open. This takes two or three seconds. An Explorer that does not close
+/// when asked is ended and started afresh instead. The Explorer the early-startup loader started is never restarted,
+/// whichever copy of ClearStart is running: the loader watches it, and takes its closing for a failure. The taskbar is
+/// left where it is beside that one.
 ///
 /// The edges the taskbar had are written down first. They are put back when ClearStart closes, fails, or is
 /// uninstalled ("--restore"), and at the next sign-in when the user signs out and ClearStart does not start again.
@@ -41,8 +42,9 @@ internal static class TaskbarEdge
     private const byte Bottom = 3;
     private static readonly string[] EdgeNames = { "left", "top", "right", "bottom" };
 
-    // Explorer closes in well under a second. The Restart Manager would wait half a minute for one that does not.
-    private static readonly TimeSpan CloseWait = TimeSpan.FromSeconds(10);
+    // Explorer closes in about two seconds; one that has not closed by then mostly never does. The Restart Manager would
+    // wait half a minute for it, with the screen empty meanwhile.
+    private static readonly TimeSpan CloseWait = TimeSpan.FromSeconds(5);
     // How long a new Explorer has to put up its taskbar. It normally takes a second or two.
     private static readonly TimeSpan TaskbarWait = TimeSpan.FromSeconds(30);
 
@@ -93,6 +95,10 @@ internal static class TaskbarEdge
 
     private static string RecordFile => Path.Combine(Log.DataDirectory, "explorer-taskbar-edges.txt");
 
+    // The Explorer the early-startup loader started at sign-in, as its process id and start time (see StartedByLoader).
+    private static string LoaderExplorerFile => Path.Combine(Log.DataDirectory, "early-startup-explorer.txt");
+    private static bool _notedLoaderExplorer;
+
     private readonly record struct Entry(string Key, string Name, byte Edge);
 
     /// <summary>
@@ -110,6 +116,7 @@ internal static class TaskbarEdge
             List<Entry> entries;
             lock (Gate)
             {
+                if (EarlySession.Active) NoteLoaderExplorer(primary);
                 if (stopping()) return;
                 entries = ReadEntries();
                 // Windows' record decides for the main taskbar. The windows decide for the others: the record keeps
@@ -122,7 +129,7 @@ internal static class TaskbarEdge
                 }
                 if (_tried) return;
                 _tried = true;
-                if (EarlySession.Active)
+                if (EarlySession.Active || StartedByLoader(primary))
                 {
                     Log.Warn("The Windows taskbar is not on the bottom edge. It is left there: moving it restarts " +
                         "Explorer, and the early-startup loader takes the Explorer it started closing for a failure");
@@ -241,6 +248,14 @@ internal static class TaskbarEdge
                     WriteEdges(record, autoHide: null);
                     Forget();
                     Log.Info($"Windows taskbar edges written back ({Describe(record)})");
+                    return false;
+                }
+
+                if (StartedByLoader(primary))
+                {
+                    // The record stays: the edges go back when ClearStart next closes beside a plain Explorer.
+                    Log.Warn($"The Windows taskbar is left on the bottom edge rather than put back on the {Describe(record)}: " +
+                        "that restarts Explorer, and the early-startup loader takes the Explorer it started closing for a failure");
                     return false;
                 }
 
@@ -431,6 +446,55 @@ internal static class TaskbarEdge
         }
     }
 
+    /// <summary>
+    /// Writes down which Explorer the early-startup loader started, for <see cref="StartedByLoader"/>: the ClearStart the
+    /// loader started is the only one that knows. That is the first Explorer it sees; one started after it is a plain one.
+    /// </summary>
+    private static void NoteLoaderExplorer(IntPtr primary)
+    {
+        if (_notedLoaderExplorer) return;
+        _notedLoaderExplorer = true;
+        try
+        {
+            Native.GetWindowThreadProcessId(primary, out uint pid);
+            if (pid == 0) return;
+            using var shell = Process.GetProcessById((int)pid);
+            Directory.CreateDirectory(Log.DataDirectory);
+            File.WriteAllText(LoaderExplorerFile, $"{pid}\t{shell.StartTime.ToFileTime()}");
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("Could not write down which Explorer the early-startup loader started: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// True if <paramref name="primary"/> belongs to the Explorer the early-startup loader started at sign-in. The loader
+    /// watches that one for as long as it runs and takes its closing for a failure, so no copy of ClearStart restarts
+    /// it: not the one the loader started, nor one started by hand later in the same session.
+    /// </summary>
+    private static bool StartedByLoader(IntPtr primary)
+    {
+        try
+        {
+            if (!File.Exists(LoaderExplorerFile)) return false;
+            string[] parts = File.ReadAllText(LoaderExplorerFile).Trim().Split('\t');
+            if (parts.Length != 2 || !uint.TryParse(parts[0], out uint noted) || !long.TryParse(parts[1], out long started))
+            {
+                return false;
+            }
+            Native.GetWindowThreadProcessId(primary, out uint pid);
+            if (pid == 0 || pid != noted) return false;
+            using var shell = Process.GetProcessById((int)pid);
+            return shell.StartTime.ToFileTime() == started;
+        }
+        catch
+        {
+            // Gone, or not readable: not the loader's Explorer as far as anything here can tell.
+            return false;
+        }
+    }
+
     /// <summary>Waits until Explorer has run for <see cref="ExplorerTaskbar.Settle"/>. False if <paramref name="stopping"/> turned true.</summary>
     private static bool WaitUntilSettled(IntPtr primary, Func<bool> stopping)
     {
@@ -547,7 +611,7 @@ internal static class TaskbarEdge
         if (asking.Join(CloseWait)) return error;
 
         RmCancelCurrentTask(session);
-        asking.Join(TimeSpan.FromSeconds(5));
+        asking.Join(TimeSpan.FromSeconds(1));
         return ERROR_TIMEOUT;
     }
 

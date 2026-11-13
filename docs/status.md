@@ -85,6 +85,11 @@ These are in the code, and build, but have not been run on a real desktop yet:
   Windows taskbar showed for a moment when a bar was moved or resized.
 - **A taskbar on another edge with more than one monitor:** each monitor's bar goes on the edge
   that monitor's Windows taskbar had before it was moved.
+- **A taskbar on another edge beside the early-startup Explorer:** a copy of ClearStart started by
+  hand in the same session leaves the Explorer the loader started alone, as the loader's own copy
+  does. An earlier build restarted it there: the screen went grey for about fifteen seconds, the
+  taskbar came back on the top, and early startup was found turned off afterwards. Asking
+  Explorer to close now gives up after five seconds rather than ten, then a second rather than five.
 - **Monitors that wake from sleep:** each bar takes its monitor's new handle, and docks again if
   the monitor gave its strip back to the desktop.
 - **Startup migration and the startup switch** are serialized, including commands from Setup.

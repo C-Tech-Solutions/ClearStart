@@ -53,7 +53,9 @@ an already running Explorer or hunts for processes by name. A later ordinary Exp
 uses the out-of-process guard and may flash; reinjection into a running desktop is not attempted.
 For the same reason, ClearStart does not move a Windows taskbar on the top or a side to the bottom
 under early startup, since that restarts Explorer: the taskbar stays on its edge, and its strip of
-the screen stays empty.
+the screen stays empty. The ClearStart the loader started writes down which Explorer the loader
+started, so a copy started by hand later in that session leaves it alone too, and none of them
+restarts it to put the taskbar back.
 
 Startup failures, crashes and watchdog recovery detected by the loader remove its own shell entry
 so the next sign-in uses Windows normally. Normal Exit keeps the entry for the next sign-in. The DLL stays loaded, inert,
