@@ -1,0 +1,3 @@
+LIBRARY ClearStart.ExplorerGuard.dll
+EXPORTS
+    DetourFinishHelperProcess @1 NONAME

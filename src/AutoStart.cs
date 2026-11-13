@@ -46,14 +46,15 @@ internal static class AutoStart
     public static string? ThisProgram => Environment.ProcessPath;
 
     /// <summary>The program Windows is set to start, or null when it starts none.</summary>
-    public static string? Target => ReadTask() is { } task ? task.Program : RunEntryTarget();
+    public static string? Target => EarlyStartup.Target is { } early ? early
+        : ReadTask() is { } task ? task.Program : RunEntryTarget();
 
     /// <summary>True when Windows will start this very copy at sign-in.</summary>
     public static bool IsEnabled
     {
         get
         {
-            return (ReadTask() is { Enabled: true } task && SamePath(task.Program, ThisProgram))
+            return EarlyStartup.IsEnabled || (ReadTask() is { Enabled: true } task && SamePath(task.Program, ThisProgram))
                 || (SamePath(RunEntryTarget(), ThisProgram) && !SwitchedOffInWindows());
         }
     }
@@ -65,12 +66,17 @@ internal static class AutoStart
     {
         if (!enabled)
         {
+            EarlyStartup.Disable();
             // The Run key first: it is what is used when Task Scheduler cannot be reached, and then so is deleting the task.
             DeleteRunEntry();
             DeleteTask();
             Log.Info("Start with Windows: off");
             return;
         }
+
+        if (EarlyStartup.IsEnabled) return;
+        if (EarlyStartup.Target != null)
+            throw new InvalidOperationException("Another copy uses early startup. Disable it from that copy before changing startup here.");
 
         string program = ThisProgram ?? throw new InvalidOperationException("Cannot tell where ClearStart is running from");
         if (RegisterTask(program))
@@ -97,6 +103,7 @@ internal static class AutoStart
         {
             ChangeStartup(() =>
             {
+                if (EarlyStartup.IsEnabled) return;
                 string? program = ThisProgram;
                 if (program == null || !SamePath(RunEntryTarget(), program) || SwitchedOffInWindows()) return;
                 if (!RegisterTask(program)) return;
@@ -127,8 +134,8 @@ internal static class AutoStart
                 case "off":
                     ChangeStartup(() =>
                     {
-                        if (SamePath(RunEntryTarget(), ThisProgram)) DeleteRunEntry();
-                        if (SamePath(ReadTask(throwOnError: true)?.Program, ThisProgram)) DeleteTask();
+                        EarlyStartup.Disable();
+                        RemoveOwnEntries();
                     });
                     Log.Info("Start with Windows: off for this copy");
                     return 0;
@@ -147,6 +154,10 @@ internal static class AutoStart
     /// <summary>What the settings window says under the switch.</summary>
     public static string Describe()
     {
+        if (EarlyStartup.IsEnabled)
+            return "On: the experimental early-startup loader starts Explorer and ClearStart at sign-in. Switch this off to return to normal Windows startup.";
+        if (EarlyStartup.Target is { } early)
+            return $"Early startup is set for another copy, {early}. Disable early startup from that copy first.";
         var task = ReadTask();
         string? runTarget = RunEntryTarget();
         if (SamePath(runTarget, ThisProgram) && !SwitchedOffInWindows()
@@ -179,7 +190,7 @@ internal static class AutoStart
     // ------------------------------------------------------------------ the task
 
     /// <summary>Serializes migration and explicit changes, including Setup's separate process.</summary>
-    private static void ChangeStartup(Action change)
+    internal static void ChangeStartup(Action change)
     {
         string sid = UserSid.Value ?? throw new InvalidOperationException("Cannot identify the startup task's user");
         using var mutex = new Mutex(false, @"Global\ClearStart.Startup." + sid);
@@ -194,6 +205,20 @@ internal static class AutoStart
         }
         try { change(); }
         finally { mutex.ReleaseMutex(); }
+    }
+
+    // Called while ChangeStartup holds the per-user lock, including early-startup opt-in and uninstall.
+    internal static void RemoveOwnEntries()
+    {
+        if (SamePath(RunEntryTarget(), ThisProgram)) DeleteRunEntry();
+        if (SamePath(ReadTask(throwOnError: true)?.Program, ThisProgram)) DeleteTask();
+    }
+
+    internal static void RequireOwnEntries()
+    {
+        foreach (string? target in new[] { ReadTask(throwOnError: true)?.Program, RunEntryTarget() })
+            if (target != null && !SamePath(target, ThisProgram))
+                throw new InvalidOperationException("Another ClearStart copy starts at sign-in; disable its startup entry first");
     }
 
     private readonly record struct TaskInfo(bool Enabled, string? Program);

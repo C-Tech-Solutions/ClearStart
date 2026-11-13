@@ -89,6 +89,7 @@ Filename: "{app}\{#AppExe}"; Description: "Start ClearStart now"; Flags: nowait 
 const
   RunKey = 'Software\Microsoft\Windows\CurrentVersion\Run';
   ApprovedKey = 'Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run';
+  ShellKey = 'Software\Microsoft\Windows NT\CurrentVersion\Winlogon';
   InstanceMutex = 'Local\ClearStart.SingleInstance';
 
 { A copy that is running holds its files open. When it is the copy being upgraded, ask it to close,
@@ -141,6 +142,18 @@ var
   ResultCode: Integer;
 begin
   Exe := ExpandConstant('{app}\{#AppExe}');
+  { Also works if the managed executable is missing. Never leave a removed loader as the sign-in shell. }
+  if RegQueryStringValue(HKCU, ShellKey, 'Shell', Command) and
+     (CompareText(Command, '"' + ExpandConstant('{app}\ClearStart.Loader.exe') + '" --shell') = 0) then
+  begin
+    if not RegDeleteValue(HKCU, ShellKey, 'Shell') then
+    begin
+      Log('Could not remove the early-startup shell entry; keeping the app files.');
+      if not UninstallSilent then
+        MsgBox('ClearStart could not remove its early-startup entry. Your files have been kept.', mbError, MB_OK);
+      Abort;
+    end;
+  end;
   if FileExists(Exe) then
   begin
     if not Exec(Exe, '--start-with-windows off', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or

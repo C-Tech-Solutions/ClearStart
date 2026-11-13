@@ -91,7 +91,7 @@ lines says how long it was since ClearStart started and since you signed in.
    bars dock through it, and ClearStart's tray would make Explorer think a taskbar was already
    running. Log: `Explorer's taskbar is up`.
 4. **The bars open.** Log: `Started in Live mode with <n> taskbar(s)`, then `Taskbars on screen`.
-5. **The rest follows:** the tray, the weather and the update check, and once the bars are idle
+5. **The rest follows:** network discovery, the tray, the weather and the update check, and once the bars are idle
    the list of apps for the start menu (`App list read`). Opening the start menu before then reads
    it on the spot.
 
@@ -99,26 +99,25 @@ The guard runs until ClearStart closes. Its last line, `Stopped keeping the Wind
 says how many times Explorer showed its taskbar again during the run. Shutting down logs each step
 that takes 300 ms or more.
 
-The installer's copy is published ReadyToRun, compiled ahead of time, so less of it is compiled
-while it starts. A `dotnet build` is not.
+The installer and optional native startup builds are published ReadyToRun, compiled ahead of
+time, so less code needs compiling while they start. A `dotnet build` is not. Network discovery
+runs off the UI thread after the bars render; the network glyph updates when the result arrives.
 
-### What it cannot do
+### Startup modes
 
-ClearStart puts nothing inside Explorer, so Explorer still makes and shows its taskbar at sign-in,
-and again whenever the docked bars change. ClearStart can only hide it once Windows reports it
-shown, and Explorer may have drawn a frame by then. The ways around that are invasive, and
-ClearStart does not use them:
+The ordinary sign-in task is out of process. Explorer may draw its taskbar before the hide callback.
+The optional [early-startup candidate](early-startup.md) uses a native loader and an Explorer-loaded
+guard instead. Build it with `native/build.ps1`; the usual `dotnet build` and installer build remain
+unchanged. The native build pins Microsoft Detours 4.0.1 to a commit and archive SHA-256, builds with
+warnings as errors, and stages its license with the binaries. No build command registers or runs
+the loader. Only `ClearStart.exe --early-startup on` changes the next sign-in, and that command must
+not be run on an active user's PC without approval.
 
-- **Code inside Explorer.** Programs that change the taskbar from inside Explorer can keep it from
-  being shown at all. That is what "nothing is injected into Explorer" rules out, and such code
-  tends to break when Windows updates Explorer.
-- **Replacing Explorer as the shell,** with Windows' per-user `Shell` setting. Explorer's taskbar
-  would never start, but ClearStart would have to be the whole shell, and a failed start would
-  leave no desktop at all.
-- **Writing Explorer's saved taskbar settings** directly. Leaving auto-hide on at sign-out gets the
-  supported setting through the documented call, but auto-hide is not a guarantee against drawing
-  a taskbar frame. A strict "never seen" sign-in needs a separate design; no Explorer component is
-  included here.
+The guard uses user32 API hooks and class procedures for Explorer's Unicode taskbar windows. It
+also delays `ShellDesktopSwitchEvent` without blocking Explorer's UI thread. That event and the
+taskbar classes are Windows implementation details: native x64 Windows 11 sign-in compatibility
+is a manual gate. No supported API guarantees a taskbar-free first desktop frame on every update.
+The design, recovery limits, and required fault cases are documented in the linked guide.
 
 ## The self-test
 

@@ -214,12 +214,18 @@ started again or you do one of the above.
 
 ### How soon it takes over
 
-ClearStart puts no code inside Explorer, so it cannot stop Explorer from drawing its taskbar. It
+Ordinary startup puts no code inside Explorer, so it cannot stop Explorer from drawing its taskbar. It
 can only react after Windows reports it, and its sign-in task may start after Explorer. Even with
 auto-hide retained, you may still glimpse the Windows taskbar; this approach does not meet a strict
 "never seen" requirement. ClearStart's own bars follow a
 moment after it has gone. The log says how long each step took after sign-in: look for
 `Windows taskbar hidden` and `Taskbars on screen`.
+
+There is also a separately built [experimental early-startup loader](early-startup.md). It starts
+Explorer with a guard already loaded and waits for ClearStart's bars before releasing Explorer's
+desktop-ready signal. It requires explicit opt-in, is not included by the normal installer build,
+and has had a successful sign-in test reported on one PC. It restores the original auto-hide setting on sign-out as well
+as Exit, and releases suppression if ClearStart fails or stops responding.
 
 ## Where ClearStart keeps things
 
@@ -243,5 +249,7 @@ too, delete `%APPDATA%\ClearStart` and `%LOCALAPPDATA%\ClearStart` afterwards.
 2. Close ClearStart.
 3. Delete the folder you cloned, and `%APPDATA%\ClearStart` and `%LOCALAPPDATA%\ClearStart`.
 
-ClearStart writes nothing else: no services, no drivers, and nothing in Explorer. Start with
-Windows adds one task to Task Scheduler; switching it off, or uninstalling, takes the task away.
+Ordinary Start with Windows adds one task to Task Scheduler; switching it off, or uninstalling,
+takes the task away. The optional early-startup mode instead sets a per-user sign-in shell entry.
+Turn that mode off before moving or deleting its folder, then sign out before replacing the DLL
+that Explorer has loaded. See [early-startup removal and recovery](early-startup.md#recovery).

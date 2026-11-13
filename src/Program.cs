@@ -13,11 +13,12 @@ internal static class Program
     {
         int command = Array.FindIndex(args, a => a.Equals("--start-with-windows", StringComparison.OrdinalIgnoreCase));
         if (command >= 0) return AutoStart.RunCommand(command + 1 < args.Length ? args[command + 1] : null);
-
-        if (App.IsLiveRun(args) && !LiveStart.Begin()) return 0;
+        int early = Array.FindIndex(args, a => a.Equals("--early-startup", StringComparison.OrdinalIgnoreCase));
+        if (early >= 0) return EarlyStartup.RunCommand(early + 1 < args.Length ? args[early + 1] : null);
 
         try
         {
+            if (App.IsLiveRun(args) && !LiveStart.Begin()) return 0;
             var app = new App();
             app.InitializeComponent();
             return app.Run();
@@ -62,6 +63,7 @@ internal static class LiveStart
         ExitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, App.ExitEventName);
 
         Log.Init();
+        EarlySession.Connect();
         Log.Info($"ClearStart {Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)} starting (Live), {StartTiming.Describe()}");
         TaskbarGuard.Start();
 
@@ -82,12 +84,14 @@ internal static class LiveStart
     /// </summary>
     private static bool WaitForExplorer()
     {
-        if (ExplorerTaskbar.IsUp()) return true;
+        if (EarlySession.Released) return false;
+        if (ExplorerTaskbar.IsUp()) return !EarlySession.Released;
 
         Log.Info("Waiting for Explorer to put up the Windows taskbar");
         var waited = System.Diagnostics.Stopwatch.StartNew();
         while (!ExplorerTaskbar.IsUp())
         {
+            if (EarlySession.Released) return false;
             if (ExitEvent!.WaitOne(250))
             {
                 Log.Info("Asked to close while waiting for Explorer");
@@ -100,6 +104,6 @@ internal static class LiveStart
             }
         }
         Log.Info($"Explorer's taskbar is up, {StartTiming.Describe()}");
-        return true;
+        return !EarlySession.Released;
     }
 }

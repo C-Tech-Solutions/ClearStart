@@ -8,6 +8,7 @@ the libraries, and the app fetches the weather when it runs.
 | Library | Version | License | Used for |
 | --- | --- | --- | --- |
 | [ManagedShell](https://github.com/cairoshell/ManagedShell) | 0.0.374 | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) | Docking the bars to a screen edge, the list of open windows, and the tray icons |
+| [Microsoft Detours](https://github.com/microsoft/Detours) | 4.0.1 (`e4bfd6b03e50de46b47abfbd1e46b384f0c5f833`) | [MIT](https://github.com/microsoft/Detours/blob/v4.0.1/LICENSE.md) | Only the optional native startup build: loading the Explorer guard before entry and intercepting taskbar visibility calls. That build includes `Detours-LICENSE.txt`. |
 | [System.Data.OleDb](https://www.nuget.org/packages/System.Data.OleDb) | 8.0.1 | [MIT](https://github.com/dotnet/runtime/blob/main/LICENSE.TXT) | Needed by ManagedShell |
 | [System.ServiceProcess.ServiceController](https://www.nuget.org/packages/System.ServiceProcess.ServiceController) | 8.0.1 | [MIT](https://github.com/dotnet/runtime/blob/main/LICENSE.TXT) | Needed by ManagedShell |
 
