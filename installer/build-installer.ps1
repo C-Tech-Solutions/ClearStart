@@ -102,7 +102,8 @@ Write-Host "ClearStart $version" -ForegroundColor Cyan
 
 Write-Host 'Publishing the app with its own copy of .NET...'
 if (Test-Path -LiteralPath $publish) { Remove-Item -LiteralPath $publish -Recurse -Force }
-dotnet publish $project -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o $publish --nologo -v quiet
+# ReadyToRun compiles the app ahead of time, so less of it is compiled while it starts at sign-in.
+dotnet publish $project -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:PublishReadyToRun=true -o $publish --nologo -v quiet
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed with exit code $LASTEXITCODE" }
 
 # ---------------------------------------------------------------- 2. sign the app

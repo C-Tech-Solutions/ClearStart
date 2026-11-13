@@ -122,7 +122,10 @@ internal sealed class ShellHost : IDisposable
             Log.Error("Could not start loading the window icons", ex);
         }
 
-        Apps.Load();
+        // The self-test reports on the app list straight away. Otherwise it loads once the bars are on screen
+        // (see AfterBarsShown): with its few hundred icons it is the slowest part of starting, and only the
+        // start menu needs it.
+        if (mode == HostMode.SelfTest) Apps.Load();
 
         _screenTimer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
         {
@@ -172,18 +175,17 @@ internal sealed class ShellHost : IDisposable
 
         if (Mode == HostMode.Live)
         {
-            // Look where the Windows taskbars are while they are still on screen.
+            // Normally running already: the program starts it before anything else loads. It keeps the Windows
+            // taskbar hidden from now until ClearStart closes, on a thread of its own.
+            TaskbarGuard.Start();
+            // Which edge each Windows taskbar is docked to. A hidden taskbar still has its place on the screen.
             FindWindowsTaskbars();
-            ExplorerTaskbar.RememberState();
-            Shell.ExplorerHelper.HideExplorerTaskbar = true;
         }
 
         // Before the bars, so they open with the right network glyph. (The self-test never gets here: it
         // builds its bars itself, and asks nothing of the weather service.)
         Network.Start();
         RebuildBars();
-        Weather.Start();
-        Updates.Start();
 
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         Settings.Changed += OnSettingsChanged;
@@ -192,7 +194,34 @@ internal sealed class ShellHost : IDisposable
         Log.Info($"Started in {Mode} mode with {_bars.Count} taskbar(s)");
 
         // Queued behind the drawing of the bars, so it runs when they are on screen.
-        if (Mode == HostMode.Live) _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(StartTray));
+        _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(AfterBarsShown));
+    }
+
+    /// <summary>Everything the bars do not need in order to appear, started once they are on screen.</summary>
+    private void AfterBarsShown()
+    {
+        if (_disposed) return;
+        Log.Info($"Taskbars on screen, {StartTiming.Describe()}");
+
+        if (Mode == HostMode.Live) StartTray();
+        Weather.Start();
+        Updates.Start();
+
+        // Once the bars have nothing else to do. Opening the start menu before then loads it on the spot.
+        _dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
+        {
+            if (_disposed) return;
+            Apps.Load();
+            Log.Info($"App list read ({Apps.Apps.Count} apps so far), {StartTiming.Describe()}");
+        }));
+        if (Mode == HostMode.Live)
+        {
+            _dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
+            {
+                // Off this thread: it asks Task Scheduler, which can take a moment.
+                if (!_disposed) ThreadPool.QueueUserWorkItem(_ => AutoStart.MoveToTask());
+            }));
+        }
     }
 
     /// <summary>
@@ -269,6 +298,12 @@ internal sealed class ShellHost : IDisposable
 
     // ------------------------------------------------------------------ start menu
 
+    /// <summary>All bars accompany the start menu, including bars behind fullscreen windows.</summary>
+    internal void SetStartMenuVisible(bool visible)
+    {
+        foreach (var bar in _bars) bar.SetStartMenuVisible(visible);
+    }
+
     /// <param name="monitor">Monitor to open on; zero = the one the mouse is on.</param>
     public void ToggleStartMenu(IntPtr monitor)
     {
@@ -278,6 +313,8 @@ internal sealed class ShellHost : IDisposable
             HidePreview();
             if (monitor == IntPtr.Zero) monitor = Native.MonitorFromCursor();
             if (_startMenu is { IsClosed: true }) _startMenu = null;
+            // Normally loaded by now; if the menu is opened in the first moments, load it here.
+            Apps.Load();
             _startMenu ??= new StartMenuWindow(this);
             _startMenu.Toggle(monitor);
         }
@@ -617,6 +654,7 @@ internal sealed class ShellHost : IDisposable
         double size = Settings.Current.Taskbar.SizeFor(screen.DeviceName, IsSideBar(edge));
         var bar = new TaskbarWindow(this, screen, edge, size);
         bar.Show();
+        bar.SetStartMenuVisible(_startMenu?.IsVisible == true);
         Log.Info($"Taskbar on {TaskbarSettings.MonitorKey(screen.DeviceName)}: {edge} edge, {size} thick");
         return bar;
     }
@@ -695,7 +733,10 @@ internal sealed class ShellHost : IDisposable
         }
     }
 
-    /// <summary>Reopens one monitor's bar after something about it changed, leaving the others alone.</summary>
+    /// <summary>
+    /// Docks one monitor's bar again after its edge, thickness or Start button changed, leaving the others alone.
+    /// The bar stays open: closing and reopening it is what made the Windows taskbar flash up during a move.
+    /// </summary>
     private void ReplaceBar(string device)
     {
         if (_disposed) return;
@@ -710,10 +751,21 @@ internal sealed class ShellHost : IDisposable
             if (index >= 0 && screen != null)
             {
                 if (Mode != HostMode.Live) FindWindowsTaskbars();
-                var old = _bars[index];
-                _bars.RemoveAt(index);
-                CloseBar(old);
-                _bars.Insert(index, OpenBar(screen));
+                var bar = _bars[index];
+                var edge = ResolveEdge(screen.DeviceName);
+                double size = Settings.Current.Taskbar.SizeFor(screen.DeviceName, IsSideBar(edge));
+                try
+                {
+                    bar.MoveTo(edge, size);
+                    Log.Info($"Taskbar on {TaskbarSettings.MonitorKey(screen.DeviceName)}: {edge} edge, {size} thick");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Could not move the taskbar in place; opening it again", ex);
+                    _bars.RemoveAt(index);
+                    CloseBar(bar);
+                    _bars.Insert(index, OpenBar(screen));
+                }
                 return;
             }
         }
@@ -1121,11 +1173,22 @@ internal sealed class ShellHost : IDisposable
         }
     }
 
-    public void Dispose()
+    public void Dispose() => Close(sessionEnding: false);
+
+    /// <summary>
+    /// Closes everything and gives the Windows taskbar back.
+    /// </summary>
+    /// <param name="sessionEnding">
+    /// The user is signing out or shutting down. When ClearStart starts again at the next sign-in, the Windows
+    /// taskbar is left on auto-hide (see <see cref="ExplorerTaskbar.ShowForSignOut"/>), so that Explorer starts it
+    /// with reduced visibility until ClearStart is back; this cannot guarantee no taskbar frame is drawn.
+    /// </param>
+    public void Close(bool sessionEnding)
     {
         if (_disposed) return;
         _disposed = true;
-        Log.Info("Shutting down");
+        bool keepAutoHide = Mode == HostMode.Live && sessionEnding && StartsAgainAtSignIn();
+        Log.Info(keepAutoHide ? "Shutting down; ClearStart starts again at the next sign-in" : "Shutting down");
 
         Step("remove the Win key hook", () => { _winKey?.Dispose(); _winKey = null; });
         Step("stop watching displays", () =>
@@ -1149,20 +1212,47 @@ internal sealed class ShellHost : IDisposable
         Step("close the taskbars", CloseBars);
         if (Mode == HostMode.Live)
         {
-            Step("show the Windows taskbar", () => Shell.ExplorerHelper.HideExplorerTaskbar = false);
+            Step("show the Windows taskbar", () => GiveBackWindowsTaskbar(keepAutoHide));
         }
         Step("release the app list", Apps.Dispose);
         Step("stop the shell services", Shell.Dispose);
         if (Mode == HostMode.Live)
         {
-            // Belt and braces, and it also sends tray icons back to Windows now that our tray is gone.
-            ExplorerTaskbar.Restore();
+            // Again, now that our tray is gone: that is when the apps can hand their tray icons back to Windows.
+            GiveBackWindowsTaskbar(keepAutoHide);
         }
         Step("close the shell library log", () => _shellLog?.Dispose());
     }
 
+    private static void GiveBackWindowsTaskbar(bool keepAutoHide)
+    {
+        if (keepAutoHide)
+        {
+            ExplorerTaskbar.ShowForSignOut();
+        }
+        else
+        {
+            ExplorerTaskbar.Restore();
+        }
+    }
+
+    private static bool StartsAgainAtSignIn()
+    {
+        try
+        {
+            return AutoStart.IsEnabled;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("Could not tell whether ClearStart starts with Windows: " + ex.Message);
+            return false;
+        }
+    }
+
+    /// <summary>One step of shutting down. A failed step is logged and the rest go ahead; a slow one is logged too.</summary>
     private static void Step(string what, Action action)
     {
+        long started = Environment.TickCount64;
         try
         {
             action();
@@ -1171,5 +1261,7 @@ internal sealed class ShellHost : IDisposable
         {
             Log.Error("Shutdown step failed: " + what, ex);
         }
+        long took = Environment.TickCount64 - started;
+        if (took >= 300) Log.Info($"Shutdown step took {took} ms: {what}");
     }
 }

@@ -12,9 +12,10 @@ namespace ClearStart;
 internal sealed class TaskbarWindow : AppBarWindow
 {
     private readonly ShellHost _host;
-    private readonly TaskbarView _view;
-    private readonly bool _sideBar;
+    private TaskbarView _view;
+    private bool _sideBar;
     private double _size;
+    private bool _startMenuVisible;
 
     /// <param name="size">Thickness: the height of a top or bottom bar, the width of a side bar.</param>
     public TaskbarWindow(ShellHost host, AppBarScreen screen, AppBarEdge edge, double size)
@@ -28,9 +29,7 @@ internal sealed class TaskbarWindow : AppBarWindow
         AllowsTransparency = true;
         Background = Brushes.Transparent;
 
-        _view = new TaskbarView(host, screen, edge, size);
-        _view.ThicknessRequested += Resize;
-        Content = _view;
+        _view = CreateView(edge, size);
         Closed += (_, _) => _view.Detach();
     }
 
@@ -39,6 +38,27 @@ internal sealed class TaskbarWindow : AppBarWindow
     public IntPtr Monitor => Screen.HMonitor;
 
     public AppBarEdge Edge => AppBarEdge;
+
+    /// <summary>Temporarily raises every bar with the menu, then resumes normal fullscreen handling.</summary>
+    public void SetStartMenuVisible(bool visible)
+    {
+        _startMenuVisible = visible;
+        if (visible)
+        {
+            base.OnFullScreenLeave();
+            return;
+        }
+
+        var fullscreen = _fullScreenHelper.FullScreenApps.FirstOrDefault(app =>
+            app.screen.DeviceName == Screen.DeviceName || app.screen.IsVirtualScreen);
+        if (fullscreen != null) base.OnFullScreenEnter(fullscreen);
+        else base.OnFullScreenLeave();
+    }
+
+    protected override void OnFullScreenEnter(FullScreenApp app)
+    {
+        if (!_startMenuVisible) base.OnFullScreenEnter(app);
+    }
 
     /// <summary>Shows or hides the resize handle after the "lock taskbar size" setting changed.</summary>
     public void RefreshLock() => _view.ApplyLock();
@@ -52,6 +72,22 @@ internal sealed class TaskbarWindow : AppBarWindow
 
     /// <summary>Looks again at which windows belong on this bar, after another display gained or lost its bar.</summary>
     public void RefreshApps() => _view.RefreshApps();
+
+    /// <summary>
+    /// Docks the bar to another edge, or gives it another thickness or Start button, without closing it. Closing
+    /// and reopening it would make Windows take its docked bar away and add a new one, and Explorer shows its own
+    /// taskbar again each time that happens. Only the content is made anew, since its layout follows the edge.
+    /// </summary>
+    public void MoveTo(AppBarEdge edge, double size)
+    {
+        _view.Detach();
+        _sideBar = edge is AppBarEdge.Left or AppBarEdge.Right;
+        AppBarEdge = edge;
+        SetThickness(size);
+        _view = CreateView(edge, size);
+        UpdatePosition();
+        ReportTrayPosition();
+    }
 
     /// <summary>Picks up a changed transparency, backdrop or colour without reopening the bar.</summary>
     public void RefreshLook()
@@ -93,26 +129,72 @@ internal sealed class TaskbarWindow : AppBarWindow
         _host.QueueScreenCheck();
     }
 
-    /// <summary>Changes the bar's thickness while it stays docked (the user is dragging its edge).</summary>
+    private TaskbarView CreateView(AppBarEdge edge, double size)
+    {
+        var view = new TaskbarView(_host, Screen, edge, size);
+        view.ResizeStarted += BeginResize;
+        view.ThicknessRequested += Resize;
+        view.ResizeFinished += EndResize;
+        Content = view;
+        return view;
+    }
+
+    /// <summary>
+    /// The user took hold of the bar's edge. Until they let go, the bar only resizes its own window: docking
+    /// it again on every step would make Windows work out every monitor's work area, and move the windows
+    /// out of the way, many times a second, which is what made dragging slow and jumpy.
+    /// </summary>
+    private void BeginResize()
+    {
+        try
+        {
+            DeferWorkArea = true;
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not start resizing a taskbar", ex);
+        }
+    }
+
+    /// <summary>Changes the bar's thickness while the user drags its edge: only this window moves.</summary>
     private void Resize(double size)
     {
         try
         {
-            _size = size;
-            if (_sideBar)
-            {
-                DesiredWidth = size;
-            }
-            else
-            {
-                DesiredHeight = size;
-            }
+            SetThickness(size);
             UpdatePosition();
-            ReportTrayPosition();
         }
         catch (Exception ex)
         {
             Log.Error("Could not resize a taskbar", ex);
+        }
+    }
+
+    /// <summary>The user let go: dock the bar once at its new size, which makes room for it on the desktop.</summary>
+    private void EndResize()
+    {
+        try
+        {
+            // Docks the bar once (the base class re-docks when this goes back to false).
+            DeferWorkArea = false;
+            ReportTrayPosition();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not finish resizing a taskbar", ex);
+        }
+    }
+
+    private void SetThickness(double size)
+    {
+        _size = size;
+        if (_sideBar)
+        {
+            DesiredWidth = size;
+        }
+        else
+        {
+            DesiredHeight = size;
         }
     }
 

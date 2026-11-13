@@ -41,9 +41,11 @@ internal sealed class StartMenuWindow : Window
         Content = _view;
 
         Deactivated += (_, _) => OnLostFocus();
+        IsVisibleChanged += (_, _) => _host.SetStartMenuVisible(IsVisible);
         Closed += (_, _) =>
         {
             IsClosed = true;
+            _host.SetStartMenuVisible(false);
             _view.Detach();
         };
     }

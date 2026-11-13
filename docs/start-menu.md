@@ -9,6 +9,10 @@
 The menu opens from the **Start** button, and in live mode from the Windows key. It opens against
 the bar it was opened from.
 
+While the menu is open, ClearStart raises all its bars above fullscreen windows too. Closing the
+menu by the Windows key, Esc, clicking elsewhere, or closing its window returns the bars to their
+normal fullscreen behavior. This change has been built but has not been tested on a desktop yet.
+
 It has four parts:
 
 | Part | What it is |

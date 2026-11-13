@@ -60,13 +60,65 @@ from.
 | `ClearStart.exe --preview` | Shows the bars next to the Windows taskbar. Hides nothing, no tray icons, Windows key untouched. |
 | `ClearStart.exe` | Live mode: hides the Windows taskbar, shows the tray icons, opens its start menu on the Windows key. |
 | `ClearStart.exe --exit` | Closes the running copy, which puts the Windows taskbar back. |
-| `ClearStart.exe --restore` | Same, and also forces the Windows taskbar back if a copy was ended without cleaning up. |
+| `ClearStart.exe --restore` | Same, and also forces the Windows taskbar back if a copy was ended without cleaning up, with the auto-hide setting it had before ClearStart. |
+| `ClearStart.exe --start-with-windows on` or `off` | Switches Start with Windows for this copy and exits, showing nothing. Setup uses it. `off` leaves another copy's start alone. |
 | `ClearStart.exe --selftest <folder>` | Draws the UI into PNG files in that folder without showing anything, and writes what it checked to `selftest.json`. Saves no settings. |
 | `ClearStart.exe --screenshots <folder>` | Draws the pictures the docs use, with stand-in content. Saves no settings. |
 
 Only one copy of the taskbar runs at a time; starting a second one does nothing. The self-test
 and the screenshot mode can run while a copy is up. ClearStart is a windowed program, so a
 terminal does not wait for it; use `Start-Process -Wait` when a script needs the result.
+
+## How a live run starts
+
+From sign-in to ClearStart's bars on screen, with the log line each step writes. Each of those
+lines says how long it was since ClearStart started and since you signed in.
+
+1. **Task Scheduler starts it** as you sign in, when Start with Windows is on
+   ([`src/AutoStart.cs`](../src/AutoStart.cs)). The first line: `ClearStart <version> starting (Live)`.
+2. **`Program.Main` hides the Windows taskbar** before the settings, WPF or the shell library are
+   loaded. `TaskbarGuard` hides every Windows taskbar that is showing, on a thread of its own, and
+   then listens for Windows reporting a window shown (`EVENT_OBJECT_SHOW`), so it hides each one
+   again the moment it comes back, with a look every two seconds for anything missed. It also
+   switches the Windows taskbar to auto-hide, so that it gives up its strip of the desktop, and
+   notes the setting it had first in `%LOCALAPPDATA%\ClearStart\explorer-taskbar-state.txt`.
+   Auto-hide is changed only if that record can be saved or read. `Stop` waits for native hides and
+   auto-hide changes to complete and prevents new ones before restoration. A busy
+   Explorer can delay a native call, but WPF bar layout does not run on the guard thread.
+   Log: `Windows taskbar hidden`, or `The Windows taskbar is not up yet` and then
+   `Windows taskbar hidden as it appeared`.
+3. **It waits for Explorer**, for up to two minutes, if Explorer's taskbar is not up yet. The
+   bars dock through it, and ClearStart's tray would make Explorer think a taskbar was already
+   running. Log: `Explorer's taskbar is up`.
+4. **The bars open.** Log: `Started in Live mode with <n> taskbar(s)`, then `Taskbars on screen`.
+5. **The rest follows:** the tray, the weather and the update check, and once the bars are idle
+   the list of apps for the start menu (`App list read`). Opening the start menu before then reads
+   it on the spot.
+
+The guard runs until ClearStart closes. Its last line, `Stopped keeping the Windows taskbar hidden`,
+says how many times Explorer showed its taskbar again during the run. Shutting down logs each step
+that takes 300 ms or more.
+
+The installer's copy is published ReadyToRun, compiled ahead of time, so less of it is compiled
+while it starts. A `dotnet build` is not.
+
+### What it cannot do
+
+ClearStart puts nothing inside Explorer, so Explorer still makes and shows its taskbar at sign-in,
+and again whenever the docked bars change. ClearStart can only hide it once Windows reports it
+shown, and Explorer may have drawn a frame by then. The ways around that are invasive, and
+ClearStart does not use them:
+
+- **Code inside Explorer.** Programs that change the taskbar from inside Explorer can keep it from
+  being shown at all. That is what "nothing is injected into Explorer" rules out, and such code
+  tends to break when Windows updates Explorer.
+- **Replacing Explorer as the shell,** with Windows' per-user `Shell` setting. Explorer's taskbar
+  would never start, but ClearStart would have to be the whole shell, and a failed start would
+  leave no desktop at all.
+- **Writing Explorer's saved taskbar settings** directly. Leaving auto-hide on at sign-out gets the
+  supported setting through the documented call, but auto-hide is not a guarantee against drawing
+  a taskbar frame. A strict "never seen" sign-in needs a separate design; no Explorer component is
+  included here.
 
 ## The self-test
 
@@ -163,10 +215,10 @@ The script finds its tools by itself, or you can point it at them:
 | | |
 | --- | --- |
 | **Where** | `%LOCALAPPDATA%\Programs\ClearStart`, for the one user, with no administrator rights. A shortcut goes in the Start menu. |
-| **Start with Windows** | An optional task, off by default while live mode is new. It writes the same entry the app's own switch writes (see [`src/AutoStart.cs`](../src/AutoStart.cs)), so the switch shows it as on. |
+| **Start with Windows** | An optional task, off by default while live mode is new. Setup runs `ClearStart.exe --start-with-windows on`, which does what the app's own switch does (see [`src/AutoStart.cs`](../src/AutoStart.cs)): a task in Task Scheduler that starts ClearStart at sign-in, or the Run key if Task Scheduler refuses the task. An update leaves it as it was; a live run moves an older version's Run key entry to the task. |
 | **Upgrading** | If the installed copy is running, Setup runs it with `--exit` first. |
 | **Updating** | ClearStart's updater runs Setup with `/VERYSILENT`, `/MERGETASKS="!startup"`, so that Start with Windows stays as it was, and `/RESTART=live` or `/RESTART=preview`. At the end Setup starts the installed copy again in that mode, unless a copy is already running. Without `/RESTART` it starts nothing. |
-| **Uninstalling** | Runs `--restore`, then removes the files, and the Start with Windows entry if it starts this copy. If ClearStart is still running after `--restore`, it stops before removing anything. The settings and the log stay. |
+| **Uninstalling** | Runs `--restore`, then `--start-with-windows off`, then removes the files. Start with Windows goes only if it starts this copy; an older version's Run key entry is checked too. If ClearStart is still running after `--restore`, or startup cleanup fails, it stops before removing anything. A Task Scheduler read failure is an error, not proof the task is absent. The settings and the log stay. |
 
 `AppId` in `ClearStart.iss` ties every version together, so a new installer upgrades the old one
 in place. Never change it.
@@ -223,7 +275,8 @@ one whose files are named differently.
 
 | File | What is in it |
 | --- | --- |
-| `App.xaml.cs` | The entry point: reads the command line, keeps to one running copy |
+| `Program.cs` | The entry point: a live run hides the Windows taskbar here before anything else loads |
+| `App.xaml.cs` | Reads the command line, keeps to one running copy, catches errors |
 | `ShellHost.cs` | Owns a run: opens the bars, the start menu and the tray, and applies settings changes |
 | `Settings.cs` | The settings, and loading and saving them |
 | `Log.cs` | The log file |
@@ -271,7 +324,9 @@ one whose files are named differently.
 | File | What is in it |
 | --- | --- |
 | `Native.cs` | Window and input calls |
-| `ExplorerTaskbar.cs` | Hiding the Windows taskbar and putting it back |
+| `TaskbarGuard.cs` | Keeps the Windows taskbar hidden while ClearStart runs |
+| `ExplorerTaskbar.cs` | The Windows taskbar's auto-hide setting, and putting the taskbar back |
+| `StartTiming.cs` | How long since ClearStart started and since sign-in, for the log |
 | `WinKeyHook.cs` | The Windows key, in live mode |
 | `Audio.cs` | Output devices and spatial sound |
 | `Network.cs` | Whether the connection is wired, Wi-Fi or down |

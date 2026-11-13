@@ -23,8 +23,10 @@ internal sealed class AppCatalog : IDisposable
     /// <summary>From here on the list is only these apps. For the screenshot mode's stand-in list.</summary>
     internal void ShowOnly(IEnumerable<ShellFile> apps) => _only = new ObservableCollection<ShellFile>(apps);
 
+    /// <summary>Starts reading the list. Does nothing if it has been started already.</summary>
     public void Load()
     {
+        if (_folder != null) return;
         try
         {
             _folder = new ShellFolder("shell:AppsFolder", IntPtr.Zero, true, true);

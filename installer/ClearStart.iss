@@ -78,13 +78,11 @@ Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreve
 [Icons]
 Name: "{autoprograms}\ClearStart"; Filename: "{app}\{#AppExe}"; Comment: "A see-through taskbar and a start menu"
 
-[Registry]
-; The same entry the app's own "Start with Windows" switch writes, so the switch shows it as on.
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "ClearStart"; ValueData: """{app}\{#AppExe}"""; Tasks: startup
-; If the entry was once switched off in Task Manager, that switch would keep the new entry from starting.
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"; ValueType: none; ValueName: "ClearStart"; Flags: deletevalue dontcreatekey; Tasks: startup
-
 [Run]
+; "Start with Windows" is set up by the app itself, exactly as its own switch does it: a task in Task
+; Scheduler that starts it at sign-in (or, if Task Scheduler will not take one, a Run key entry). The
+; updater leaves this task unticked; a live run moves an older version's Run key entry to the task.
+Filename: "{app}\{#AppExe}"; Parameters: "--start-with-windows on"; StatusMsg: "Setting ClearStart to start when you sign in..."; Flags: runhidden waituntilterminated; Tasks: startup
 Filename: "{app}\{#AppExe}"; Description: "Start ClearStart now"; Flags: nowait postinstall skipifsilent
 
 [Code]
@@ -134,11 +132,28 @@ begin
 end;
 
 { "Start with Windows" can have been switched on by Setup or by the app itself. Either way, take it
-  away with the program, but only when it starts this copy. }
+  away with the program, but only when it starts this copy. The app removes its task in Task
+  Scheduler, so this runs before its files go; the Run key entry of older versions is checked here
+  too, in case the app could not run. }
 procedure RemoveStartWithWindows;
 var
-  Command: String;
+  Exe, Command: String;
+  ResultCode: Integer;
 begin
+  Exe := ExpandConstant('{app}\{#AppExe}');
+  if FileExists(Exe) then
+  begin
+    if not Exec(Exe, '--start-with-windows off', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or
+       (ResultCode <> 0) then
+    begin
+      Log('Could not remove Start with Windows, so the uninstall stops here.');
+      if not UninstallSilent then
+        MsgBox('ClearStart could not remove its Start with Windows entry. ' +
+               'Your files have been kept. Try uninstalling again after Task Scheduler is available.', mbError, MB_OK);
+      Abort;
+    end;
+  end;
+
   if RegQueryStringValue(HKCU, RunKey, 'ClearStart', Command) and
      (Pos(Uppercase(ExpandConstant('{app}\{#AppExe}')), Uppercase(Command)) > 0) then
   begin
@@ -177,7 +192,10 @@ end;
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   case CurUninstallStep of
-    usUninstall: CloseRunningCopy;
-    usPostUninstall: RemoveStartWithWindows;
+    usUninstall:
+      begin
+        CloseRunningCopy;
+        RemoveStartWithWindows;
+      end;
   end;
 end;

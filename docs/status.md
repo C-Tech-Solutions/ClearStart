@@ -9,6 +9,7 @@ what has not, and what is missing.
 - [Known problems in 0.2.0](#known-problems-in-020)
 - [What has not been run](#what-has-not-been-run)
 - [Not confirmed by hand yet](#not-confirmed-by-hand-yet)
+- [Changed since 0.2.0, not run yet](#changed-since-020-not-run-yet)
 - [Not there yet](#not-there-yet)
 
 ## What has been run
@@ -23,11 +24,14 @@ what has not, and what is missing.
 
 ## Known problems in 0.2.0
 
-These have been seen on that desktop and are being worked on:
+These have been seen on that desktop. Resize and fullscreen/menu fixes are in the code but have
+not been run yet. Taskbar flashing during moves and sign-in is mitigated, not guaranteed absent;
+see [Changed since 0.2.0, not run yet](#changed-since-020-not-run-yet).
 
 - **Resizing a bar is choppy.** Dragging a bar's edge does not follow the mouse smoothly.
 - **The Windows taskbar shows for a moment** when a bar is moved or resized in live mode.
 - **After a restart, the Windows taskbar shows until ClearStart has loaded.**
+- **Over a fullscreen window, the Windows key opens the menu but leaves the bars behind.**
 
 ## What has not been run
 
@@ -66,6 +70,33 @@ one by clicking it on a real desktop:
 - how Windows shows the app icon on the program file and in Alt+Tab;
 - the installer's **Start ClearStart now** at the end, which starts live mode.
 
+## Changed since 0.2.0, not run yet
+
+These are in the code, and build, but have not been run on a real desktop yet:
+
+- **Start with Windows is a task in Task Scheduler.** It starts ClearStart as you sign in, not
+  once the desktop is up and Windows has held back its Startup list for a while. A live run moves
+  0.2.0's Startup list entry to the task. Setup's tick box and uninstalling go through the same
+  code. See [Getting started](getting-started.md#start-with-windows).
+- **The Windows taskbar is hidden first,** before the settings and the bars load, and kept hidden
+  by a thread that hides it again the moment Windows reports it shown. Before, a check ten times a
+  second on the busy UI thread could fall behind for seconds while bars were rebuilt.
+- **Signing out with Start with Windows on leaves the Windows taskbar hiding itself** until
+  ClearStart is back. See [Getting started](getting-started.md#between-signing-out-and-signing-in).
+- **Resizing a bar** changes only that bar while the mouse is down, and docks it once when it is
+  let go.
+- **Moving a bar** keeps it open, instead of closing it and opening a new one.
+- **Opening the start menu over fullscreen windows** raises all bars until the menu closes,
+  then restores their normal fullscreen behavior.
+- **Startup migration and the startup switch** are serialized, including commands from Setup.
+  The switch also recognizes an enabled Run-key fallback when an older task remains.
+- **Uninstall stops if startup cleanup fails,** keeping the app files available for a retry.
+- **Auto-hide changes require a readable saved original setting,** and shutdown waits for native
+  hides and auto-hide changes before restoring Windows' taskbar.
+- **The tray, the weather, the update check and the list of apps** start after the bars are on
+  screen.
+- **The installer's copy is compiled ahead of time** (ReadyToRun).
+
 ## Not there yet
 
 - **No jump lists** on the app buttons.
@@ -73,8 +104,9 @@ one by clicking it on a real desktop:
 - **The start menu's own search finds apps and commands only.** For files, settings and the web,
   use the search button next to Start, which opens Windows Search.
 - **Blurred and frosted look much alike.** How strong the blur is belongs to Windows.
-- **Bars blink when they move.** Moving a bar or its Start button closes and reopens that bar.
-  Settings that change what the bars contain reopen all of them.
+- **Bars blink when some settings change.** Settings that change what the bars contain reopen
+  all of them. Moving a bar or its Start button keeps the bar open, and lays out only what is on it
+  again.
 - **Web apps group with their browser.** Pinned apps are matched to their windows by program file,
   so apps installed from a browser share the browser's button.
 - **Monitors are told apart by display name,** which Windows can reassign when displays are
