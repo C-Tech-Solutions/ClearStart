@@ -69,6 +69,8 @@ one by clicking it on a real desktop:
 - the weather's location search against the live service;
 - hiding and showing a bar from the right-click menu;
 - choosing which pinned apps a bar shows, from the menus and from the chips on the Taskbar page;
+- opening Windows' settings and tools from the start menu's search, and adding one to the
+  places from its right-click menu;
 - the list of places in the settings window: the icon sheet, the "Add…" menu and the file and
   folder pickers, and right-clicking a place in the start menu;
 - throwing the Start with Windows switch;
@@ -97,8 +99,9 @@ These are in the code, and build, but have not been run on a real desktop yet:
 
 - **No jump lists** on the app buttons.
 - **No volume slider of its own.** Clicking the volume glyph opens Windows' quick settings.
-- **The start menu's own search finds apps and commands only.** For files, settings and the web,
-  use the search button next to Start, which opens Windows Search.
+- **The start menu's own search finds apps, commands and a set list of Windows settings and
+  tools,** not files or the web. For those, use the search button next to Start, which opens
+  Windows Search.
 - **Blurred and frosted look much alike.** How strong the blur is belongs to Windows.
 - **Bars blink when some settings change.** Settings that change what the bars contain reopen
   all of them. Moving a bar or its Start button keeps the bar open, and lays out only what is on it

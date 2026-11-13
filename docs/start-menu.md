@@ -26,9 +26,10 @@ It has four parts:
 
 | Action | Result |
 | --- | --- |
-| Type | Searches the apps. The arrow keys move through the results; Enter opens the highlighted one or the first match. When nothing matches, Enter runs what was typed as a command. Esc clears the search, then closes the menu |
+| Type | Searches the apps, and from the second letter Windows' settings and tools too. The arrow keys move through the results; Enter opens the highlighted one or the first match. When nothing matches, Enter runs what was typed as a command. Esc clears the search, then closes the menu |
 | Click an app or a pinned tile | Opens it. Ctrl+Shift+click on a tile opens it as administrator |
 | Right-click an app or a pinned tile | Open, run as administrator, pin or unpin from Start and the taskbar, open file location |
+| Right-click a Windows setting or tool | Open, run as administrator (not for a settings page), add to or remove from the places |
 | Click a place | Opens it |
 | Right-click a place | Open, move up or down, add a line below, remove, or "Customize this list…" for the settings page |
 | Your name | Opens your account page in Windows' settings |
@@ -39,8 +40,17 @@ It has four parts:
   <img src="images/desktop-search.png" alt="The start menu with the letters p and a typed, showing Paint, Control Panel and Notepad as results">
 </p>
 
-The menu's search finds apps and runs commands. For files, settings and the web, click the
-[search button](taskbar.md#the-search-button) next to Start, which opens Windows Search.
+The menu's search finds apps, runs commands, and finds about seventy of Windows' settings pages,
+Control Panel items and tools: Power Options, Control Panel, Programs and Features, Device Manager,
+Disk Management, Services, Registry Editor, Display settings and so on. Each shows under its name
+whether it is a settings page, a Control Panel item or a Windows tool. They also come up by other
+words people use for them, such as "uninstall", "dark mode" or "environment variables", and by
+the command that opens them, such as "regedit". At the same match an app comes first. Shut down, restart and sleep are left out, so Enter cannot turn the PC off by accident; they
+are on the power button. Tools this edition of Windows does not have, such as the Group Policy
+editor on Home, are left out too.
+
+For files and the web, click the [search button](taskbar.md#the-search-button) next to Start, which
+opens Windows Search.
 
 ## The list of places
 

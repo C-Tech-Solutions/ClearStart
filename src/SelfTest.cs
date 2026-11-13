@@ -921,16 +921,52 @@ internal static partial class SelfTest
                 report["startMenuAppCount"] = menu.VisibleAppCount;
 
                 var searches = new Dictionary<string, List<string>>();
-                foreach (string query in new[] { "calc", "note", "term", "paint", "vsc", "zzzzqq" })
+                foreach (string query in new[]
+                {
+                    "calc", "note", "term", "paint", "vsc", "zzzzqq",
+                    "power options", "control panel", "add or remove", "regedit", "dark mode", "p",
+                })
                 {
                     menu.SetQuery(query);
-                    searches[query] = menu.TopResults(3);
+                    searches[query] = menu.TopResults(query.Length == 1 ? 1000 : 3);
                 }
-                report["searchResults"] = searches;
+                report["searchResults"] = searches.Where(search => search.Key.Length > 1)
+                    .ToDictionary(search => search.Key, search => search.Value);
+
+                // Windows settings and tools come up beside the apps, and only once each.
+                void ExpectFeature(string query, string name, bool first)
+                {
+                    var found = searches[query];
+                    bool ok = first ? found.FirstOrDefault() == name : found.Count(result => result == name) == 1;
+                    if (!ok) errors.Add($"Search \"{query}\" found [{string.Join(", ", found)}], not {name}{(first ? " first" : " once")}");
+                }
+                ExpectFeature("power options", "Power Options", first: true);
+                ExpectFeature("control panel", "Control Panel", first: false);
+                ExpectFeature("add or remove", "Programs and Features", first: false);
+                ExpectFeature("regedit", "Registry Editor", first: true);
+                ExpectFeature("dark mode", "Colors", first: true);
+                var oneLetter = searches["p"].Where(name => WindowsFeatures.All.Any(feature => feature.Name == name)
+                    && !host.Apps.Apps.Any(app => app.DisplayName == name)).ToList();
+                if (oneLetter.Count > 0) errors.Add("Search \"p\" found Windows settings: " + string.Join(", ", oneLetter));
+
+                var catalog = WindowsFeatures.Catalog();
+                var named = catalog.GroupBy(feature => feature.Name, StringComparer.OrdinalIgnoreCase)
+                    .Where(group => group.Count() > 1).Select(group => group.Key).ToList();
+                if (named.Count > 0) errors.Add("Windows features with the same name: " + string.Join(", ", named));
+                report["windowsFeatures"] = new
+                {
+                    listed = catalog.Count,
+                    notOnThisPc = catalog.Where(feature => WindowsFeatures.All.All(here => here.Name != feature.Name))
+                        .Select(feature => feature.Name).ToList(),
+                };
 
                 menu.SetQuery("note");
                 await Task.Delay(1500);
                 stage.Save(Path.Combine(directory, "startmenu-search.png"));
+
+                menu.SetQuery("power");
+                await Task.Delay(1500);
+                stage.Save(Path.Combine(directory, "startmenu-search-windows.png"));
 
                 stage.Close();
                 menu.Detach();

@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using ManagedShell.Common.Helpers;
 using ManagedShell.ShellFolders;
 
@@ -12,7 +13,8 @@ namespace ClearStart;
 
 /// <summary>
 /// The contents of the start menu: a search box, every installed app, the pinned tiles, and a
-/// column of places and power actions. Typing filters the app list; Enter opens the best match.
+/// column of places and power actions. Typing filters the app list, and adds the Windows settings and
+/// tools that match (see <see cref="WindowsFeatures"/>); Enter opens the best match.
 /// </summary>
 public partial class StartMenuView : UserControl
 {
@@ -21,6 +23,8 @@ public partial class StartMenuView : UserControl
     private readonly ListCollectionView _apps;
     private string _query = "";
     private object? _pressedApp;
+    private bool _refreshing;
+    private bool _resultsPending;
 
     internal StartMenuView(ShellHost host, Action close)
     {
@@ -37,7 +41,10 @@ public partial class StartMenuView : UserControl
             CustomSort = new AppOrder(this),
             Filter = item => item is ShellItem app && Rank(app.DisplayName, _query) >= 0,
         };
+        AppList.ItemTemplateSelector = new RowTemplates(
+            (DataTemplate)Resources["AppTemplate"], (DataTemplate)Resources["FeatureTemplate"]);
         AppList.ItemsSource = _apps;
+        ((INotifyCollectionChanged)_apps).CollectionChanged += Apps_Changed;
         PinList.ItemsSource = host.Pins.Start;
         UserName.Text = host.UserName;
         ArrangePlaces(settings);
@@ -64,6 +71,7 @@ public partial class StartMenuView : UserControl
     internal void Detach()
     {
         CollectionChangedEventManager.RemoveHandler(_host.Pins.Start, Pins_Changed);
+        ((INotifyCollectionChanged)_apps).CollectionChanged -= Apps_Changed;
         AppList.ItemsSource = null;
         PinList.ItemsSource = null;
         _apps.DetachFromSourceCollection();
@@ -121,17 +129,78 @@ public partial class StartMenuView : UserControl
         SearchHint.Visibility = SearchBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         AppHeader.Text = _query.Length == 0 ? "All apps" : "Results";
 
-        _apps.Refresh();
-
-        bool searching = _query.Length > 0;
-        NoResults.Visibility = searching && _apps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        AppList.SelectedIndex = searching && _apps.Count > 0 ? 0 : -1;
-        ScrollToTop();
+        _refreshing = true;
+        try
+        {
+            _apps.Refresh();
+        }
+        finally
+        {
+            _refreshing = false;
+        }
+        ShowResults(keepSelection: false);
     }, "Search");
+
+    /// <summary>
+    /// Every app; or while searching, the apps and the Windows settings and tools that match, best first. At the same
+    /// rank an app comes first, and a setting or tool with the same name as an app in the list is left out.
+    /// </summary>
+    private void ShowResults(bool keepSelection)
+    {
+        object? selected = keepSelection ? AppList.SelectedItem : null;
+        bool searching = _query.Length > 0;
+        if (!searching)
+        {
+            if (!ReferenceEquals(AppList.ItemsSource, _apps)) AppList.ItemsSource = _apps;
+        }
+        else
+        {
+            var apps = _apps.OfType<ShellItem>().ToList();
+            var names = new HashSet<string>(apps.Select(app => app.DisplayName ?? ""), StringComparer.OrdinalIgnoreCase);
+            // One letter brings up apps only; the list of settings is long, and a second letter narrows it.
+            var features = _query.Length < 2
+                ? new List<(object Item, int Rank)>()
+                : WindowsFeatures.All
+                    .Where(feature => !names.Contains(feature.Name))
+                    .Select(feature => (Item: (object)feature, Rank: feature.Rank(_query)))
+                    .Where(match => match.Rank >= 0)
+                    .OrderBy(match => match.Rank)
+                    .ThenBy(match => ((WindowsFeature)match.Item).Name, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
+            // The apps are in order already; a stable sort by rank alone keeps them so, and ahead of the features.
+            AppList.ItemsSource = apps.Select(app => (Item: (object)app, Rank: Rank(app.DisplayName, _query)))
+                .Concat(features)
+                .OrderBy(match => match.Rank)
+                .Select(match => match.Item)
+                .ToList();
+        }
+
+        int count = AppList.Items.Count;
+        NoResults.Visibility = searching && count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (selected != null && AppList.Items.Contains(selected))
+        {
+            AppList.SelectedItem = selected;
+            return;
+        }
+        AppList.SelectedIndex = searching && count > 0 ? 0 : -1;
+        ScrollToTop();
+    }
+
+    /// <summary>Apps installed or removed while searching: the results are made again, once the list has changed.</summary>
+    private void Apps_Changed(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_refreshing || _resultsPending || _query.Length == 0) return;
+        _resultsPending = true;
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            _resultsPending = false;
+            if (_query.Length > 0 && AppList.ItemsSource != null) Ui.Safe(() => ShowResults(keepSelection: true), "Search");
+        }));
+    }
 
     private void ScrollToTop()
     {
-        if (_apps.Count > 0) AppList.ScrollIntoView(_apps.GetItemAt(0));
+        if (AppList.Items.Count > 0) AppList.ScrollIntoView(AppList.Items[0]);
     }
 
     private void View_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -168,7 +237,7 @@ public partial class StartMenuView : UserControl
 
     private void MoveSelection(int delta)
     {
-        int count = _apps.Count;
+        int count = AppList.Items.Count;
         if (count == 0) return;
 
         int index = AppList.SelectedIndex < 0
@@ -178,17 +247,17 @@ public partial class StartMenuView : UserControl
         if (AppList.SelectedItem != null) AppList.ScrollIntoView(AppList.SelectedItem);
     }
 
-    /// <summary>Enter: the highlighted app, else the best match, else run the text as a command.</summary>
+    /// <summary>Enter: the highlighted result, else the best match, else run the text as a command.</summary>
     private void OpenSelection()
     {
         bool elevated = Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift);
 
-        var app = AppList.SelectedItem as ShellItem;
-        if (app == null && _query.Length > 0 && _apps.Count > 0) app = _apps.GetItemAt(0) as ShellItem;
+        object? item = AppList.SelectedItem;
+        if (item == null && _query.Length > 0 && AppList.Items.Count > 0) item = AppList.Items[0];
 
-        if (app != null)
+        if (item != null)
         {
-            Open(app, elevated);
+            Open(item, elevated);
         }
         else if (_query.Length > 0)
         {
@@ -200,9 +269,21 @@ public partial class StartMenuView : UserControl
 
     // ------------------------------------------------------------------ apps and pins
 
-    private void Open(ShellItem item, bool elevated = false)
+    /// <summary>Opens an app, or a Windows setting or tool from the search results.</summary>
+    private void Open(object item, bool elevated = false)
     {
-        Launcher.Launch(item, elevated);
+        switch (item)
+        {
+            case ShellItem app:
+                Launcher.Launch(app, elevated);
+                break;
+            case WindowsFeature feature:
+                // A settings page is not a program, and cannot run as administrator.
+                Launcher.Run(feature.Target, elevated: elevated && feature.CanElevate);
+                break;
+            default:
+                return;
+        }
         _close();
     }
 
@@ -214,17 +295,52 @@ public partial class StartMenuView : UserControl
         // Only a press and release on the same row counts, so ending a scrollbar drag over a row opens nothing.
         var pressed = _pressedApp;
         _pressedApp = null;
-        if ((sender as FrameworkElement)?.DataContext is ShellItem app && ReferenceEquals(app, pressed))
+        if ((sender as FrameworkElement)?.DataContext is { } item && ReferenceEquals(item, pressed))
         {
-            Ui.Safe(() => Open(app), "Open");
+            Ui.Safe(() => Open(item), "Open");
         }
     }
 
     private void App_RightClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not FrameworkElement element || element.DataContext is not ShellItem app) return;
-        e.Handled = true;
-        Ui.Safe(() => ShowItemMenu(element, app, AppCatalog.PinPath(app)), "App menu");
+        if (sender is not FrameworkElement element) return;
+        if (element.DataContext is ShellItem app)
+        {
+            e.Handled = true;
+            Ui.Safe(() => ShowItemMenu(element, app, AppCatalog.PinPath(app)), "App menu");
+        }
+        else if (element.DataContext is WindowsFeature feature)
+        {
+            e.Handled = true;
+            Ui.Safe(() => ShowFeatureMenu(element, feature), "Feature menu");
+        }
+    }
+
+    /// <summary>Right-click on a Windows setting or tool: open it, or keep it in the column of places.</summary>
+    private void ShowFeatureMenu(UIElement target, WindowsFeature feature)
+    {
+        var places = Settings.Current.StartMenu.Places;
+        var place = places.FirstOrDefault(entry =>
+            string.Equals(entry.Target?.Trim(), feature.Target, StringComparison.OrdinalIgnoreCase));
+
+        void Edit(Action change)
+        {
+            change();
+            ShowPlaces();
+            _host.Edited(SettingsChange.None);
+        }
+
+        var entries = new List<(string? Header, Action? Action)>
+        {
+            ("Open", () => Open(feature)),
+            ("Run as administrator", feature.CanElevate ? () => Open(feature, elevated: true) : null),
+            (null, null),
+        };
+        entries.Add(place == null
+            ? ("Add to places", () => Edit(() =>
+                places.Add(new PlaceEntry { Name = feature.Name, Target = feature.Target, Glyph = feature.Glyph })))
+            : ("Remove from places", () => Edit(() => places.Remove(place))));
+        Ui.ShowMenu(target, entries.ToArray());
     }
 
     private void Pin_Click(object sender, RoutedEventArgs e)
@@ -410,7 +526,28 @@ public partial class StartMenuView : UserControl
     internal int VisibleAppCount => _apps.Count;
 
     internal List<string> TopResults(int count) =>
-        _apps.Cast<object>().Take(count).Select(item => (item as ShellItem)?.DisplayName ?? "?").ToList();
+        AppList.Items.Cast<object>().Take(count).Select(item => item switch
+        {
+            ShellItem app => app.DisplayName ?? "?",
+            WindowsFeature feature => feature.Name,
+            _ => "?",
+        }).ToList();
+
+    /// <summary>An app's row, or a Windows setting's or tool's.</summary>
+    private sealed class RowTemplates : DataTemplateSelector
+    {
+        private readonly DataTemplate _app;
+        private readonly DataTemplate _feature;
+
+        public RowTemplates(DataTemplate app, DataTemplate feature)
+        {
+            _app = app;
+            _feature = feature;
+        }
+
+        public override DataTemplate SelectTemplate(object item, DependencyObject container) =>
+            item is WindowsFeature ? _feature : _app;
+    }
 
     /// <summary>Best matches first while searching; otherwise alphabetical.</summary>
     private sealed class AppOrder : IComparer
