@@ -73,7 +73,7 @@ public partial class StartMenuView
             return;
         }
 
-        double size;
+        double size, lift = 1.15;
         if (dragged is PinFolder folder)
         {
             Ghost.Child = new ContentPresenter { Content = folder, ContentTemplate = (DataTemplate)Resources["FolderPlate"] };
@@ -82,11 +82,15 @@ public partial class StartMenuView
         else
         {
             // The large icon, as a tile shows it; a row of the list shows a smaller one, until the large one is ready.
-            var image = new Image { Width = 36, Height = 36 };
+            // A large tile's icon floats as big as it is, from the biggest picture of it, and grows less.
+            size = Math.Max(36, Math.Round(from.Width));
+            bool jumbo = size > 48;
+            if (jumbo) lift = 1.05;
+            var image = new Image { Width = size, Height = size };
             RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
             string? large = source.DataContext switch
             {
-                PinnedItem => "Item.ExtraLargeIcon",
+                PinnedItem => jumbo ? "Item.JumboIcon" : "Item.ExtraLargeIcon",
                 ShellItem => nameof(ShellItem.ExtraLargeIcon),
                 _ => null,
             };
@@ -100,7 +104,6 @@ public partial class StartMenuView
                 image.Source = (icon as Image)?.Source;
             }
             Ghost.Child = image;
-            size = 36;
         }
         Ghost.Width = size;
         Ghost.Height = size;
@@ -111,7 +114,7 @@ public partial class StartMenuView
         Motion.Set(_ghostMove, TranslateTransform.YProperty, cursor.Y - size / 2);
         Motion.To(_ghostGrab, TranslateTransform.XProperty, Math.Clamp(grab.X, -14, 14), 200, Motion.Out, from: grab.X);
         Motion.To(_ghostGrab, TranslateTransform.YProperty, Math.Clamp(grab.Y, -14, 14), 200, Motion.Out, from: grab.Y);
-        ScaleBoth(_ghostScale, from.Width / size, 1.15, 220, Motion.Pop);
+        ScaleBoth(_ghostScale, from.Width / size, lift, 220, Motion.Pop);
         Motion.To(_ghostShadow, DropShadowEffect.OpacityProperty, 0.45, 220, Motion.Out, from: 0);
         Motion.Set(Ghost, OpacityProperty, 1);
         Ghost.Visibility = Visibility.Visible;

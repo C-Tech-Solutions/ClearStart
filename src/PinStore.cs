@@ -9,15 +9,33 @@ namespace ClearStart;
 internal interface IStartTile
 {
     string Name { get; }
+
+    /// <summary>How big its tile is. Change it through <see cref="PinStore.Resize"/>, which keeps it.</summary>
+    TileSize Size { get; set; }
 }
 
-internal sealed class PinnedItem : IStartTile
+internal sealed class PinnedItem : IStartTile, INotifyPropertyChanged
 {
+    private TileSize _size;
+
     public PinnedItem(string path, ShellItem item)
     {
         Path = path;
         Item = item;
     }
+
+    public TileSize Size
+    {
+        get => _size;
+        set
+        {
+            if (_size == value) return;
+            _size = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Size)));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>What is stored in settings: a file path, or a shell parsing name for apps without one.</summary>
     public string Path { get; }
@@ -114,6 +132,19 @@ internal sealed class PinFolder : IStartTile, INotifyPropertyChanged
     }
 
     public ObservableCollection<PinnedItem> Items { get; }
+
+    private TileSize _size;
+
+    public TileSize Size
+    {
+        get => _size;
+        set
+        {
+            if (_size == value) return;
+            _size = value;
+            Changed(nameof(Size));
+        }
+    }
 
     /// <summary>The first four, drawn small on the folder's tile.</summary>
     public IReadOnlyList<PinnedItem> Preview => Items.Take(4).ToList();
@@ -271,7 +302,8 @@ internal sealed class PinStore
     {
         if (ReferenceEquals(pin, onto) || !Start.Contains(onto) || ListContaining(pin) == null) return null;
         TakeOut(pin);
-        var folder = new PinFolder(PinFolder.DefaultName, Array.Empty<PinnedItem>());
+        // As big as the tile it takes the place of, so the tiles round it stay where they are.
+        var folder = new PinFolder(PinFolder.DefaultName, Array.Empty<PinnedItem>()) { Size = onto.Size };
         int at = _start.IndexOf(onto);
         // Taken out and put in, not replaced: a replaced tile keeps its look, the pin's, for a moment.
         _start.RemoveAt(at);
@@ -290,7 +322,7 @@ internal sealed class PinStore
         int at = old == null ? _start.IndexOf(pin) : _start.IndexOf(old) + 1;
         TakeOut(pin);
         if (old != null && !_start.Contains(old)) at--;
-        var folder = new PinFolder(PinFolder.DefaultName, new[] { pin });
+        var folder = new PinFolder(PinFolder.DefaultName, new[] { pin }) { Size = old == null ? pin.Size : TileSize.Medium };
         _start.Insert(Math.Clamp(at, 0, _start.Count), folder);
         PersistStart();
         return folder;
@@ -300,6 +332,14 @@ internal sealed class PinStore
     public void MoveOutOfFolder(PinnedItem pin)
     {
         if (FolderOf(pin) is { } folder) MoveStart(pin, null, _start.IndexOf(folder) + 1);
+    }
+
+    /// <summary>Makes a tile, in a folder or not, or a folder's own tile, another size.</summary>
+    public void Resize(IStartTile tile, TileSize size)
+    {
+        if (tile.Size == size || ListContaining(tile) == null) return;
+        tile.Size = size;
+        PersistStart();
     }
 
     public void RenameFolder(PinFolder folder, string? name)
@@ -394,6 +434,18 @@ internal sealed class PinStore
         }
         _start.Clear();
 
+        var sizes = new Dictionary<string, TileSize>(StringComparer.OrdinalIgnoreCase);
+        if (settings.Pinned != null)
+        {
+            foreach (var (path, size) in settings.TileSizes ?? new Dictionary<string, TileSize>()) sizes.TryAdd(path, size);
+        }
+        PinnedItem? Pin(string path)
+        {
+            var pin = Create(path, taskbar: false);
+            if (pin != null) pin.Size = sizes.GetValueOrDefault(path);
+            return pin;
+        }
+
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (string path in paths)
         {
@@ -403,15 +455,15 @@ internal sealed class PinStore
                 // The folder goes where the first of its pins is, with all of them in it.
                 var items = entry.Items
                     .Where(item => pinned.Contains(item) && ReferenceEquals(folderOf[item], entry) && seen.Add(item))
-                    .Select(item => Create(item, taskbar: false))
+                    .Select(Pin)
                     .OfType<PinnedItem>()
                     .ToList();
-                if (items.Count > 0) _start.Add(new PinFolder(entry.Name, items));
+                if (items.Count > 0) _start.Add(new PinFolder(entry.Name, items) { Size = entry.Size });
                 continue;
             }
 
             seen.Add(path);
-            if (Create(path, taskbar: false) is { } pin) _start.Add(pin);
+            if (Pin(path) is { } pin) _start.Add(pin);
         }
     }
 
@@ -447,21 +499,25 @@ internal sealed class PinStore
     {
         var paths = new List<string>();
         var folders = new List<PinFolderEntry>();
+        var sizes = new Dictionary<string, TileSize>(StringComparer.OrdinalIgnoreCase);
         foreach (var tile in _start)
         {
             if (tile is PinFolder folder)
             {
                 var items = folder.Items.Select(pin => pin.Path).ToList();
                 paths.AddRange(items);
-                folders.Add(new PinFolderEntry { Name = folder.Name, Items = items });
+                folders.Add(new PinFolderEntry { Name = folder.Name, Items = items, Size = folder.Size });
+                foreach (var pin in folder.Items.Where(pin => pin.Size != TileSize.Medium)) sizes.TryAdd(pin.Path, pin.Size);
             }
             else if (tile is PinnedItem pin)
             {
                 paths.Add(pin.Path);
+                if (pin.Size != TileSize.Medium) sizes.TryAdd(pin.Path, pin.Size);
             }
         }
         Settings.Current.StartMenu.Pinned = paths;
         Settings.Current.StartMenu.PinFolders = folders.Count > 0 ? folders : null;
+        Settings.Current.StartMenu.TileSizes = sizes.Count > 0 ? sizes : null;
         if (Saves) Settings.Save();
     }
 

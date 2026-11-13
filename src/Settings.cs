@@ -88,6 +88,18 @@ public enum PlacesSide
     Left,
 }
 
+/// <summary>
+/// How big a pinned tile is in the start menu. Small is a quarter of medium, four to a medium tile's place; wide is two
+/// medium tiles side by side, large two by two.
+/// </summary>
+public enum TileSize
+{
+    Medium,
+    Small,
+    Wide,
+    Large,
+}
+
 /// <summary>What the search button on the bars opens.</summary>
 public enum SearchOpens
 {
@@ -345,6 +357,9 @@ public sealed class PinFolderEntry
     public string Name { get; set; } = "";
 
     public List<string> Items { get; set; } = new();
+
+    /// <summary>The size of the folder's own tile.</summary>
+    public TileSize Size { get; set; }
 }
 
 public sealed class PlaceEntry
@@ -396,6 +411,12 @@ public sealed class StartMenuSettings
 
     /// <summary>Which of the pinned tiles are in folders. null = none.</summary>
     public List<PinFolderEntry>? PinFolders { get; set; }
+
+    /// <summary>The size of each pinned app that is not medium, by its entry in <see cref="Pinned"/>. null = all medium.</summary>
+    public Dictionary<string, TileSize>? TileSizes { get; set; }
+
+    /// <summary>How big the pinned tiles are drawn, in percent of their usual size. 70 to 150.</summary>
+    public int PinScale { get; set; } = 100;
 
     /// <summary>The column of places: folders, tools and anything else the Run dialog accepts.</summary>
     public List<PlaceEntry> Places { get; set; } = DefaultPlaces();
@@ -700,6 +721,7 @@ public sealed class Settings
         }
         settings.StartMenu.PlacesWidth = Math.Clamp(settings.StartMenu.PlacesWidth, 140, 340);
         settings.StartMenu.PlacesRowHeight = Math.Clamp(settings.StartMenu.PlacesRowHeight, 28, 52);
+        settings.StartMenu.PinScale = Math.Clamp(settings.StartMenu.PinScale, 70, 150);
         settings.Weather ??= new WeatherSettings();
         settings.Weather.Place ??= "";
         settings.Weather.RefreshMinutes = Math.Clamp(settings.Weather.RefreshMinutes, 5, 240);

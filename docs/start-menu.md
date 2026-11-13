@@ -28,15 +28,15 @@ It has four parts:
 | --- | --- |
 | Type | Searches the apps, and from the second letter Windows' settings and tools too. The arrow keys move through the results; Enter opens the highlighted one or the first match. When nothing matches, Enter runs what was typed as a command. Esc clears the search, then closes an open folder, then closes the menu |
 | Click an app or a pinned tile | Opens it. Ctrl+Shift+click on a tile opens it as administrator |
-| Right-click an app or a pinned tile | Open, run as administrator, pin or unpin from Start and the taskbar, open file location. A pinned tile also has move to front, move to a folder (or a new one), take out of its folder, and sort A to Z |
+| Right-click an app or a pinned tile | Open, run as administrator, pin or unpin from Start and the taskbar, open file location, properties. A pinned tile also has its [size](#tile-sizes), move to front, move to a folder (or a new one), take out of its folder, and sort A to Z. Properties is Windows' own Properties window: for a pinned shortcut the shortcut's, for a program the program's. A Store app has none, so it is greyed out |
 | Drag a pinned tile | Moves it among the pins. Dropped on another tile, it makes a folder of the two; dropped on a folder, it goes in |
 | Drag an app from the list onto the pins | Pins it where it is dropped: between tiles, into a folder, or onto a tile to make a folder of the two |
 | Click a folder | Opens it in place of the pins. The arrow goes back; a tile dropped on the arrow comes out of the folder. Click the name to rename it |
-| Right-click a folder | Open, rename, move to front, sort its apps A to Z, ungroup |
+| Right-click a folder | Open, rename, size, move to front, sort its apps A to Z, ungroup |
 | Right-click the space among the pins | Sort A to Z |
 | Right-click a Windows setting or tool | Open, run as administrator (not for a settings page), add to or remove from the places |
 | Click a place | Opens it |
-| Right-click a place | Open, move up or down, add a line below, remove, or "Customize this list…" for the settings page |
+| Right-click a place | Open, properties (for a folder, a file or a `shell:` location), move up or down, add a line below, remove, or "Customize this list…" for the settings page |
 | Your name | Opens your account page in Windows' settings |
 | The gear | Opens Windows' settings. Right-click it for ClearStart's settings, at the Start menu page |
 | The power button | Lock, sign out, sleep, restart, shut down |
@@ -75,6 +75,24 @@ setting: with animations off, things just move.
 
 The apps in a folder still count as pinned to Start. Unpinning the last app in a folder removes
 the folder. The folders are kept in ClearStart's settings file.
+
+## Tile sizes
+
+Right-click a pinned tile or a folder and choose **Size**: small, medium, wide or large. A wide
+tile takes the place of two medium ones side by side, a large one two by two, and four small ones
+share the place of one. A small tile shows only its icon; a large one shows a bigger icon.
+
+<p align="center">
+  <img src="images/start-menu-tile-sizes.png" width="720" alt="The start menu's pinned tiles in four sizes: Microsoft Edge large, File Explorer and Microsoft Store wide, four small tiles sharing one place, and the rest medium">
+</p>
+
+The tiles keep their order, row by row. Each goes in the first place after the one before it
+that it fits in, so a wide tile that does not fit at the end of a row starts the next one and
+leaves a gap. A folder made on a tile takes that tile's size. The sizes are kept in ClearStart's
+settings file.
+
+To draw all the tiles bigger or smaller, use **Settings → Start menu → Pinned tile scale**
+(70% to 150%). Bigger tiles fit fewer across.
 
 ## The list of places
 
@@ -122,6 +140,7 @@ Also on the Start menu page:
 | --- | --- |
 | Open with the Windows key | In live mode, the Windows key opens this menu |
 | Width, Height | The menu's size |
+| Pinned tile scale | How big the pinned tiles are drawn, 70% to 150%. Each tile's own size is on its right-click menu |
 | Start menu transparency | 100% is fully see-through, 0% a solid color |
 | Behind the start menu | Clear, blurred or frosted |
 | Start menu color | The color laid over it |

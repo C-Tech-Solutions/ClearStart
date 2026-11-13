@@ -293,6 +293,39 @@ internal static partial class SelfTest
                 }
             });
 
+            // Tiles of each size. Made in memory only, and the sizes put back after.
+            await Try("start-menu-tile-sizes.png", async () =>
+            {
+                var start = Settings.Current.StartMenu;
+                var before = start.TileSizes;
+                var sizes = new Dictionary<string, TileSize>(StringComparer.OrdinalIgnoreCase);
+                foreach (var (names, size) in new[]
+                {
+                    (new[] { "Microsoft Edge" }, TileSize.Large),
+                    (new[] { "File Explorer", "Microsoft Store" }, TileSize.Wide),
+                    (new[] { "Calculator", "Notepad", "Paint", "Terminal" }, TileSize.Small),
+                })
+                {
+                    foreach (string path in PathsOf(names)) sizes[path] = size;
+                }
+                start.TileSizes = sizes;
+                host.Pins.ReloadStart();
+                var menu = new StartMenuView(host, () => { }) { Width = start.Width, Height = start.Height };
+                var stage = new Stage(menu, start.Width + 40, start.Height + 40);
+                try
+                {
+                    await Task.Delay(2500);
+                    stage.Save(File("start-menu-tile-sizes.png"));
+                }
+                finally
+                {
+                    stage.Close();
+                    menu.Detach();
+                    start.TileSizes = before;
+                    host.Pins.ReloadStart();
+                }
+            });
+
             await Try("settings-appearance.png", () => Page("settings-appearance.png", SettingsPage.Appearance, 900));
             await Try("settings-taskbar.png", () => Page("settings-taskbar.png", SettingsPage.Taskbar, 950));
             await Try("settings-start-menu.png", () => Page("settings-start-menu.png", SettingsPage.StartMenu, 1120));

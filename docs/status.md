@@ -79,6 +79,10 @@ one by clicking it on a real desktop:
 - the start menu's motion with a real mouse: the icon floating under the pointer, flying to its
   place or back, the tiles sliding, and a folder opening out of its tile (the self-test checks
   that it all comes to rest, and pictures it part of the way);
+- resizing a pinned tile or folder from its right-click menu, dragging tiles of different sizes,
+  and the **Pinned tile scale** slider;
+- **Properties** on the start menu's right-click menus, which opens Windows' Properties window
+  (the self-test checks when it is offered but opens no window);
 - throwing the Start with Windows switch;
 - how Windows shows the app icon on the program file and in Alt+Tab;
 - the installer's **Start ClearStart now** at the end, which starts live mode.

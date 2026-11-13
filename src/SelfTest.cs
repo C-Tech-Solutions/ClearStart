@@ -980,19 +980,32 @@ internal static partial class SelfTest
 
                 // The pinned tiles and folders, in memory; the pins are read back as they were after.
                 var pinsBefore = (Pinned: menuSettings.Pinned?.ToList(), Folders: menuSettings.PinFolders?
-                    .Select(folder => new PinFolderEntry { Name = folder.Name, Items = folder.Items.ToList() }).ToList());
+                    .Select(folder => new PinFolderEntry { Name = folder.Name, Items = folder.Items.ToList(), Size = folder.Size })
+                    .ToList(), Sizes: menuSettings.TileSizes?.ToDictionary(StringComparer.OrdinalIgnoreCase));
                 try
                 {
-                    report["pinFolders"] = await CheckPinFoldersAsync(host, menu, stage, directory, errors);
-                }
-                catch (Exception ex)
-                {
-                    errors.Add("Pinned folders: " + ex);
+                    try
+                    {
+                        report["pinFolders"] = await CheckPinFoldersAsync(host, menu, stage, directory, errors);
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add("Pinned folders: " + ex);
+                    }
+                    try
+                    {
+                        report["tileSizes"] = await CheckTileSizesAsync(host, menu, stage, directory, errors);
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add("Tile sizes: " + ex);
+                    }
                 }
                 finally
                 {
                     menuSettings.Pinned = pinsBefore.Pinned;
                     menuSettings.PinFolders = pinsBefore.Folders;
+                    menuSettings.TileSizes = pinsBefore.Sizes;
                     host.Pins.ReloadStart();
                 }
 

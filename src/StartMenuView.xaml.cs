@@ -64,6 +64,7 @@ public partial class StartMenuView : UserControl
         PinList.ItemsSource = host.Pins.Start;
         UserName.Text = host.UserName;
         ArrangePlaces(settings);
+        ScalePins(settings.PinScale);
 
         CollectionChangedEventManager.AddHandler(host.Pins.Start, Pins_Changed);
         UpdatePinHint();
@@ -424,7 +425,10 @@ public partial class StartMenuView : UserControl
 
     /// <param name="path">What a pin of this item stores: a file path, or the app's id in the apps folder.</param>
     /// <param name="tile">The pinned tile right-clicked, which can also be moved; null for an app in the list.</param>
-    private void ShowItemMenu(UIElement target, ShellItem item, string? path, PinnedItem? tile = null)
+    private void ShowItemMenu(UIElement target, ShellItem item, string? path, PinnedItem? tile = null) =>
+        Ui.ShowMenu(target, PlacementMode.MousePoint, ItemEntries(item, path, tile));
+
+    private List<MenuEntry> ItemEntries(ShellItem item, string? path, PinnedItem? tile)
     {
         bool hasPath = !string.IsNullOrEmpty(path);
         string? file = AppCatalog.FileOf(path);
@@ -447,8 +451,9 @@ public partial class StartMenuView : UserControl
 
         entries.Add(new(null, null));
         entries.Add(new("Open file location", file != null ? () => { Launcher.ShowInExplorer(file); _close(); } : null));
-
-        Ui.ShowMenu(target, PlacementMode.MousePoint, entries);
+        // The shortcut's for a pinned shortcut, the program's for a desktop app; a Store app has no file to show.
+        entries.Add(new("Properties", file != null ? () => { Launcher.ShowProperties(file); _close(); } : null));
+        return entries;
     }
 
     /// <summary>Moving a pinned tile, for those who would rather not drag: to the front, or into or out of a folder.</summary>
@@ -471,6 +476,7 @@ public partial class StartMenuView : UserControl
         var entries = new List<MenuEntry>
         {
             new(null, null),
+            SizeMenu(pin),
             new("Move to front", at > 0 ? () => Rearrange(() => pins.MoveStart(pin, folder, 0)) : null),
             new("Move to folder", null, Children: folders),
         };
@@ -484,14 +490,32 @@ public partial class StartMenuView : UserControl
         var pins = _host.Pins;
         int at = pins.Start.IndexOf(folder);
         if (at < 0) return;
-        Ui.ShowMenu(target,
-            ("Open", () => OpenFolder(folder, animate: true)),
-            ("Rename", () => RenameFolder(folder)),
-            (null, null),
-            ("Move to front", at > 0 ? () => Rearrange(() => pins.MoveStart(folder, null, 0)) : null),
-            ("Sort its apps A to Z", folder.Items.Count > 1 ? () => pins.SortStart(folder) : null),
-            (null, null),
-            ("Ungroup apps", () => Rearrange(() => pins.Ungroup(folder))));
+        Ui.ShowMenu(target, PlacementMode.MousePoint, new List<MenuEntry>
+        {
+            new("Open", () => OpenFolder(folder, animate: true)),
+            new("Rename", () => RenameFolder(folder)),
+            new(null, null),
+            SizeMenu(folder),
+            new("Move to front", at > 0 ? () => Rearrange(() => pins.MoveStart(folder, null, 0)) : null),
+            new("Sort its apps A to Z", folder.Items.Count > 1 ? () => pins.SortStart(folder) : null),
+            new(null, null),
+            new("Ungroup apps", () => Rearrange(() => pins.Ungroup(folder))),
+        });
+    }
+
+    private static readonly TileSize[] TileSizes = { TileSize.Small, TileSize.Medium, TileSize.Wide, TileSize.Large };
+
+    /// <summary>The sizes a tile can be, the one it is now ticked.</summary>
+    private MenuEntry SizeMenu(IStartTile tile) => new("Size", null, Children: TileSizes
+        .Select(size => new MenuEntry(size.ToString(), () => Resize(tile, size), Checked: size == tile.Size))
+        .ToList());
+
+    /// <summary>A tile made another size grows into its new place as the others make room.</summary>
+    internal void Resize(IStartTile tile, TileSize size)
+    {
+        if (tile.Size == size) return;
+        Rearrange(() => _host.Pins.Resize(tile, size));
+        if (TileOf(tile) is { } own) ScaleBoth(Parts(own).Scale, 0.85, 1, 260, Motion.Pop);
     }
 
     /// <summary>Right-click between the tiles.</summary>
@@ -875,6 +899,16 @@ public partial class StartMenuView : UserControl
         ShowPlaces();
     }
 
+    /// <summary>
+    /// The pinned tiles drawn bigger or smaller, as the settings ask, their icons and names with them; fewer or more go
+    /// across. 100 is the usual size.
+    /// </summary>
+    private void ScalePins(int percent)
+    {
+        double scale = Math.Clamp(percent, 70, 150) / 100.0;
+        PinList.LayoutTransform = scale == 1 ? Transform.Identity : new ScaleTransform(scale, scale);
+    }
+
     /// <summary>Lists the places again, after the list changed.</summary>
     private void ShowPlaces()
     {
@@ -919,6 +953,10 @@ public partial class StartMenuView : UserControl
         if (!place.IsDivider && !string.IsNullOrWhiteSpace(place.Target))
         {
             entries.Add(("Open", () => { _close(); Launcher.Run(place.Target); }));
+            if (Launcher.HasProperties(place.Target))
+            {
+                entries.Add(("Properties", () => { Launcher.ShowProperties(place.Target); _close(); }));
+            }
             entries.Add((null, null));
         }
         entries.Add(("Move up", at > 0 ? () => Edit(() => { places.RemoveAt(at); places.Insert(at - 1, place); }) : null));
@@ -990,6 +1028,20 @@ public partial class StartMenuView : UserControl
     }
 
     internal bool Floating => Ghost.Visibility == Visibility.Visible;
+
+    /// <summary>Where each tile shown is, in the menu's own terms, as drawn; empty for one that is not.</summary>
+    internal List<Rect> TilePlaces()
+    {
+        UpdateLayout();
+        return PinList.Items.Cast<object>()
+            .Select(item => PinList.ItemContainerGenerator.ContainerFromItem(item) is FrameworkElement { IsVisible: true } cell
+                ? cell.TransformToVisual(this).TransformBounds(new Rect(cell.RenderSize))
+                : Rect.Empty)
+            .ToList();
+    }
+
+    /// <summary>A pinned tile's right-click menu.</summary>
+    internal List<MenuEntry> TileMenu(PinnedItem pin) => ItemEntries(pin.Item, pin.Path, pin);
 
     /// <summary>What is still moved, scaled, faint or shown once every animation should be over; null when nothing.</summary>
     internal string? Unsettled()
