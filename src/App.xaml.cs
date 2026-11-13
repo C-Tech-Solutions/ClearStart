@@ -150,10 +150,14 @@ public partial class App : Application
             DisposeHost(sessionEnding: true);
         };
 
+        long step = StartTiming.BeginStep();
         Settings.Load();
         Settings.Watch();
+        StartTiming.EndStep("settings", step);
 
+        step = StartTiming.BeginStep();
         _host = new ShellHost(mode);
+        StartTiming.EndStep("shell host construction", step);
         _host.Start();
     }
 

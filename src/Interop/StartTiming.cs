@@ -13,6 +13,11 @@ internal static class StartTiming
     private static readonly DateTime ProcessStarted = ReadProcessStart();
     private static readonly DateTime? SignedIn = ReadSignIn();
 
+    public static long BeginStep() => Stopwatch.GetTimestamp();
+
+    public static void EndStep(string step, long started) =>
+        Log.Info($"Startup step: {step}, {Stopwatch.GetElapsedTime(started).TotalMilliseconds:0} ms");
+
     /// <summary>For example "0.4 s after ClearStart started, 6.1 s after sign-in".</summary>
     public static string Describe()
     {

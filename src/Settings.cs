@@ -199,6 +199,9 @@ public sealed class TaskbarSettings
     /// <summary>Show window titles next to the icons.</summary>
     public bool ShowLabels { get; set; }
 
+    /// <summary>Reveal pinned icons in sequence at startup. Off = reveal the initial group together.</summary>
+    public bool AnimatePinnedIcons { get; set; }
+
     /// <summary>App icon size on every bar. 0 = automatic: icons grow and shrink with each bar's thickness.</summary>
     public int IconSize { get; set; }
 

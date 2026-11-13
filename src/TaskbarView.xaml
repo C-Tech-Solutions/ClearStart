@@ -19,6 +19,7 @@
                 <Grid>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="8,0">
                         <Image x:Name="Icon" Source="{Binding First.Icon}"
+                               Loaded="AppIcon_Loaded" Unloaded="AppIcon_Unloaded" DataContextChanged="AppIcon_DataContextChanged"
                                Width="{DynamicResource IconSize}" Height="{DynamicResource IconSize}"
                                RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock x:Name="Label" Text="{Binding Label}" Visibility="{DynamicResource LabelVisibility}" MaxWidth="150"

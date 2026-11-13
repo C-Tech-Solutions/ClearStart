@@ -39,8 +39,10 @@ explicit desktop verification.
 Start with Windows now prefers a sign-in task and hides Explorer's taskbar earlier, but cannot
 guarantee that the Windows taskbar is never drawn. See [startup limits](docs/getting-started.md#how-soon-it-takes-over).
 The separate early-startup candidate targets this gap and includes failure recovery. The first
-two logged sign-ins took 8.9 and 9.7 seconds to show the bars. Its next build uses precompilation
-and starts network discovery after the bars render; the speed improvement has not been measured yet.
+two logged sign-ins took 8.9 and 9.7 seconds to show the bars; precompilation and deferred network
+discovery brought the next two to 8.7 and 8.9 seconds. The next startup pass defers Start-menu pins
+and prioritizes taskbar-sized icons; its timing is not measured yet. Pinned icons appear together
+by default, with an optional [animated startup reveal](docs/taskbar.md#app-buttons).
 
 ## Contents
 

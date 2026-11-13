@@ -40,6 +40,7 @@ public partial class TaskbarView : UserControl
     private readonly int? _iconSizeOverride;
     private readonly int? _trayIconSizeOverride;
     private readonly TaskbarApps _apps;
+    private readonly PinnedIconReveal? _pinReveal;
     private readonly DispatcherTimer _clock;
     // The tray icons that are not on the bar: what the arrow beside the tray opens.
     private System.Collections.IEnumerable? HiddenIcons => _host.Shell.NotificationArea?.UnpinnedIcons;
@@ -78,6 +79,12 @@ public partial class TaskbarView : UserControl
         _scale = Native.ScaleOf(_monitor);
 
         var settings = Settings.Current.Taskbar;
+        if (host.Mode != HostMode.SelfTest && !host.HasRenderedBars)
+        {
+            _pinReveal = new PinnedIconReveal(settings.AnimatePinnedIcons && SystemParameters.ClientAreaAnimation, _vertical);
+            // Loaded is routed through the parent before all of its template children. Seal behind their callbacks.
+            Loaded += (_, _) => Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(_pinReveal.Seal));
+        }
         _centered = settings.Alignment == Alignment.Center;
         _showSeconds = settings.ShowSeconds;
         _startPlacement = startButton ?? settings.StartButtonFor(_device);
@@ -187,6 +194,7 @@ public partial class TaskbarView : UserControl
     /// <summary>Called when the bar closes, so nothing long-lived keeps this view alive.</summary>
     internal void Detach()
     {
+        _pinReveal?.Dispose();
         _host.Network.Changed -= RefreshNetwork;
         _host.Weather.Changed -= RefreshWeather;
         _host.HidePreview();
@@ -195,6 +203,24 @@ public partial class TaskbarView : UserControl
         _springOpen.Stop();
         _clock.Stop();
         _apps.Dispose();
+    }
+
+    private void AppIcon_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Image image && image.DataContext is AppButton { IsPinned: true } button)
+            _pinReveal?.Add(image, _apps.Items.IndexOf(button));
+    }
+
+    private void AppIcon_Unloaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Image image) _pinReveal?.Remove(image);
+    }
+
+    private void AppIcon_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (sender is not Image image) return;
+        _pinReveal?.Remove(image);
+        if (image.IsLoaded) AppIcon_Loaded(sender, new RoutedEventArgs());
     }
 
     /// <summary>The bar's colours: how see-through it is, its tint, and the colour of its text and glyphs.</summary>

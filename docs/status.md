@@ -43,8 +43,10 @@ see [Changed since 0.2.0, not run yet](#changed-since-020-not-run-yet).
 
 **Experimental early startup.** Colten approved testing candidate `75cc2a5` on his PC and reported
 that it worked. The loader and Explorer guard ran at sign-in; two sessions logged the bars on
-screen at 8.9 and 9.7 seconds after sign-in. The next candidate precompiles the app and defers
-network discovery; its speed improvement has not been measured. First-frame suppression across
+screen at 8.9 and 9.7 seconds after sign-in. Candidate `b5905ea` precompiled the app and deferred
+network discovery; its two sign-ins took 8.7 and 8.9 seconds. The next startup pass defers Start-menu
+pins, prioritizes taskbar icons and adds stage timings. Its speed and the optional icon animation
+have not been tested at sign-in; focused headless pin/reveal checks pass. First-frame suppression across
 Windows builds, missing-file recovery, crash/hang recovery, sleep/resume, and removal remain
 unverified. The feature is disabled by default and outside the normal installer build. See
 [the isolated test plan](early-startup.md#validation-before-enabling-on-a-real-pc).

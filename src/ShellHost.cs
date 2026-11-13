@@ -91,7 +91,9 @@ internal sealed class ShellHost : IDisposable
         config.AutoStartTrayService = false;
         // The tray icons kept on the bar; the rest wait behind the arrow beside them.
         config.PinnedNotifyIcons = Settings.Current.Taskbar.PinnedTrayIcons.ToArray();
+        long step = StartTiming.BeginStep();
         Shell = new ShellManager(config);
+        StartTiming.EndStep("shell services", step);
 
         // One shared, ungrouped list of windows for every bar.
         TaskView = Shell.Tasks.GroupedWindows ?? Shell.Tasks.CreateGroupedWindowsCollection();
@@ -106,7 +108,9 @@ internal sealed class ShellHost : IDisposable
             live.IsLiveFiltering = true;
         }
 
+        step = StartTiming.BeginStep();
         Pins.Reload();
+        StartTiming.EndStep("taskbar pins", step);
 
         // Ask for the open windows' icons before the app list asks for its few hundred: they all load
         // through one queue, and at the back of it the taskbar can sit without icons for many seconds.
@@ -123,7 +127,7 @@ internal sealed class ShellHost : IDisposable
         }
 
         // The self-test reports on the app list straight away. Otherwise it loads once the bars are on screen
-        // (see AfterBarsShown): with its few hundred icons it is the slowest part of starting, and only the
+        // (see StartDeferredServices): with its few hundred icons it is the slowest part of starting, and only the
         // start menu needs it.
         if (mode == HostMode.SelfTest) Apps.Load();
 
@@ -168,6 +172,8 @@ internal sealed class ShellHost : IDisposable
 
     public int BarCount => _bars.Count;
 
+    public bool HasRenderedBars { get; private set; }
+
     public void Start()
     {
         if (_started) return;
@@ -191,15 +197,13 @@ internal sealed class ShellHost : IDisposable
         Log.Info($"Started in {Mode} mode with {_bars.Count} taskbar(s)");
 
         // Queued behind the drawing of the bars, so it runs when they are on screen.
-        _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(AfterBarsShown));
+        _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(StartDeferredServices));
     }
 
     /// <summary>Everything the bars do not need in order to appear, started once they are on screen.</summary>
-    private void AfterBarsShown()
+    private void StartDeferredServices()
     {
         if (_disposed) return;
-        Log.Info($"Taskbars on screen, {StartTiming.Describe()}");
-
         // Connection discovery can be slow at sign-in. The views follow Network.Changed when it finishes.
         Network.Start();
         if (Mode == HostMode.Live) StartTray();
@@ -651,8 +655,12 @@ internal sealed class ShellHost : IDisposable
     {
         var edge = ResolveEdge(screen.DeviceName);
         double size = Settings.Current.Taskbar.SizeFor(screen.DeviceName, IsSideBar(edge));
+        long step = StartTiming.BeginStep();
         var bar = new TaskbarWindow(this, screen, edge, size);
+        StartTiming.EndStep($"{TaskbarSettings.MonitorKey(screen.DeviceName)} build content", step);
+        step = StartTiming.BeginStep();
         bar.Show();
+        StartTiming.EndStep($"{TaskbarSettings.MonitorKey(screen.DeviceName)} show and dock", step);
         bar.SetStartMenuVisible(_startMenu?.IsVisible == true);
         Log.Info($"Taskbar on {TaskbarSettings.MonitorKey(screen.DeviceName)}: {edge} edge, {size} thick");
         return bar;
@@ -661,13 +669,16 @@ internal sealed class ShellHost : IDisposable
     private void RebuildBars()
     {
         CloseBars();
+        long step = StartTiming.BeginStep();
         FindWindowsTaskbars();
         RefreshTrayLists();
 
         _screenSignature = ScreenSignature();
+        var plan = PlanBars();
+        StartTiming.EndStep("monitor and docking plan", step);
         int failures = 0;
 
-        foreach (var screen in PlanBars())
+        foreach (var screen in plan)
         {
             try
             {
@@ -688,13 +699,19 @@ internal sealed class ShellHost : IDisposable
         {
             _rebuildRetries = 0;
         }
-        if (Mode == HostMode.Live && _bars.Count > 0)
+        if (_bars.Count > 0)
         {
             // A display can wake after the initial build failed. Every successful retry gets this check;
             // EarlySession only signals once, after the queued render work has completed.
             _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
             {
-                if (!_disposed && _bars.Count > 0) EarlySession.BarsReady();
+                if (_disposed || _bars.Count == 0) return;
+                if (!HasRenderedBars)
+                {
+                    HasRenderedBars = true;
+                    Log.Info($"Taskbars on screen, {StartTiming.Describe()}");
+                }
+                if (Mode == HostMode.Live) EarlySession.BarsReady();
             }));
         }
     }

@@ -95,6 +95,20 @@ lines says how long it was since ClearStart started and since you signed in.
    the list of apps for the start menu (`App list read`). Opening the start menu before then reads
    it on the spot.
 
+Start-menu pins are loaded on first access, including opening the menu or editing its pins.
+Startup prefetches only taskbar-sized pin images. `Startup step:` log lines measure settings,
+shell services, pin loading, monitor planning, and each bar's content construction separately
+from showing/docking it. The host construction time includes the shell-service and pin times;
+do not add those nested measurements together. These lines help distinguish work on the UI
+thread from waiting for Explorer. The icon reveal never gates the early-startup ready signal.
+The first successful rendered batch, including a retry after displays wake, records `Taskbars on
+screen`. An empty first pin pass is sealed too, so pins added later do not join the startup reveal.
+
+`dotnet run --project tests/StartupChecks/StartupChecks.csproj -c Release` runs focused checks
+for deferred pins, image request priority, grouped/animated reveal, timeouts and template reuse.
+It links the production pin/reveal code with fake shell/settings dependencies and uses WPF
+controls without creating windows. It does not start ClearStart, alter startup, or capture images.
+
 The guard runs until ClearStart closes. Its last line, `Stopped keeping the Windows taskbar hidden`,
 says how many times Explorer showed its taskbar again during the run. Shutting down logs each step
 that takes 300 ms or more.
