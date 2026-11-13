@@ -90,6 +90,9 @@ These are in the code, and build, but have not been run on a real desktop yet:
   does. An earlier build restarted it there: the screen went grey for about fifteen seconds, the
   taskbar came back on the top, and early startup was found turned off afterwards. Asking
   Explorer to close now gives up after five seconds rather than ten, then a second rather than five.
+  With early startup on, the taskbar stays on its edge for that session, and the bottom edge is
+  written for the next sign-in, and again at sign-out. Whether Explorer keeps it through a real
+  sign-out has not been tried yet.
 - **Monitors that wake from sleep:** each bar takes its monitor's new handle, and docks again if
   the monitor gave its strip back to the desktop.
 - **Startup migration and the startup switch** are serialized, including commands from Setup.

@@ -1495,7 +1495,7 @@ internal sealed class ShellHost : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        bool startsAgain = Mode == HostMode.Live && sessionEnding && (EarlyStartup.IsEnabled || StartsAgainAtSignIn());
+        bool startsAgain = Mode == HostMode.Live && sessionEnding && (EarlyStartup.IsEnabled || AutoStart.StartsAtSignIn());
         bool keepAutoHide = startsAgain && !EarlySession.Active && !EarlyStartup.IsEnabled;
         Log.Info(startsAgain ? "Shutting down; ClearStart starts again at the next sign-in" : "Shutting down");
 
@@ -1504,6 +1504,11 @@ internal sealed class ShellHost : IDisposable
             // First: Windows may end ClearStart before it gets through the rest. At sign-out this only writes the edges
             // down for the next sign-in, and has them checked then; it does not start Explorer again.
             Step("write the Windows taskbar's edges back", () => TaskbarEdge.PutBack(sessionEnding: true));
+        }
+        if (startsAgain)
+        {
+            // First for the same reason; and again last, below.
+            Step("keep the Windows taskbar on the bottom for the next sign-in", TaskbarEdge.KeepForNextSignIn);
         }
         Step("remove the Win key hook", () => { _winKey?.Dispose(); _winKey = null; });
         Step("stop watching displays", () =>
@@ -1541,6 +1546,8 @@ internal sealed class ShellHost : IDisposable
             // taskbar's own edges go back only now too, since that starts Explorer again: an Explorer that closes or
             // starts while ClearStart's tray is still there deals with that tray as well as its own.
             Step("put the Windows taskbar back", () => GiveBackWindowsTaskbar(keepAutoHide, sessionEnding, keepEdge: startsAgain));
+            // After the auto-hide setting has gone back, which Explorer may write down with its own edge.
+            if (startsAgain) Step("keep the Windows taskbar on the bottom for the next sign-in", TaskbarEdge.KeepForNextSignIn);
         }
         Step("close the shell library log", () => _shellLog?.Dispose());
     }
@@ -1558,19 +1565,6 @@ internal sealed class ShellHost : IDisposable
         else
         {
             ExplorerTaskbar.Restore(sessionEnding, keepEdge);
-        }
-    }
-
-    private static bool StartsAgainAtSignIn()
-    {
-        try
-        {
-            return AutoStart.IsEnabled;
-        }
-        catch (Exception ex)
-        {
-            Log.Warn("Could not tell whether ClearStart starts with Windows: " + ex.Message);
-            return false;
         }
     }
 

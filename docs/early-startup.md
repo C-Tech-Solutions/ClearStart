@@ -52,10 +52,14 @@ If the guarded Explorer has exited, the loader starts plain Explorer once. It ne
 an already running Explorer or hunts for processes by name. A later ordinary Explorer restart
 uses the out-of-process guard and may flash; reinjection into a running desktop is not attempted.
 For the same reason, ClearStart does not move a Windows taskbar on the top or a side to the bottom
-under early startup, since that restarts Explorer: the taskbar stays on its edge, and its strip of
-the screen stays empty. The ClearStart the loader started writes down which Explorer the loader
+beside the Explorer the loader started, since that restarts Explorer: for that session the taskbar
+stays on its edge, and its strip of the screen stays empty. ClearStart writes the bottom edge for
+the Explorer the loader starts at the next sign-in instead, and writes it again as you sign out.
+That has not been tried on a real sign-out yet, and holds only if Explorer does not write its own
+edge over it as it closes. The ClearStart the loader started writes down which Explorer the loader
 started, so a copy started by hand later in that session leaves it alone too, and none of them
-restarts it to put the taskbar back.
+restarts it. Closing ClearStart other than by signing out writes the taskbar's own edges back, for
+the next Explorer to read.
 
 Startup failures, crashes and watchdog recovery detected by the loader remove its own shell entry
 so the next sign-in uses Windows normally. Normal Exit keeps the entry for the next sign-in. The DLL stays loaded, inert,

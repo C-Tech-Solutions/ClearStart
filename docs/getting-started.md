@@ -204,10 +204,12 @@ for that, a moment after ClearStart starts (or after Explorer has run for 15 sec
 the screen may flicker. The same ways of closing ClearStart put the taskbar back on its own edge,
 which restarts Explorer once more. Signing out with Start with Windows off writes the edge back
 and checks it again at the next sign-in. Beside the Explorer that the experimental
-[early startup](early-startup.md) started at sign-in, the taskbar is left where it is, since
-restarting that Explorer would end the early start; its strip of the screen stays empty. That
-holds for a copy of ClearStart started by hand later in the same session too, and for putting the
-taskbar back: it stays on the bottom until ClearStart closes beside a plain Explorer.
+[early startup](early-startup.md) started at sign-in, the taskbar is left where it is for that
+session, since restarting that Explorer would end the early start; its strip of the screen stays
+empty. ClearStart writes the bottom edge for the Explorer early startup starts at the next sign-in
+instead. That holds for a copy of ClearStart started by hand later in the same session too.
+Closing ClearStart there other than by signing out writes the taskbar's own edges back for the
+next sign-in.
 
 If ClearStart does not start after you sign in, you see the Windows taskbar hiding itself: it
 slides up when the mouse reaches the edge of the screen. To have it back as it was, do one of

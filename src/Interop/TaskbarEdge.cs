@@ -17,12 +17,17 @@ namespace ClearStart;
 /// Explorer reads the edge only as it starts, and writes its own as it closes, so the edge is changed while Explorer
 /// is closed. The Restart Manager closes it the way Windows does for an update, the edge is written, and the Restart
 /// Manager starts it again; folder windows stay open. This takes two or three seconds. An Explorer that does not close
-/// when asked is ended and started afresh instead. The Explorer the early-startup loader started is never restarted,
-/// whichever copy of ClearStart is running: the loader watches it, and takes its closing for a failure. The taskbar is
-/// left where it is beside that one.
+/// when asked is ended and started afresh instead.
+///
+/// The Explorer the early-startup loader started is never restarted, whichever copy of ClearStart is running: the
+/// loader watches it, and takes its closing for a failure. Its taskbar stays where it is for that session. With early
+/// startup on, the bottom edge is written for the Explorer the loader starts at the next sign-in instead, and written
+/// again as the user signs out (see <see cref="KeepForNextSignIn"/>). That holds only if Explorer does not write its
+/// own edge over it as it closes at sign-out, which has not been tried yet.
 ///
 /// The edges the taskbar had are written down first. They are put back when ClearStart closes, fails, or is
 /// uninstalled ("--restore"), and at the next sign-in when the user signs out and ClearStart does not start again.
+/// Beside the loader's Explorer they are only written back, for the next Explorer to read.
 /// Self-contained like <see cref="ExplorerTaskbar"/>, for the same reasons.
 /// </summary>
 internal static class TaskbarEdge
@@ -51,7 +56,8 @@ internal static class TaskbarEdge
     private static readonly object Gate = new();
     // Set once the taskbar was moved, until it is seen on the bottom: a move that did not hold is not tried again.
     private static bool _tried;
-    // Set when the user signs out and the edges were written for the next sign-in.
+    // Set when the edges were written for the next sign-in rather than put back now: the user signs out, or the taskbar
+    // is beside the early-startup loader's Explorer.
     private static bool _writtenForSignIn;
     // Set while ClearStart's shell starts; Explorer is not restarted meanwhile (see StartingUp).
     private static bool _startingUp;
@@ -129,10 +135,25 @@ internal static class TaskbarEdge
                 }
                 if (_tried) return;
                 _tried = true;
+                var record = ReadRecord();
                 if (EarlySession.Active || StartedByLoader(primary))
                 {
-                    Log.Warn("The Windows taskbar is not on the bottom edge. It is left there: moving it restarts " +
-                        "Explorer, and the early-startup loader takes the Explorer it started closing for a failure");
+                    // That Explorer stays as it is. The one the loader starts at the next sign-in reads the bottom edge
+                    // written now. A record that is there already means the bottom edge was written by an earlier copy.
+                    if (EarlyStartup.IsEnabled && (record != null || entries.Any(entry => entry.Edge != Bottom)))
+                    {
+                        record = Remember(entries, record);
+                        WriteEdges(entries.Select(entry => entry with { Edge = Bottom }), autoHide: null);
+                        Log.Info($"The Windows taskbar is on the {Describe(record)}, where Windows cannot auto-hide it. " +
+                            "It stays there until the next sign-in: moving it now restarts Explorer, and the early-startup " +
+                            "loader takes the Explorer it started closing for a failure. The bottom edge is written for " +
+                            "the Explorer the loader starts then");
+                    }
+                    else
+                    {
+                        Log.Warn("The Windows taskbar is not on the bottom edge. It is left there: moving it restarts " +
+                            "Explorer, and the early-startup loader takes the Explorer it started closing for a failure");
+                    }
                     return;
                 }
                 if (entries.All(entry => entry.Edge == Bottom))
@@ -140,19 +161,7 @@ internal static class TaskbarEdge
                     Log.Warn("The Windows taskbar is not on the bottom edge, but Windows' record says it is; it is left there");
                     return;
                 }
-                // A record that is there already holds the true edges: an earlier run left the taskbar at the bottom.
-                // Windows adds an entry for a monitor the first time it is connected; one added since is written down
-                // with the edge it has now, or moving it would lose that edge.
-                var record = ReadRecord();
-                if (record == null)
-                {
-                    WriteRecord(entries);
-                }
-                else if (entries.Where(entry => !record.Any(saved => saved.Key == entry.Key && saved.Name == entry.Name))
-                             .ToList() is { Count: > 0 } added)
-                {
-                    File.AppendAllLines(RecordFile, added.Select(RecordLine));
-                }
+                Remember(entries, record);
                 _moving = moving = true;
             }
             Log.Info($"The Windows taskbar is on the {Describe(entries)}, where Windows cannot auto-hide it; " +
@@ -253,9 +262,23 @@ internal static class TaskbarEdge
 
                 if (StartedByLoader(primary))
                 {
-                    // The record stays: the edges go back when ClearStart next closes beside a plain Explorer.
-                    Log.Warn($"The Windows taskbar is left on the bottom edge rather than put back on the {Describe(record)}: " +
-                        "that restarts Explorer, and the early-startup loader takes the Explorer it started closing for a failure");
+                    // That Explorer is not restarted (see KeepAtBottom). The next one reads the edges written now.
+                    WriteEdges(record, autoHide: null);
+                    if (!ExplorerTaskbar.AllOnBottom())
+                    {
+                        // Its taskbar never left its own edge.
+                        Forget();
+                        Log.Info($"Windows taskbar edges written back ({Describe(record)}); the taskbar is still there");
+                        return false;
+                    }
+                    // It started on the bottom, from the edge written for it, and may write that back as it closes. The
+                    // record stays for the next copy of ClearStart; with none at the next sign-in, a run then finishes.
+                    // Not when ClearStart starts then: the run would close it.
+                    if (!AutoStart.StartsAtSignIn()) RunOnceAtSignIn();
+                    _writtenForSignIn = true;
+                    Log.Warn($"The Windows taskbar stays on the bottom edge until the next sign-in, when it goes back on the " +
+                        $"{Describe(record)}: putting it back now restarts Explorer, and the early-startup loader takes the " +
+                        "Explorer it started closing for a failure");
                     return false;
                 }
 
@@ -270,6 +293,31 @@ internal static class TaskbarEdge
             {
                 Log.Error("Could not put the Windows taskbar back on its own edge", ex);
                 return false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The user is signing out, and ClearStart starts again at the next sign-in. If ClearStart has the taskbar's own
+    /// edges on record, the bottom edge is written again for the Explorer that starts then: Explorer may have written
+    /// its own over it meanwhile, and the one the early-startup loader started was never moved. Runs first, in case
+    /// Windows ends ClearStart early, and again last, after the taskbar's auto-hide setting has gone back.
+    /// </summary>
+    public static void KeepForNextSignIn()
+    {
+        lock (Gate)
+        {
+            try
+            {
+                if (!Moved) return;
+                var entries = ReadEntries();
+                if (entries.All(entry => entry.Edge == Bottom)) return;
+                WriteEdges(entries.Select(entry => entry with { Edge = Bottom }), autoHide: null);
+                Log.Info("The Windows taskbar's bottom edge is written again for the next sign-in");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Could not write the Windows taskbar's bottom edge for the next sign-in: " + ex.Message);
             }
         }
     }
@@ -419,6 +467,24 @@ internal static class TaskbarEdge
         File.WriteAllLines(RecordFile, entries.Select(RecordLine)
             .Concat(ExplorerTaskbar.BarRects().Select(bar =>
                 $"{BarLine}\t{bar.Left}\t{bar.Top}\t{bar.Right}\t{bar.Bottom}")));
+    }
+
+    /// <summary>
+    /// Writes the record if there is none. A record that is there already holds the true edges, from an earlier copy;
+    /// Windows adds an entry for a monitor the first time it is connected, and one added since is written down with the
+    /// edge it has now, or moving it would lose that edge.
+    /// </summary>
+    /// <returns>The edges on record now.</returns>
+    private static List<Entry> Remember(List<Entry> entries, List<Entry>? record)
+    {
+        if (record == null)
+        {
+            WriteRecord(entries);
+            return entries;
+        }
+        var added = entries.Where(entry => !record.Any(saved => saved.Key == entry.Key && saved.Name == entry.Name)).ToList();
+        if (added.Count > 0) File.AppendAllLines(RecordFile, added.Select(RecordLine));
+        return record.Concat(added).ToList();
     }
 
     /// <summary>Drops the record, and the run at the next sign-in that would have finished putting it back.</summary>
