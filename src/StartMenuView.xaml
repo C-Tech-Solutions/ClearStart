@@ -182,8 +182,8 @@
                 </Button>
 
                 <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Style="{StaticResource FlatButton}" Width="40" Height="40" ToolTip="ClearStart settings"
-                            Click="Settings_Click">
+                    <Button x:Name="SettingsButton" Style="{StaticResource FlatButton}" Width="40" Height="40"
+                            ToolTip="Settings" Click="Settings_Click" MouseRightButtonUp="Settings_RightClick">
                         <TextBlock FontFamily="{StaticResource IconFont}" FontSize="16" Text="&#xE713;"/>
                     </Button>
                     <Button x:Name="PowerButton" Style="{StaticResource FlatButton}" Width="40" Height="40" Margin="4,0,0,0"

@@ -32,7 +32,7 @@ It has four parts:
 | Click a place | Opens it |
 | Right-click a place | Open, move up or down, add a line below, remove, or "Customize this list…" for the settings page |
 | Your name | Opens your account page in Windows' settings |
-| The gear | Opens ClearStart's settings at the Start menu page |
+| The gear | Opens Windows' settings. Right-click it for ClearStart's settings, at the Start menu page |
 | The power button | Lock, sign out, sleep, restart, shut down |
 
 <p align="center">

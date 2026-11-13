@@ -371,10 +371,22 @@ public partial class StartMenuView : UserControl
         Ui.ShowMenu(target, entries.ToArray());
     }
 
-    private void Settings_Click(object sender, RoutedEventArgs e)
+    /// <summary>The gear opens Windows' settings, like the one in Windows' start menu.</summary>
+    private void Settings_Click(object sender, RoutedEventArgs e) => OpenWindowsSettings();
+
+    /// <summary>ClearStart's own settings are a right-click away (and on a bar's right-click menu).</summary>
+    private void Settings_RightClick(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        Ui.ShowMenu(SettingsButton,
+            ("Windows Settings", OpenWindowsSettings),
+            ("ClearStart settings", () => { _close(); _host.ShowSettings(SettingsPage.StartMenu); }));
+    }
+
+    private void OpenWindowsSettings()
     {
         _close();
-        _host.ShowSettings(SettingsPage.StartMenu);
+        Launcher.Run("ms-settings:");
     }
 
     private void Power_Click(object sender, RoutedEventArgs e) => Ui.ShowMenu(PowerButton,
