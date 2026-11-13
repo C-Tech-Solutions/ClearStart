@@ -21,7 +21,8 @@ namespace ClearStart;
 public partial class TaskbarView : UserControl
 {
     private readonly ShellHost _host;
-    private readonly IntPtr _monitor;
+    // Windows gives a monitor a new handle when it wakes from sleep; UseMonitor puts the new one here.
+    private IntPtr _monitor;
     private readonly string _device;
     private readonly AppBarEdge _edge;
     private readonly bool _vertical;
@@ -79,7 +80,9 @@ public partial class TaskbarView : UserControl
         _scale = Native.ScaleOf(_monitor);
 
         var settings = Settings.Current.Taskbar;
-        if (host.Mode != HostMode.SelfTest && !host.HasRenderedBars)
+        // The bars waited for at sign-in, rather than ones made again later or drawn by the self-test.
+        bool firstBars = host.Mode != HostMode.SelfTest && !host.HasRenderedBars;
+        if (firstBars)
         {
             _pinReveal = new PinnedIconReveal(settings.AnimatePinnedIcons && SystemParameters.ClientAreaAnimation, _vertical);
             // Loaded is routed through the parent before all of its template children. Seal behind their callbacks.
@@ -96,14 +99,22 @@ public partial class TaskbarView : UserControl
         _showTrayIcons = (_main || settings.TrayOnAllMonitors) && !_cramped;
         _showClock = (_main || settings.ClockOnAllMonitors) && !_cramped;
 
+        // For the first bars, the log says where the time to build them goes, part by part.
+        string? timing = firstBars ? TaskbarSettings.MonitorKey(_device) : null;
+        long lap = StartTiming.BeginStep();
+
         InitializeComponent();
+        lap = StartTiming.Lap(timing, "layout file", lap);
 
         Resources["LabelVisibility"] = settings.ShowLabels && !_vertical ? Visibility.Visible : Visibility.Collapsed;
         ApplyLook();
+        lap = StartTiming.Lap(timing, "look", lap);
 
         ArrangeForEdge();
         PlaceStartButton();
+        lap = StartTiming.Lap(timing, "arrangement and Start button", lap);
         ApplyThickness(thickness);
+        lap = StartTiming.Lap(timing, "size and text measuring", lap);
         ApplyLock();
 
         // With a bar on every monitor, each one lists the windows that are on its own monitor. The windows
@@ -113,6 +124,7 @@ public partial class TaskbarView : UserControl
         _apps = new TaskbarApps(host, ownMonitorOnly ? _monitor : IntPtr.Zero, settings.CombineWindows, takeStrays: _main,
             showsPin: pin => Settings.Current.Taskbar.ShowsPin(_device, _main, pin.Path));
         AppList.ItemsSource = _apps.Items;
+        lap = StartTiming.Lap(timing, "app buttons", lap);
 
         TrayList.Visibility = _showTrayIcons ? Visibility.Visible : Visibility.Collapsed;
         // The arrow only where there is a tray: a preview hosts none, and its panel would always be empty.
@@ -143,11 +155,13 @@ public partial class TaskbarView : UserControl
             UpdateClock();
             _clock.Start();
         }
+        lap = StartTiming.Lap(timing, "tray and clock", lap);
 
         _host.Network.Changed += RefreshNetwork;
         _host.Weather.Changed += RefreshWeather;
         RefreshNetwork();
         RefreshWeather();
+        StartTiming.Lap(timing, "network and weather", lap);
     }
 
     /// <summary>The user took hold of the resize handle.</summary>
@@ -164,6 +178,17 @@ public partial class TaskbarView : UserControl
 
     /// <summary>Looks again at which windows belong on this bar, after another display gained or lost its bar.</summary>
     internal void RefreshApps() => _apps.Refresh();
+
+    /// <summary>
+    /// The monitor came back under a new handle (it woke from sleep). The start menu, the hidden icons, the window
+    /// previews and the list of this monitor's windows all find the monitor by its handle, so they take the new one.
+    /// </summary>
+    internal void UseMonitor(IntPtr monitor)
+    {
+        if (monitor == IntPtr.Zero || monitor == _monitor) return;
+        _monitor = monitor;
+        _apps.UseMonitor(monitor);
+    }
 
     /// <summary>
     /// Fills the tray with stand-in icons (anything with Icon and Title) so the self-test can draw it, with the

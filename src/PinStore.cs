@@ -20,66 +20,63 @@ internal sealed class PinnedItem
         ? System.IO.Path.GetFileNameWithoutExtension(Path)
         : Item.DisplayName;
 
-    private bool _resolved;
-    private string? _targetFile;
-    private string[] _appKeys = Array.Empty<string>();
+    // Worked out once. At startup a worker thread does it for the taskbar pins while the bars are built (see
+    // PinStore.Reload), and a bar can ask for a pin before the worker gets to it. Neither waits for the other: both
+    // come to the same answer, and the first one kept is the one everybody gets.
+    private Resolution? _resolution;
 
     /// <summary>The program file this pin starts, if it starts one (Store apps do not).</summary>
-    public string? TargetFile
-    {
-        get
-        {
-            Resolve();
-            return _targetFile;
-        }
-    }
+    public string? TargetFile => Resolve().TargetFile;
 
     /// <summary>What identifies this pin's app among the open windows, so they can share one button.</summary>
-    public IReadOnlyList<string> AppKeys
+    public IReadOnlyList<string> AppKeys => Resolve().AppKeys;
+
+    private Resolution Resolve()
     {
-        get
-        {
-            Resolve();
-            return _appKeys;
-        }
+        var resolution = Volatile.Read(ref _resolution);
+        if (resolution != null) return resolution;
+        resolution = WorkOut();
+        return Interlocked.CompareExchange(ref _resolution, resolution, null) ?? resolution;
     }
 
-    private void Resolve()
+    private Resolution WorkOut()
     {
-        if (_resolved) return;
-        _resolved = true;
+        string? targetFile = null;
         try
         {
             var keys = new List<string>(2);
             if (Path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
             {
-                _targetFile = ShellLink.TargetOf(Path);
+                targetFile = ShellLink.TargetOf(Path);
 
                 // The built-in File Explorer pin points at a shell location, not at a file.
-                if (_targetFile == null && System.IO.Path.GetFileNameWithoutExtension(Path)
+                if (targetFile == null && System.IO.Path.GetFileNameWithoutExtension(Path)
                         .Equals("File Explorer", StringComparison.OrdinalIgnoreCase))
                 {
-                    _targetFile = System.IO.Path.Combine(
+                    targetFile = System.IO.Path.Combine(
                         Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
                 }
             }
             else
             {
-                _targetFile = AppCatalog.FileOf(Path);
-                if (_targetFile == null && Path.StartsWith(AppCatalog.AppsFolderPrefix, StringComparison.OrdinalIgnoreCase))
+                targetFile = AppCatalog.FileOf(Path);
+                if (targetFile == null && Path.StartsWith(AppCatalog.AppsFolderPrefix, StringComparison.OrdinalIgnoreCase))
                 {
                     keys.Add(AppKey.ForAppId(Path[AppCatalog.AppsFolderPrefix.Length..]));
                 }
             }
 
-            if (!string.IsNullOrEmpty(_targetFile)) keys.Add(AppKey.ForFile(_targetFile));
-            _appKeys = keys.ToArray();
+            if (!string.IsNullOrEmpty(targetFile)) keys.Add(AppKey.ForFile(targetFile));
+            return new Resolution(targetFile, keys.ToArray());
         }
         catch (Exception ex)
         {
             Log.Warn($"Could not work out which app '{Path}' starts: {ex.Message}");
+            return new Resolution(targetFile, Array.Empty<string>());
         }
     }
+
+    private sealed record Resolution(string? TargetFile, string[] AppKeys);
 }
 
 /// <summary>
@@ -111,9 +108,33 @@ internal sealed class PinStore
 
     public void Reload()
     {
-        Fill(Taskbar, Settings.Current.Taskbar.Pinned ?? ReadWindowsPins("TaskBar"), taskbar: true);
+        Fill(Taskbar, TaskbarPinPaths(Settings.Current.Taskbar.Pinned), taskbar: true);
+        WorkOutAppsInBackground(Taskbar.ToArray());
         if (_startLoaded) Fill(_start, Settings.Current.StartMenu.Pinned ?? ReadWindowsPins("StartMenu"));
         Log.Info($"Taskbar pins loaded: {Taskbar.Count}; Start-menu pins {(_startLoaded ? "refreshed" : "deferred")}");
+    }
+
+    /// <summary>What the taskbar pins are: the settings' own list, or else what is pinned in Windows.</summary>
+    internal static List<string> TaskbarPinPaths(List<string>? pinned) => pinned ?? ReadWindowsPins("TaskBar");
+
+    /// <summary>
+    /// Reads each pin's shortcut on a worker thread, to find which app it starts, so the bars being built next do not
+    /// have to stop for it. A bar that gets to a pin first reads it itself.
+    /// </summary>
+    private static void WorkOutAppsInBackground(PinnedItem[] pins)
+    {
+        if (pins.Length == 0) return;
+        try
+        {
+            Task.Run(() =>
+            {
+                foreach (var pin in pins) _ = pin.AppKeys;
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("Could not start reading the pinned shortcuts in the background: " + ex.Message);
+        }
     }
 
     public bool IsPinnedToStart(string? path) => Contains(Start, path);

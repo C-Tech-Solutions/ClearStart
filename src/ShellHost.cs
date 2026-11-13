@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -58,6 +59,18 @@ internal sealed class ShellHost : IDisposable
     private string? _mainDevice;
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _screenTimer;
+    // A second look at the displays a little after monitors woke from sleep (see CheckScreens).
+    private readonly DispatcherTimer _wakeTimer;
+    // A look at Explorer's taskbar after it announced itself (see OnTaskbarCreated).
+    private readonly DispatcherTimer _explorerTimer;
+    // Explorer's main taskbar window the bars are docked through. Explorer forgets the bars when it starts again.
+    private IntPtr _explorerTaskbar;
+    // The Explorer that shows the Windows taskbar, watched so that ClearStart's tray steps back the moment it closes.
+    private Process? _explorerProcess;
+    private uint _explorerProcessId;
+    // While ClearStart's tray waits behind Explorer's, a look each second whether Explorer has settled (see HoldTray).
+    private readonly DispatcherTimer _trayTimer;
+    private bool _trayHeld;
     private readonly DispatcherTimer _saveTimer;
     private StartMenuWindow? _startMenu;
     private ThumbnailWindow? _previews;
@@ -70,6 +83,7 @@ internal sealed class ShellHost : IDisposable
     private int _rebuildRetries;
     private bool _started;
     private bool _trayStarted;
+    private bool _watchingFirstFrame;
     private bool _disposed;
 
     public ShellHost(HostMode mode, string? logDirectory = null)
@@ -140,6 +154,30 @@ internal sealed class ShellHost : IDisposable
             _screenTimer.Stop();
             CheckScreens();
         };
+        _wakeTimer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
+        {
+            Interval = TimeSpan.FromSeconds(3),
+        };
+        _wakeTimer.Tick += (_, _) =>
+        {
+            _wakeTimer.Stop();
+            // Through the usual wait, so a monitor that is still waking is not taken for a new layout.
+            QueueScreenCheck();
+        };
+        _explorerTimer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
+        {
+            Interval = TimeSpan.FromSeconds(1),
+        };
+        _explorerTimer.Tick += (_, _) =>
+        {
+            _explorerTimer.Stop();
+            CheckExplorer();
+        };
+        _trayTimer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
+        {
+            Interval = TimeSpan.FromSeconds(1),
+        };
+        _trayTimer.Tick += (_, _) => CheckTrayHold();
 
         // A slider in the settings window changes a setting many times a second; the file is written once
         // the changes stop coming.
@@ -184,10 +222,15 @@ internal sealed class ShellHost : IDisposable
             // Normally running already: the program starts it before anything else loads. It keeps the Windows
             // taskbar hidden from now until ClearStart closes, on a thread of its own.
             TaskbarGuard.Start();
+            TaskbarEdge.BeforeRestart = BeforeExplorerRestart;
             // Which edge each Windows taskbar is docked to. A hidden taskbar still has its place on the screen.
+            long step = StartTiming.BeginStep();
             FindWindowsTaskbars();
+            StartTiming.EndStep("Windows taskbar positions", step);
         }
 
+        _explorerTaskbar = ExplorerTaskbar.FindPrimary();
+        WatchExplorer(_explorerTaskbar);
         RebuildBars();
 
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
@@ -195,6 +238,7 @@ internal sealed class ShellHost : IDisposable
         UpdateWinKeyHook();
 
         Log.Info($"Started in {Mode} mode with {_bars.Count} taskbar(s)");
+        if (Mode == HostMode.Live) TaskbarEdge.StartedUp();
 
         // Queued behind the drawing of the bars, so it runs when they are on screen.
         _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(StartDeferredServices));
@@ -206,7 +250,14 @@ internal sealed class ShellHost : IDisposable
         if (_disposed) return;
         // Connection discovery can be slow at sign-in. The views follow Network.Changed when it finishes.
         Network.Start();
-        if (Mode == HostMode.Live) StartTray();
+        if (Mode == HostMode.Live)
+        {
+            // Not in front of an Explorer that is still starting (see HoldTray): at sign-in ClearStart is quicker.
+            if (TaskbarEdge.Moving) HoldTray("The Windows taskbar is about to move to the bottom");
+            // No Explorer taskbar to wait for (Explorer is not running, or did not come up in time): start it now.
+            else if (_explorerTaskbar == IntPtr.Zero || ExplorerTaskbar.HasSettled(_explorerTaskbar)) StartTray();
+            else HoldTray("Explorer started moments ago");
+        }
         Weather.Start();
         Updates.Start();
 
@@ -272,8 +323,135 @@ internal sealed class ShellHost : IDisposable
             int leftOut = area.TrayIcons.Count(icon => !icon.IsHidden && !BelongsInTray(icon));
             Log.Info($"Tray icons: {shown}, {onBar} of them on the taskbar"
                 + (leftOut > 0 ? $"; {leftOut} of Windows' own left out" : ""));
+            // Not one app answered: they handed their icons to Explorer's tray, which was first in line then. Not while
+            // ClearStart's tray waits behind Explorer's: it asks them once it is back in front.
+            if (!area.TrayIcons.Any() && !_trayHeld)
+            {
+                Log.Info(ExplorerTaskbar.AskForTrayIcons()
+                    ? "No app handed its tray icon to ClearStart; asked them all again"
+                    : "No app handed its tray icon to ClearStart, and Explorer's tray stays in front of it");
+            }
         };
         timer.Start();
+    }
+
+    /// <summary>
+    /// Puts ClearStart's tray behind Explorer's until Explorer has settled, or keeps it from starting until then:
+    /// Explorer does not work fully if it starts while ClearStart's tray is in front (see <see cref="TrayStandby"/>).
+    /// Explorer's taskbar stays hidden; only the two trays' order changes. Meanwhile the apps hand their icons to
+    /// Explorer's tray, and they are asked for them again once ClearStart's is back in front.
+    /// </summary>
+    private void HoldTray(string reason)
+    {
+        if (_disposed || Mode != HostMode.Live) return;
+        TaskbarGuard.KeepInFront = true;
+        if (!_trayHeld)
+        {
+            _trayHeld = true;
+            if (_trayStarted && Shell.NotificationArea is { } area) TrayStandby.StepBack(area);
+            Log.Info($"{reason}; ClearStart's tray waits behind Explorer's until Explorer has settled");
+        }
+        _trayTimer.Start();
+    }
+
+    /// <summary>Once Explorer has settled, starts ClearStart's tray, or puts it in front again and asks for the icons.</summary>
+    private void CheckTrayHold()
+    {
+        if (_disposed)
+        {
+            _trayTimer.Stop();
+            return;
+        }
+        IntPtr taskbar = ExplorerTaskbar.FindPrimary();
+        // Watched from the moment it is up, so an Explorer that closes again before it settles is noticed too.
+        WatchExplorer(taskbar);
+        // Not while Explorer is about to start again, its taskbar moved to the bottom.
+        if (TaskbarEdge.Moving || !ExplorerTaskbar.HasSettled(taskbar)) return;
+
+        _trayTimer.Stop();
+        _trayHeld = false;
+        TaskbarGuard.KeepInFront = false;
+        if (!_trayStarted)
+        {
+            StartTray();
+            return;
+        }
+        if (Shell.NotificationArea is not { } area || !TrayStandby.StepForward(area)) return;
+        Log.Info(ExplorerTaskbar.AskForTrayIcons()
+            ? "Explorer has settled; ClearStart's tray is in front again and asked the apps for their icons"
+            : "Explorer has settled, but its tray stays in front of ClearStart's");
+    }
+
+    /// <summary>Watches the Explorer that owns <paramref name="taskbar"/>, so the tray can step back the moment it closes.</summary>
+    private void WatchExplorer(IntPtr taskbar)
+    {
+        if (Mode != HostMode.Live || taskbar == IntPtr.Zero) return;
+        Native.GetWindowThreadProcessId(taskbar, out uint pid);
+        if (pid == 0 || pid == _explorerProcessId) return;
+        StopWatchingExplorer();
+        _explorerProcessId = pid;
+        try
+        {
+            var shell = Process.GetProcessById((int)pid);
+            _explorerProcess = shell;
+            shell.Exited += OnExplorerExited;
+            // Raises Exited at once if it has closed already.
+            shell.EnableRaisingEvents = true;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("Cannot watch Explorer for closing: " + ex.Message);
+        }
+    }
+
+    private void StopWatchingExplorer()
+    {
+        if (_explorerProcess is { } shell)
+        {
+            shell.Exited -= OnExplorerExited;
+            shell.Dispose();
+        }
+        _explorerProcess = null;
+        _explorerProcessId = 0;
+    }
+
+    /// <summary>
+    /// Explorer closed: it crashed, was ended, or is being restarted, and starts again in a moment. Runs on a pool
+    /// thread.
+    /// </summary>
+    private void OnExplorerExited(object? sender, EventArgs e)
+    {
+        if (_disposed) return;
+        // Straight away, from this thread: the guard must not put the new Explorer's taskbar behind ClearStart's tray,
+        // even while the window thread is busy.
+        TaskbarGuard.KeepInFront = true;
+        _dispatcher.BeginInvoke(DispatcherPriority.Send, new Action(() => HoldTray("Explorer closed")));
+    }
+
+    /// <summary>
+    /// ClearStart is about to close Explorer and start it again, to move its taskbar to the bottom (see
+    /// <see cref="TaskbarEdge"/>): ClearStart's tray steps back first. Runs on the restarting thread, and waits for the
+    /// window thread a few seconds at most. False if the tray has not stepped back, or ClearStart is closing (which
+    /// puts the taskbar back itself): Explorer is not to be restarted then.
+    /// </summary>
+    private bool BeforeExplorerRestart()
+    {
+        if (_disposed) return false;
+        TaskbarGuard.KeepInFront = true;
+        bool held = false;
+        try
+        {
+            _dispatcher.Invoke(() =>
+            {
+                HoldTray("Explorer is starting again with its taskbar on the bottom");
+                held = _trayHeld && !_disposed;
+            }, DispatcherPriority.Send, CancellationToken.None, TimeSpan.FromSeconds(5));
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("Could not move ClearStart's tray out of Explorer's way: " + ex.Message);
+        }
+        return held;
     }
 
     // Windows' own volume and network icons.
@@ -416,6 +594,50 @@ internal sealed class ShellHost : IDisposable
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e) => _dispatcher.InvokeAsync(QueueScreenCheck);
 
+    /// <summary>
+    /// A "taskbar created" announcement reached a bar. Explorer sends it when it has started again, and then knows
+    /// nothing of the bars the old Explorer made room for: windows go under them until they are docked again.
+    /// ClearStart and its tray send the same announcement, so this only looks, once they stop coming, whether
+    /// Explorer's taskbar is a new one.
+    /// </summary>
+    public void OnTaskbarCreated()
+    {
+        if (_disposed || !_started) return;
+        _explorerTimer.Stop();
+        _explorerTimer.Start();
+    }
+
+    private void CheckExplorer()
+    {
+        if (_disposed) return;
+        try
+        {
+            IntPtr taskbar = ExplorerTaskbar.FindPrimary();
+            if (taskbar == IntPtr.Zero || taskbar == _explorerTaskbar) return;
+            _explorerTaskbar = taskbar;
+            WatchExplorer(taskbar);
+            Log.Info($"Explorer has a new taskbar (it started again); docking {_bars.Count} taskbar(s) again");
+            foreach (var bar in _bars)
+            {
+                bar.DockAgain();
+            }
+            // The apps handed their icons to Explorer's tray as it started. They are asked for them again once it has
+            // settled; closing was normally noticed already, and the tray is behind Explorer's.
+            if (!ExplorerTaskbar.HasSettled(taskbar))
+            {
+                HoldTray("Explorer started again");
+            }
+            else if (_trayStarted && !_trayHeld && !ExplorerTaskbar.AskForTrayIcons())
+            {
+                Log.Warn("Explorer's tray is in front of ClearStart's, so the apps hand their icons to Explorer");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not dock the taskbars again after Explorer started", ex);
+        }
+    }
+
     private static string ScreenSignature()
     {
         try
@@ -443,9 +665,18 @@ internal sealed class ShellHost : IDisposable
             }
             else
             {
+                // The same displays in the same places. Monitors that wake from sleep come back like this, under new
+                // handles and sometimes with all of their area given to the desktop again. Both are put right with
+                // the bars left open: reopening them would make them flash, and the Windows taskbar with them.
+                if (RefreshMonitorHandles())
+                {
+                    // A waking monitor can still be reset after its notifications have settled: look once more.
+                    _wakeTimer.Stop();
+                    _wakeTimer.Start();
+                }
                 foreach (var bar in _bars)
                 {
-                    bar.UpdatePosition();
+                    bar.Redock();
                 }
             }
         }
@@ -454,6 +685,40 @@ internal sealed class ShellHost : IDisposable
             Log.Error("Screen check failed", ex);
             RetryRebuildLater();
         }
+    }
+
+    /// <summary>
+    /// Gives each bar the handle its monitor has now. Windows hands out new ones to monitors that wake from sleep,
+    /// and the bars find their monitor by its handle to place the start menu and the hidden icons, and to tell
+    /// which windows are theirs.
+    /// </summary>
+    /// <returns>True if any bar's monitor had a new handle.</returns>
+    private bool RefreshMonitorHandles()
+    {
+        var screens = AppBarScreen.FromAllScreens();
+        bool changed = false;
+        foreach (var bar in _bars)
+        {
+            var screen = screens.FirstOrDefault(s => SameDevice(s.DeviceName, bar.Device));
+            if (screen == null || screen.HMonitor == IntPtr.Zero || screen.HMonitor == bar.Monitor) continue;
+            bar.UseScreen(screen);
+            changed = true;
+        }
+        if (!changed) return false;
+
+        Log.Info("The monitors came back under new handles; the taskbars take them");
+        // The main bar lists the windows of the monitors that have no bar, which it tells by their handles. With the
+        // layout the same, the monitors meant to have a bar are the ones that have one.
+        _barMonitors.Clear();
+        foreach (var bar in _bars)
+        {
+            _barMonitors.Add(bar.Monitor);
+        }
+        foreach (var bar in _bars)
+        {
+            bar.RefreshApps();
+        }
+        return true;
     }
 
     private static int ExpectedBarCount()
@@ -701,6 +966,7 @@ internal sealed class ShellHost : IDisposable
         }
         if (_bars.Count > 0)
         {
+            if (!HasRenderedBars) WatchFirstFrame();
             // A display can wake after the initial build failed. Every successful retry gets this check;
             // EarlySession only signals once, after the queued render work has completed.
             _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
@@ -714,6 +980,23 @@ internal sealed class ShellHost : IDisposable
                 if (Mode == HostMode.Live) EarlySession.BarsReady();
             }));
         }
+    }
+
+    /// <summary>
+    /// Logs when WPF starts drawing the first bars, which splits the wait between the bars being built and their
+    /// being on screen: the work before the first frame, and the frame itself.
+    /// </summary>
+    private void WatchFirstFrame()
+    {
+        if (_watchingFirstFrame) return;
+        _watchingFirstFrame = true;
+        EventHandler? onFrame = null;
+        onFrame = (_, _) =>
+        {
+            System.Windows.Media.CompositionTarget.Rendering -= onFrame;
+            Log.Info($"First frame of the bars is being drawn, {StartTiming.Describe()}");
+        };
+        System.Windows.Media.CompositionTarget.Rendering += onFrame;
     }
 
     /// <summary>A display that is still waking up can make a rebuild fail; try again shortly, a limited number of times.</summary>
@@ -1212,14 +1495,24 @@ internal sealed class ShellHost : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        bool keepAutoHide = Mode == HostMode.Live && !EarlySession.Active && sessionEnding
-            && StartsAgainAtSignIn() && !EarlyStartup.IsEnabled;
-        Log.Info(keepAutoHide ? "Shutting down; ClearStart starts again at the next sign-in" : "Shutting down");
+        bool startsAgain = Mode == HostMode.Live && sessionEnding && (EarlyStartup.IsEnabled || StartsAgainAtSignIn());
+        bool keepAutoHide = startsAgain && !EarlySession.Active && !EarlyStartup.IsEnabled;
+        Log.Info(startsAgain ? "Shutting down; ClearStart starts again at the next sign-in" : "Shutting down");
 
+        if (Mode == HostMode.Live && sessionEnding && !startsAgain)
+        {
+            // First: Windows may end ClearStart before it gets through the rest. At sign-out this only writes the edges
+            // down for the next sign-in, and has them checked then; it does not start Explorer again.
+            Step("write the Windows taskbar's edges back", () => TaskbarEdge.PutBack(sessionEnding: true));
+        }
         Step("remove the Win key hook", () => { _winKey?.Dispose(); _winKey = null; });
         Step("stop watching displays", () =>
         {
             _screenTimer.Stop();
+            _wakeTimer.Stop();
+            _explorerTimer.Stop();
+            _trayTimer.Stop();
+            StopWatchingExplorer();
             SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
             Settings.Changed -= OnSettingsChanged;
         });
@@ -1238,19 +1531,25 @@ internal sealed class ShellHost : IDisposable
         Step("close the taskbars", CloseBars);
         if (Mode == HostMode.Live)
         {
-            Step("show the Windows taskbar", () => GiveBackWindowsTaskbar(keepAutoHide));
+            Step("show the Windows taskbar", () => GiveBackWindowsTaskbar(keepAutoHide, sessionEnding, keepEdge: true));
         }
         Step("release the app list", Apps.Dispose);
         Step("stop the shell services", Shell.Dispose);
         if (Mode == HostMode.Live)
         {
-            // Again, now that our tray is gone: that is when the apps can hand their tray icons back to Windows.
-            GiveBackWindowsTaskbar(keepAutoHide);
+            // Again, now that our tray is gone: that is when the apps can hand their tray icons back to Windows. The
+            // taskbar's own edges go back only now too, since that starts Explorer again: an Explorer that closes or
+            // starts while ClearStart's tray is still there deals with that tray as well as its own.
+            Step("put the Windows taskbar back", () => GiveBackWindowsTaskbar(keepAutoHide, sessionEnding, keepEdge: startsAgain));
         }
         Step("close the shell library log", () => _shellLog?.Dispose());
     }
 
-    private static void GiveBackWindowsTaskbar(bool keepAutoHide)
+    /// <param name="keepEdge">
+    /// Leaves the Windows taskbar on the bottom edge if ClearStart moved it there (see <see cref="TaskbarEdge"/>): for
+    /// now, or because ClearStart starts again at the next sign-in.
+    /// </param>
+    private static void GiveBackWindowsTaskbar(bool keepAutoHide, bool sessionEnding, bool keepEdge)
     {
         if (keepAutoHide)
         {
@@ -1258,7 +1557,7 @@ internal sealed class ShellHost : IDisposable
         }
         else
         {
-            ExplorerTaskbar.Restore();
+            ExplorerTaskbar.Restore(sessionEnding, keepEdge);
         }
     }
 

@@ -17,7 +17,8 @@ internal static class Program
         EmptyAndLatePins();
         FallbackAndReuse();
         AnimationAndDetach();
-        Console.WriteLine("PASS: lazy pins, taskbar icon priority, grouped reveal, fallback/rebinding, animation and disposal");
+        SharedResolution();
+        Console.WriteLine("PASS: lazy pins, taskbar icon priority, grouped reveal, fallback/rebinding, animation and disposal, shared pin resolution");
     }
 
     private static void Check(bool condition, string message)
@@ -131,6 +132,17 @@ internal static class Program
         pending.Dispose();
         Pump(120);
         Check(absent.Opacity == 1 && !pending.Finished, "Disposal must cancel pending publication and restore visibility");
+    }
+
+    private static void SharedResolution()
+    {
+        // At startup a worker thread and a bar can work out the same pin at once. Both must end up with one answer.
+        var pin = new PinnedItem("shared.lnk", new ShellItem("shared.lnk"));
+        var keys = new IReadOnlyList<string>[8];
+        Parallel.For(0, keys.Length, i => keys[i] = pin.AppKeys);
+        Check(keys.All(k => ReferenceEquals(k, keys[0])) && keys[0].SequenceEqual(["file:shared.lnk"]),
+            "Every caller must get the same answer for a pin");
+        Check(pin.TargetFile == "shared.lnk", "The target must come with the keys");
     }
 
     private static void EmptyAndLatePins()

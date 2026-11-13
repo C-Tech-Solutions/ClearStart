@@ -39,8 +39,10 @@ public partial class App : Application
             if (Has(args, "--restore"))
             {
                 Log.Init();
-                StopRunningInstance();
-                ExplorerTaskbar.Restore();
+                // A copy that is still running puts the taskbar's edges back as it closes. Explorer must not be
+                // restarted under it meanwhile (see TaskbarEdge), so then only the taskbar is shown here.
+                bool closed = StopRunningInstance();
+                ExplorerTaskbar.Restore(keepEdge: !closed);
                 Shutdown(0);
             }
             else if (Has(args, "--exit"))
@@ -176,12 +178,16 @@ public partial class App : Application
         }
     }
 
-    /// <summary>Asks a running copy to close and waits (briefly) until it has.</summary>
-    private static void StopRunningInstance()
+    /// <summary>
+    /// Asks a running copy to close and waits until it has. Closing can take a while when it puts the Windows taskbar
+    /// back on another edge: Explorer is restarted for that, after it has run long enough (see TaskbarEdge).
+    /// </summary>
+    /// <returns>False if a copy is still running, or may be.</returns>
+    private static bool StopRunningInstance()
     {
         try
         {
-            if (!EventWaitHandle.TryOpenExisting(ExitEventName, out var signal)) return;
+            if (!EventWaitHandle.TryOpenExisting(ExitEventName, out var signal)) return true;
             using (signal)
             {
                 signal.Set();
@@ -190,17 +196,26 @@ public partial class App : Application
             using var mutex = new Mutex(false, MutexName);
             try
             {
-                if (mutex.WaitOne(TimeSpan.FromSeconds(8))) mutex.ReleaseMutex();
-                else Log.Warn("The running copy did not close in time");
+                if (mutex.WaitOne(TimeSpan.FromSeconds(45)))
+                {
+                    mutex.ReleaseMutex();
+                    return true;
+                }
+                Log.Warn("The running copy did not close in time");
+                return false;
             }
             catch (AbandonedMutexException)
             {
                 mutex.ReleaseMutex();
+                return true;
             }
         }
         catch (Exception ex)
         {
+            // A copy may still be running (one started as administrator can refuse the signal), so Explorer must not be
+            // restarted under it.
             Log.Warn("Could not signal the running copy: " + ex.Message);
+            return false;
         }
     }
 
@@ -227,7 +242,10 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {
             Log.Error("Fatal error", args.ExceptionObject as Exception);
-            if (_live) ExplorerTaskbar.Restore();
+            if (!_live) return;
+            // ClearStart's tray is still up: Explorer is not restarted under it (see TaskbarEdge.PutBackAfterExit).
+            ExplorerTaskbar.Restore(keepEdge: true);
+            TaskbarEdge.PutBackAfterExit();
         };
 
         TaskScheduler.UnobservedTaskException += (_, args) =>

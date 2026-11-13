@@ -111,7 +111,7 @@ begin
 end;
 
 { Before anything is removed: close the running copy and make sure the Windows taskbar is showing.
-  --restore gives up on a copy that does not close in a few seconds, so check, and stop the
+  --restore gives up on a copy that does not close within 45 seconds, so check, and stop the
   uninstall rather than delete the files of a program that is still running. }
 procedure CloseRunningCopy;
 var

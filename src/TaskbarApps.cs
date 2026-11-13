@@ -175,7 +175,7 @@ internal sealed class AppButton : INotifyPropertyChanged
 internal sealed class TaskbarApps : IDisposable
 {
     private readonly ShellHost _host;
-    private readonly IntPtr _monitor;
+    private IntPtr _monitor;
     private readonly bool _combine;
     private readonly bool _takeStrays;
     private readonly Func<PinnedItem, bool>? _showsPin;
@@ -225,6 +225,17 @@ internal sealed class TaskbarApps : IDisposable
 
     /// <summary>Looks again at what belongs here: a display gained or lost its bar, or the pins shown here changed.</summary>
     public void Refresh() => Queue();
+
+    /// <summary>
+    /// The monitor came back under a new handle, as monitors do when they wake from sleep: lists the windows that are
+    /// on it under that one. A list of every monitor's windows stays as it is.
+    /// </summary>
+    public void UseMonitor(IntPtr monitor)
+    {
+        if (_monitor == IntPtr.Zero || monitor == IntPtr.Zero || monitor == _monitor) return;
+        _monitor = monitor;
+        Queue();
+    }
 
     private void Source_Changed(object? sender, NotifyCollectionChangedEventArgs e) => Queue();
 

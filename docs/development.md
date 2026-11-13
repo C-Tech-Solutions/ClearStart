@@ -87,25 +87,46 @@ lines says how long it was since ClearStart started and since you signed in.
    Explorer can delay a native call, but WPF bar layout does not run on the guard thread.
    Log: `Windows taskbar hidden`, or `The Windows taskbar is not up yet` and then
    `Windows taskbar hidden as it appeared`.
-3. **It waits for Explorer**, for up to two minutes, if Explorer's taskbar is not up yet. The
-   bars dock through it, and ClearStart's tray would make Explorer think a taskbar was already
-   running. Log: `Explorer's taskbar is up`.
-4. **The bars open.** Log: `Started in Live mode with <n> taskbar(s)`, then `Taskbars on screen`.
+3. **It starts WPF, then waits for Explorer**, for up to two minutes, if Explorer's taskbar is not
+   up yet. The bars dock through it, and ClearStart's tray would make Explorer think a taskbar was
+   already running. Log: `Explorer's taskbar is up`. Two things overlap the wait. One is WPF's own
+   start-up (`Startup step: WPF start-up`). The other is a warm-up on threads of its own
+   ([`src/StartupWarmUp.cs`](../src/StartupWarmUp.cs)): it reads the settings file, looks up the
+   taskbar pins in the shell, loads the fonts and date formats the bars draw with, and loads the
+   shell library and Windows Forms. Each part logs `Start-up warm-up: <part>, <n> ms`. The warm-up
+   keeps nothing it makes; it only fills caches the whole process shares, so a part that is slow or
+   fails leaves that work to the UI thread. The wait answers the messages other programs send to
+   ClearStart's windows, and handles nothing else: WPF has already queued the app's start by then,
+   and that must not run before Explorer is up. An Explorer less than three seconds old is also
+   given the rest of those three seconds. One that has ClearStart's shell services start beside it
+   in its first moments keeps running but no longer snaps windows with the Win+arrow keys. Log:
+   `Explorer had only just started; gave it 3 s`.
+4. **The bars open.** Log: `Started in Live mode with <n> taskbar(s)`, then
+   `First frame of the bars is being drawn` and `Taskbars on screen`.
 5. **The rest follows:** network discovery, the tray, the weather and the update check, and once the bars are idle
    the list of apps for the start menu (`App list read`). Opening the start menu before then reads
    it on the spot.
 
 Start-menu pins are loaded on first access, including opening the menu or editing its pins.
-Startup prefetches only taskbar-sized pin images. `Startup step:` log lines measure settings,
-shell services, pin loading, monitor planning, and each bar's content construction separately
-from showing/docking it. The host construction time includes the shell-service and pin times;
-do not add those nested measurements together. These lines help distinguish work on the UI
-thread from waiting for Explorer. The icon reveal never gates the early-startup ready signal.
-The first successful rendered batch, including a retry after displays wake, records `Taskbars on
-screen`. An empty first pin pass is sealed too, so pins added later do not join the startup reveal.
+Startup prefetches only taskbar-sized pin images. Which app each taskbar pin starts is read from
+its shortcut on a worker thread while the bars are built; a bar that needs a pin first reads it
+itself, and both get the same answer. `Startup step:` log lines measure WPF start-up, settings,
+shell services, pin loading, the Windows taskbar positions, monitor planning, and each bar's
+content construction separately from showing/docking it. The first bars also log their content
+part by part (`<monitor> layout file`, `look`, `arrangement and Start button`,
+`size and text measuring`, `app buttons`, `tray and clock`, `network and weather`) and the
+docking inside their show (`<monitor> docking`). The host construction time includes the
+shell-service and pin times, a bar's content time includes its parts, and its show time includes
+its docking; do not add those nested measurements together. These lines help distinguish work on
+the UI thread from waiting for Explorer. The icon reveal never gates the early-startup ready
+signal. `First frame of the bars is being drawn` splits the time from `Started in Live mode` to
+`Taskbars on screen`: the work before WPF draws the first bars, and the drawing. The first
+successful rendered batch, including a retry after displays wake, records `Taskbars on screen`.
+An empty first pin pass is sealed too, so pins added later do not join the startup reveal.
 
 `dotnet run --project tests/StartupChecks/StartupChecks.csproj -c Release` runs focused checks
-for deferred pins, image request priority, grouped/animated reveal, timeouts and template reuse.
+for deferred pins, image request priority, grouped/animated reveal, timeouts, template reuse,
+and a pin worked out on several threads at once.
 It links the production pin/reveal code with fake shell/settings dependencies and uses WPF
 controls without creating windows. It does not start ClearStart, alter startup, or capture images.
 

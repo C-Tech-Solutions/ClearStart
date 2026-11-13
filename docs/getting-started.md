@@ -198,6 +198,15 @@ switch off) puts back the setting the Windows taskbar had before ClearStart firs
 ClearStart keeps that setting on file until then, across restarts. If the original setting cannot
 be saved or read, ClearStart leaves auto-hide unchanged rather than changing it without a way back.
 
+If the Windows taskbar is on the top or a side of the screen, Windows 11 cannot hide it
+automatically there, so ClearStart moves it to the bottom while it runs. Explorer restarts once
+for that, a moment after ClearStart starts (or after Explorer has run for 15 seconds, at sign-in);
+the screen may flicker. The same ways of closing ClearStart put the taskbar back on its own edge,
+which restarts Explorer once more. Signing out with Start with Windows off writes the edge back
+and checks it again at the next sign-in. Under the experimental
+[early startup](early-startup.md) the taskbar is left where it is, since restarting Explorer
+would end the early start; its strip of the screen stays empty.
+
 If ClearStart does not start after you sign in, you see the Windows taskbar hiding itself: it
 slides up when the mouse reaches the edge of the screen. To have it back as it was, do one of
 these:
