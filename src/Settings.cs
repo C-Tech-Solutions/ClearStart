@@ -339,6 +339,14 @@ public sealed class TaskbarSettings
     }
 }
 
+/// <summary>A folder of pinned tiles in the start menu: its name and the pins in it, in order.</summary>
+public sealed class PinFolderEntry
+{
+    public string Name { get; set; } = "";
+
+    public List<string> Items { get; set; } = new();
+}
+
 public sealed class PlaceEntry
 {
     public string Name { get; set; } = "";
@@ -380,8 +388,14 @@ public sealed class StartMenuSettings
     /// <summary>Open this menu with the Windows key (and Ctrl+Esc) instead of the system one.</summary>
     public bool TakeOverWinKey { get; set; } = true;
 
-    /// <summary>Pinned tiles, in order. null = follow the Windows "pinned to Start" folder.</summary>
+    /// <summary>
+    /// Pinned tiles, in order. null = follow the Windows "pinned to Start" folder. The pins in folders are here too,
+    /// each folder's together where the folder is, so a version of ClearStart without folders still shows them all.
+    /// </summary>
     public List<string>? Pinned { get; set; }
+
+    /// <summary>Which of the pinned tiles are in folders. null = none.</summary>
+    public List<PinFolderEntry>? PinFolders { get; set; }
 
     /// <summary>The column of places: folders, tools and anything else the Run dialog accepts.</summary>
     public List<PlaceEntry> Places { get; set; } = DefaultPlaces();
@@ -675,6 +689,14 @@ public sealed class Settings
             place.Name ??= "";
             place.Target ??= "";
             place.Glyph ??= PlaceEntry.FolderGlyph;
+        }
+        // The same for a hand-edited folder of pins.
+        settings.StartMenu.PinFolders?.RemoveAll(folder => folder == null);
+        foreach (var folder in settings.StartMenu.PinFolders ?? new List<PinFolderEntry>())
+        {
+            folder.Name ??= "";
+            folder.Items ??= new List<string>();
+            folder.Items.RemoveAll(string.IsNullOrWhiteSpace);
         }
         settings.StartMenu.PlacesWidth = Math.Clamp(settings.StartMenu.PlacesWidth, 140, 340);
         settings.StartMenu.PlacesRowHeight = Math.Clamp(settings.StartMenu.PlacesRowHeight, 28, 52);

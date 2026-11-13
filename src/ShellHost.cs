@@ -89,6 +89,8 @@ internal sealed class ShellHost : IDisposable
     public ShellHost(HostMode mode, string? logDirectory = null)
     {
         Mode = mode;
+        // A self-test changes the pins in memory only.
+        Pins.Saves = mode != HostMode.SelfTest;
         _dispatcher = Dispatcher.CurrentDispatcher;
         Updates = new UpdateService(mode);
 

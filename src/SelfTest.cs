@@ -968,6 +968,24 @@ internal static partial class SelfTest
                 await Task.Delay(1500);
                 stage.Save(Path.Combine(directory, "startmenu-search-windows.png"));
 
+                // The pinned tiles and folders, in memory; the pins are read back as they were after.
+                var pinsBefore = (Pinned: menuSettings.Pinned?.ToList(), Folders: menuSettings.PinFolders?
+                    .Select(folder => new PinFolderEntry { Name = folder.Name, Items = folder.Items.ToList() }).ToList());
+                try
+                {
+                    report["pinFolders"] = await CheckPinFoldersAsync(host, menu, stage, directory, errors);
+                }
+                catch (Exception ex)
+                {
+                    errors.Add("Pinned folders: " + ex);
+                }
+                finally
+                {
+                    menuSettings.Pinned = pinsBefore.Pinned;
+                    menuSettings.PinFolders = pinsBefore.Folders;
+                    host.Pins.ReloadStart();
+                }
+
                 stage.Close();
                 menu.Detach();
 

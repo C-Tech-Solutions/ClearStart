@@ -18,6 +18,7 @@
             <Setter Property="Margin" Value="0,0,6,0"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="App_Press"/>
+            <EventSetter Event="PreviewMouseMove" Handler="App_Move"/>
             <EventSetter Event="PreviewMouseLeftButtonUp" Handler="App_Click"/>
             <EventSetter Event="MouseRightButtonUp" Handler="App_RightClick"/>
             <Setter Property="Template">
@@ -69,13 +70,42 @@
             </Grid>
         </DataTemplate>
 
+        <!-- A pinned app. Dragged, it moves among the tiles, or onto another to make a folder of the two. -->
         <DataTemplate x:Key="TileTemplate">
             <Button Style="{StaticResource FlatButton}" Width="96" Height="88" Margin="2" ToolTip="{Binding Name}"
-                    Click="Pin_Click" MouseRightButtonUp="Pin_RightClick">
+                    Click="Pin_Click" MouseRightButtonUp="Pin_RightClick"
+                    PreviewMouseLeftButtonDown="Tile_Press" PreviewMouseMove="Tile_Move">
                 <StackPanel>
                     <Image Source="{Binding Item.ExtraLargeIcon}" Width="36" Height="36"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
                     <TextBlock Text="{Binding Name}" FontSize="12" Margin="4,6,4,0" MaxHeight="32" TextWrapping="Wrap"
+                               TextTrimming="CharacterEllipsis" TextAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </DataTemplate>
+
+        <!-- A folder of pinned apps: the first four drawn small. A click opens it in place of the pins. -->
+        <DataTemplate x:Key="FolderTileTemplate">
+            <Button Style="{StaticResource FlatButton}" Width="96" Height="88" Margin="2" ToolTip="{Binding Name}"
+                    Click="Pin_Click" MouseRightButtonUp="Pin_RightClick"
+                    PreviewMouseLeftButtonDown="Tile_Press" PreviewMouseMove="Tile_Move">
+                <StackPanel>
+                    <Border Width="38" Height="38" CornerRadius="6" Background="#24FFFFFF" Padding="3">
+                        <ItemsControl ItemsSource="{Binding Preview}" Focusable="False" IsHitTestVisible="False">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="2" Rows="2"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Image Source="{Binding Item.LargeIcon}" Width="14" Height="14"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                    <TextBlock Text="{Binding Name}" FontSize="12" Margin="4,4,4,0" MaxHeight="32" TextWrapping="Wrap"
                                TextTrimming="CharacterEllipsis" TextAlignment="Center"/>
                 </StackPanel>
             </Button>
@@ -170,10 +200,38 @@
 
             <!-- Pinned -->
             <DockPanel x:Name="PinsPanel" Grid.Row="1" Grid.Column="1" Margin="14,0,10,0">
-                <TextBlock DockPanel.Dock="Top" Style="{StaticResource SectionHeader}" Text="Pinned"/>
-                <Grid>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
-                        <ItemsControl x:Name="PinList" ItemTemplate="{StaticResource TileTemplate}" Focusable="False">
+                <Grid DockPanel.Dock="Top">
+                    <TextBlock x:Name="PinsHeader" Style="{StaticResource SectionHeader}" Text="Pinned"/>
+                    <!-- An open folder: the way back to the pins, and the folder's name, which can be changed there.
+                         A tile dropped on the arrow comes out of the folder. As tall as the header it stands in for. -->
+                    <DockPanel x:Name="FolderHeader" Visibility="Collapsed" Height="30" Margin="0,-7,0,1"
+                               VerticalAlignment="Top">
+                        <Button x:Name="FolderBack" Style="{StaticResource FlatButton}" Width="30" Height="30"
+                                ToolTip="Back to the pins" Click="FolderBack_Click" AllowDrop="True"
+                                DragEnter="FolderBack_DragOver" DragOver="FolderBack_DragOver" Drop="FolderBack_Drop">
+                            <TextBlock FontFamily="{StaticResource IconFont}" FontSize="12" Text="&#xE72B;"/>
+                        </Button>
+                        <Border Margin="6,0,0,0" CornerRadius="4" Background="#14FFFFFF" Padding="8,0">
+                            <TextBox x:Name="FolderName" Background="Transparent" BorderThickness="0" MaxLength="60"
+                                     FontWeight="SemiBold" VerticalAlignment="Center" ToolTip="Click to rename the folder"
+                                     Foreground="{DynamicResource ForegroundBrush}" CaretBrush="{DynamicResource ForegroundBrush}"
+                                     SelectionBrush="{StaticResource AccentBrush}" LostKeyboardFocus="FolderName_LostFocus">
+                                <TextBox.Template>
+                                    <ControlTemplate TargetType="TextBox">
+                                        <ScrollViewer x:Name="PART_ContentHost" Focusable="False"
+                                                      HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                                    </ControlTemplate>
+                                </TextBox.Template>
+                            </TextBox>
+                        </Border>
+                    </DockPanel>
+                </Grid>
+                <!-- Takes drops anywhere, between the tiles and below them too. -->
+                <Grid x:Name="PinsArea" Background="Transparent" AllowDrop="True" DragEnter="Pins_DragOver"
+                      DragOver="Pins_DragOver" DragLeave="Pins_DragLeave" Drop="Pins_Drop"
+                      MouseRightButtonUp="Pins_RightClick">
+                    <ScrollViewer x:Name="PinScroller" VerticalScrollBarVisibility="Auto" Focusable="False">
+                        <ItemsControl x:Name="PinList" Focusable="False">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <WrapPanel/>
@@ -182,7 +240,15 @@
                         </ItemsControl>
                     </ScrollViewer>
                     <TextBlock x:Name="PinHint" Opacity="0.6" Margin="8,4" TextWrapping="Wrap" IsHitTestVisible="False"
-                               Text="Nothing pinned yet. Right-click an app and choose “Pin to Start” to keep it here."/>
+                               Text="Nothing pinned yet. Drag an app here, or right-click it and choose “Pin to Start”."/>
+                    <!-- While something is dragged over the pins: a line where it would go, or a frame round the tile
+                         it would join. -->
+                    <Canvas x:Name="DropLayer" IsHitTestVisible="False" ClipToBounds="True">
+                        <Border x:Name="DropLine" Width="3" CornerRadius="1.5" Opacity="0.85"
+                                Background="{DynamicResource ForegroundBrush}" Visibility="Collapsed"/>
+                        <Border x:Name="DropTarget" BorderThickness="2" CornerRadius="6" Opacity="0.85" Background="#18FFFFFF"
+                                BorderBrush="{DynamicResource ForegroundBrush}" Visibility="Collapsed"/>
+                    </Canvas>
                 </Grid>
             </DockPanel>
 

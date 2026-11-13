@@ -73,6 +73,9 @@ one by clicking it on a real desktop:
   places from its right-click menu;
 - the list of places in the settings window: the icon sheet, the "Add…" menu and the file and
   folder pickers, and right-clicking a place in the start menu;
+- dragging the start menu's pinned tiles to move them or make folders, dragging an app from the
+  list onto the pins, renaming a folder in its header, and the tiles' and folders' right-click
+  entries;
 - throwing the Start with Windows switch;
 - how Windows shows the app icon on the program file and in Alt+Tab;
 - the installer's **Start ClearStart now** at the end, which starts live mode.

@@ -56,12 +56,12 @@ internal static class Program
         Settings.Current.StartMenu.Pinned = ["menu-new"];
         pins.Reload();
         var start = pins.Start;
-        Check(start.Single().Path == "menu-new", "First access must use the current settings");
+        Check(((PinnedItem)start.Single()).Path == "menu-new", "First access must use the current settings");
         pins.PinToStart("menu-added");
         Check(Settings.Current.StartMenu.Pinned.SequenceEqual(["menu-new", "menu-added"]), "Pinning must preserve deferred pins");
         Settings.Current.StartMenu.Pinned = ["menu-reloaded"];
         pins.Reload();
-        Check(ReferenceEquals(start, pins.Start) && start.Single().Path == "menu-reloaded", "Reload must retain the bound collection");
+        Check(ReferenceEquals(start, pins.Start) && ((PinnedItem)start.Single()).Path == "menu-reloaded", "Reload must retain the bound collection");
         Check(ShellItem.ExtraLargeReads == 0, "Start icons must remain demand-loaded");
     }
 

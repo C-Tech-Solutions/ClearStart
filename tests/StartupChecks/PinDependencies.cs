@@ -26,7 +26,16 @@ namespace ClearStart
         public PinSettings Taskbar { get; } = new();
         public PinSettings StartMenu { get; } = new();
     }
-    internal sealed class PinSettings { public List<string>? Pinned { get; set; } }
+    internal sealed class PinSettings
+    {
+        public List<string>? Pinned { get; set; }
+        public List<PinFolderEntry>? PinFolders { get; set; }
+    }
+    internal sealed class PinFolderEntry
+    {
+        public string Name { get; set; } = "";
+        public List<string> Items { get; set; } = new();
+    }
     internal static class ShellLink { public static string? TargetOf(string path) => path; }
     internal static class AppCatalog
     {
