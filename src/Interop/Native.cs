@@ -239,6 +239,30 @@ internal static class Native
     [DllImport("kernel32.dll")]
     internal static extern uint GetCurrentThreadId();
 
+    internal const uint WAIT_OBJECT_0 = 0;
+    internal const uint WAIT_TIMEOUT = 0x102;
+    internal const uint QS_SENDMESSAGE = 0x0040;
+    internal const uint PM_NOREMOVE = 0x0000;
+    internal const uint PM_QS_SENDMESSAGE = QS_SENDMESSAGE << 16;
+
+    /// <summary>
+    /// Waits for the handles, or for a message another thread sends to this one (WAIT_OBJECT_0 + count). Unlike
+    /// WaitHandle.WaitOne on a UI thread, it handles nothing by itself.
+    /// </summary>
+    [DllImport("user32.dll")]
+    internal static extern uint MsgWaitForMultipleObjectsEx(uint count, IntPtr[] handles, uint milliseconds, uint wakeMask,
+        uint flags);
+
+    /// <summary>With PM_QS_SENDMESSAGE, answers the messages other threads have sent and leaves the queue as it is.</summary>
+    [DllImport("user32.dll")]
+    internal static extern bool PeekMessage(out MSG msg, IntPtr hwnd, uint min, uint max, uint remove);
+
+    internal static readonly Guid IID_IShellItem = new("43826D1E-E718-42EE-BC55-A1E261C37BFE");
+
+    /// <summary>The raw call, for looking an item up without keeping a COM wrapper for it.</summary>
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    internal static extern int SHCreateItemFromParsingName(string path, IntPtr bindContext, ref Guid riid, out IntPtr item);
+
     [DllImport("user32.dll")]
     internal static extern int GetMessage(out MSG msg, IntPtr hwnd, uint min, uint max);
 
@@ -292,6 +316,9 @@ internal static class Native
 
     [DllImport("user32.dll")]
     internal static extern IntPtr MonitorFromPoint(POINT point, uint flags);
+
+    [DllImport("user32.dll")]
+    internal static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
@@ -465,6 +492,19 @@ internal static class Native
         bounds = default;
         workArea = default;
         return false;
+    }
+
+    /// <summary>Tells Windows where a docked bar (an appbar) is now; when that changed, it works out the work area again.</summary>
+    internal static void SetAppBarPosition(IntPtr hwnd, uint edge, RECT rect)
+    {
+        var data = new APPBARDATA
+        {
+            cbSize = Marshal.SizeOf<APPBARDATA>(),
+            hWnd = hwnd,
+            uEdge = edge,
+            rc = rect,
+        };
+        SHAppBarMessage(3 /* ABM_SETPOS */, ref data);
     }
 
     /// <summary>Scale factor of a monitor (1.0 = 100 %).</summary>

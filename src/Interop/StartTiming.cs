@@ -18,6 +18,16 @@ internal static class StartTiming
     public static void EndStep(string step, long started) =>
         Log.Info($"Startup step: {step}, {Stopwatch.GetElapsedTime(started).TotalMilliseconds:0} ms");
 
+    /// <summary>
+    /// Ends one part of a longer step and starts the next. The part is logged as "prefix name", and only when there
+    /// is a prefix: a caller passes null when this time is not worth logging.
+    /// </summary>
+    public static long Lap(string? prefix, string name, long started)
+    {
+        if (prefix != null) EndStep(prefix + " " + name, started);
+        return Stopwatch.GetTimestamp();
+    }
+
     /// <summary>For example "0.4 s after ClearStart started, 6.1 s after sign-in".</summary>
     public static string Describe()
     {

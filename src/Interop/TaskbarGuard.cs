@@ -31,6 +31,7 @@ internal static class TaskbarGuard
     private static readonly object AutoHideGate = new();
     private static readonly object HideGate = new();
     private static volatile bool _stopped;
+    private static volatile bool _keepInFront;
     private static Thread? _thread;
     private static uint _threadId;
     // Kept here so the garbage collector cannot take it while Windows still calls it.
@@ -57,6 +58,16 @@ internal static class TaskbarGuard
             ready.Wait(TimeSpan.FromSeconds(5));
             _thread = thread;
         }
+    }
+
+    /// <summary>
+    /// While true, a taskbar is hidden where it is instead of behind ClearStart's tray: Explorer is starting, and its
+    /// taskbar has to stay first in line until it has settled (see <see cref="TrayStandby"/>).
+    /// </summary>
+    public static bool KeepInFront
+    {
+        get => _keepInFront;
+        set => _keepInFront = value;
     }
 
     /// <summary>Stops hiding the Windows taskbar. Showing it again is up to the caller.</summary>
@@ -198,15 +209,18 @@ internal static class TaskbarGuard
         lock (HideGate)
         {
             if (_stopped || EarlySession.Released) return;
-            Native.SetWindowPos(hwnd, Native.HWND_BOTTOM, 0, 0, 0, 0,
-                Native.SWP_HIDEWINDOW | Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
+            uint flags = Native.SWP_HIDEWINDOW | Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE;
+            // Put behind ClearStart's tray, so the apps hand their icons to that one, unless Explorer is starting.
+            if (_keepInFront) flags |= Native.SWP_NOZORDER;
+            Native.SetWindowPos(hwnd, Native.HWND_BOTTOM, 0, 0, 0, 0, flags);
         }
     }
 
     /// <summary>
     /// Auto-hide makes the hidden taskbar give up its strip of the desktop. The setting it had first is written
     /// down, so that it can be put back. Done once for each taskbar Explorer makes (it makes a new one when it
-    /// restarts); Explorer keeps the setting in between.
+    /// restarts); Explorer keeps the setting in between. Windows 11 cannot auto-hide a taskbar on the top or a side,
+    /// so there the taskbar is also moved to the bottom (<see cref="TaskbarEdge"/>).
     /// </summary>
     private static void KeepAutoHidden(IntPtr primary)
     {
@@ -215,18 +229,26 @@ internal static class TaskbarGuard
         // thread has to stay free to hide the other taskbars as they appear, so the asking is done on another.
         ThreadPool.QueueUserWorkItem(_ =>
         {
+            bool checkEdge = false;
             lock (AutoHideGate)
             {
-                if (_stopped || EarlySession.Released) return;
+                if (Stopping) return;
                 try
                 {
-                    if (ExplorerTaskbar.RememberState(primary)) ExplorerTaskbar.EnsureAutoHide(primary);
+                    if (!ExplorerTaskbar.RememberState(primary)) return;
+                    checkEdge = !ExplorerTaskbar.EnsureAutoHide(primary) || OnWindows11;
                 }
                 catch (Exception ex)
                 {
                     Log.Error("Could not switch the Windows taskbar to auto-hide", ex);
                 }
             }
+            // Outside the gate: this can wait for Explorer to settle, and closing ClearStart must not wait for that.
+            if (checkEdge) TaskbarEdge.KeepAtBottom(primary, () => Stopping);
         });
     }
+
+    private static bool Stopping => _stopped || EarlySession.Released;
+
+    private static bool OnWindows11 => Environment.OSVersion.Version.Build >= 22000;
 }

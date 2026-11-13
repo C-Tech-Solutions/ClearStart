@@ -47,10 +47,13 @@ internal static class ExplorerTaskbar
     }
 
     /// <summary>Switches the Windows taskbar to auto-hide, so it keeps no strip of the desktop for itself.</summary>
-    public static void EnsureAutoHide(IntPtr primary)
+    /// <returns>
+    /// Whether auto-hide is on now. Windows 11 turns it down for a taskbar on the top or a side (see <see cref="TaskbarEdge"/>).
+    /// </returns>
+    public static bool EnsureAutoHide(IntPtr primary)
     {
         int state = GetState(primary);
-        if ((state & ABS_AUTOHIDE) != 0) return;
+        if ((state & ABS_AUTOHIDE) != 0) return true;
         var data = new Native.APPBARDATA
         {
             cbSize = Marshal.SizeOf<Native.APPBARDATA>(),
@@ -58,10 +61,94 @@ internal static class ExplorerTaskbar
             lParam = new IntPtr(state | ABS_AUTOHIDE),
         };
         Native.SHAppBarMessage(ABM_SETSTATE, ref data);
+        return (GetState(primary) & ABS_AUTOHIDE) != 0;
+    }
+
+    /// <summary>
+    /// False if any of Explorer's taskbars is on a side of a monitor, or on the top of one and not on the bottom of
+    /// another. An auto-hidden taskbar slides mostly off its monitor, so where one monitor sits above another, the
+    /// bottom of the upper one and the top of the lower one can look alike; that counts as the bottom.
+    /// </summary>
+    public static bool AllOnBottom()
+    {
+        var monitors = System.Windows.Forms.Screen.AllScreens.Select(screen => screen.Bounds).ToList();
+        foreach (var (hwnd, _) in FindBars())
+        {
+            if (!Native.GetWindowRect(hwnd, out var bar) || bar.Width <= 0 || bar.Height <= 0) continue;
+            if (bar.Width < bar.Height) return false;
+            var under = monitors.Where(monitor => bar.Left < monitor.Right && bar.Right > monitor.Left).ToList();
+            bool onTop = under.Any(monitor => bar.Top <= monitor.Top && bar.Bottom > monitor.Top);
+            bool onBottom = under.Any(monitor => bar.Top < monitor.Bottom && bar.Bottom >= monitor.Bottom);
+            if (onTop && !onBottom) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Asks every app to hand its tray icon over again, once ClearStart's tray is the one Windows hands them to: the
+    /// first taskbar window in line. Explorer's can get in front of it when Explorer starts, or brings its own up.
+    /// </summary>
+    /// <returns>False if Explorer's tray stays in front, so the icons would go to Explorer.</returns>
+    public static bool AskForTrayIcons()
+    {
+        IntPtr first = Native.FindWindowEx(IntPtr.Zero, IntPtr.Zero, "Shell_TrayWnd", null);
+        if (first != IntPtr.Zero && !IsOurs(first))
+        {
+            // Hidden already: this only puts it behind ClearStart's (putting the taskbar back raises it again).
+            Native.SetWindowPos(first, Native.HWND_BOTTOM, 0, 0, 0, 0,
+                Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
+            first = Native.FindWindowEx(IntPtr.Zero, IntPtr.Zero, "Shell_TrayWnd", null);
+        }
+        if (first == IntPtr.Zero || !IsOurs(first)) return false;
+        AnnounceTaskbar();
+        return true;
+    }
+
+    private static bool IsOurs(IntPtr hwnd)
+    {
+        Native.GetWindowThreadProcessId(hwnd, out uint pid);
+        return pid == (uint)Environment.ProcessId;
     }
 
     /// <summary>True once Explorer has put up its taskbar (at sign-in ClearStart can be there first).</summary>
-    public static bool IsUp() => FindBars().Any(bar => bar.IsPrimary);
+    public static bool IsUp() => FindPrimary() != IntPtr.Zero;
+
+    /// <summary>Explorer's main taskbar window, or zero while it has none. A new one means Explorer started again.</summary>
+    public static IntPtr FindPrimary() => FindBars().FirstOrDefault(bar => bar.IsPrimary).Hwnd;
+
+    /// <summary>
+    /// How long Explorer takes to settle after it starts: it is still starting its own parts then, and after sign-in
+    /// the user's apps. It is not closed, and ClearStart's tray does not go in front of it, before it has run this long.
+    /// </summary>
+    public static readonly TimeSpan Settle = TimeSpan.FromSeconds(15);
+
+    /// <summary>
+    /// True once the Explorer that owns <paramref name="taskbar"/> has run for <see cref="Settle"/>, or when that
+    /// cannot be told. False while there is no taskbar.
+    /// </summary>
+    public static bool HasSettled(IntPtr taskbar)
+    {
+        if (taskbar == IntPtr.Zero) return false;
+        Native.GetWindowThreadProcessId(taskbar, out uint pid);
+        if (pid == 0) return false;
+        return (Age(taskbar) ?? Settle) >= Settle;
+    }
+
+    /// <summary>How long the Explorer that owns <paramref name="taskbar"/> has run, or null when that cannot be told.</summary>
+    public static TimeSpan? Age(IntPtr taskbar)
+    {
+        Native.GetWindowThreadProcessId(taskbar, out uint pid);
+        if (pid == 0) return null;
+        try
+        {
+            using var shell = Process.GetProcessById((int)pid);
+            return DateTime.Now - shell.StartTime;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     /// <summary>
     /// For signing out with "Start with Windows" on. Shows the Windows taskbar windows again, so a sign-out
@@ -85,8 +172,15 @@ internal static class ExplorerTaskbar
         }
     }
 
-    /// <summary>Shows the Windows taskbar on every monitor again and restores its auto-hide setting.</summary>
-    public static void Restore()
+    /// <summary>
+    /// Shows the Windows taskbar on every monitor again, and restores its auto-hide setting and its edges.
+    /// </summary>
+    /// <param name="sessionEnding">The user is signing out or shutting down (see <see cref="TaskbarEdge.PutBack"/>).</param>
+    /// <param name="keepEdge">
+    /// ClearStart starts again at the next sign-in: the taskbar stays on the bottom edge, and the record of its own
+    /// edges is kept for when ClearStart closes for good.
+    /// </param>
+    public static void Restore(bool sessionEnding = false, bool keepEdge = false)
     {
         EarlySession.Release();
         try
@@ -124,6 +218,11 @@ internal static class ExplorerTaskbar
                     Native.SHAppBarMessage(ABM_SETSTATE, ref data);
                 }
             }
+            // Explorer keeps that only in memory until it closes; written down now, it also holds if it never closes
+            // normally (ended, crashed, power lost).
+            if (hadRecord) TaskbarEdge.WriteAutoHide((state & ABS_AUTOHIDE) != 0);
+            // After the auto-hide setting: Explorer writes that down as it closes, which putting the edges back needs.
+            if (!keepEdge && TaskbarEdge.PutBack(sessionEnding)) bars = FindBars();
             ShowBars(bars);
 
             try
@@ -145,15 +244,17 @@ internal static class ExplorerTaskbar
 
     /// <summary>
     /// Which edge of a monitor the Windows taskbar sits on, or null if no Windows taskbar is found there.
-    /// Used so that our bar starts out where the user already keeps theirs.
+    /// Used so that our bar starts out where the user already keeps theirs. While ClearStart keeps the taskbar on the
+    /// bottom (see <see cref="TaskbarEdge"/>), that is the edge it was moved from.
     /// </summary>
     public static BarEdge? EdgeOn(Native.RECT monitor)
     {
         try
         {
+            var bars = FindBars();
             BarEdge? found = null;
             long best = 0;
-            foreach (var (hwnd, _) in FindBars())
+            foreach (var (hwnd, _) in bars)
             {
                 if (!Native.GetWindowRect(hwnd, out var bar) || bar.Width <= 0 || bar.Height <= 0) continue;
 
@@ -176,6 +277,8 @@ internal static class ExplorerTaskbar
                     ? ((bar.Top + bar.Bottom) / 2 < (monitor.Top + monitor.Bottom) / 2 ? BarEdge.Top : BarEdge.Bottom)
                     : ((bar.Left + bar.Right) / 2 < (monitor.Left + monitor.Right) / 2 ? BarEdge.Left : BarEdge.Right);
             }
+            // No taskbar at all: Explorer is starting again, which moving the taskbar does.
+            if (found == BarEdge.Bottom || bars.Count == 0) return TaskbarEdge.MovedFrom() ?? found;
             return found;
         }
         catch (Exception ex)
@@ -197,7 +300,12 @@ internal static class ExplorerTaskbar
             Native.SetWindowPos(hwnd, Native.HWND_TOPMOST, 0, 0, 0, 0,
                 Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE | Native.SWP_SHOWWINDOW);
         }
+        AnnounceTaskbar();
+    }
 
+    /// <summary>Tells every app a taskbar has started: each one hands its tray icon to the first taskbar in line.</summary>
+    private static void AnnounceTaskbar()
+    {
         uint taskbarCreated = Native.RegisterWindowMessage("TaskbarCreated");
         Native.SendNotifyMessage(new IntPtr(0xFFFF), taskbarCreated, IntPtr.Zero, IntPtr.Zero);
     }

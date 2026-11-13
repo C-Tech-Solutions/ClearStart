@@ -11,6 +11,9 @@ namespace ClearStart;
 /// </summary>
 internal sealed class TaskbarWindow : AppBarWindow
 {
+    // Sent to every window when a taskbar starts: by Explorer when it has started again, and by ClearStart itself.
+    private static readonly int TaskbarCreatedMessage = (int)Native.RegisterWindowMessage("TaskbarCreated");
+
     private readonly ShellHost _host;
     private TaskbarView _view;
     private bool _sideBar;
@@ -74,6 +77,88 @@ internal sealed class TaskbarWindow : AppBarWindow
     public void RefreshApps() => _view.RefreshApps();
 
     /// <summary>
+    /// Takes the handle Windows gave the bar's monitor when it woke from sleep: the same monitor in the same place,
+    /// under a new handle. The bar stays open and where it is.
+    /// </summary>
+    public void UseScreen(AppBarScreen screen)
+    {
+        Screen = screen;
+        _view.UseMonitor(screen.HMonitor);
+    }
+
+    /// <summary>
+    /// Docks the bar again where it is. A monitor that wakes from sleep can come back with all of its area given to
+    /// the desktop, so windows go under the bar, and docking the bar at the same place again does not make Windows
+    /// work the area out again. When that happened, the bar is docked one pixel thinner for a moment and then at its
+    /// own size: each is a change, so Windows makes room for the bar again. The bar itself does not move.
+    /// </summary>
+    /// <returns>True if the bar had lost its room on the desktop and was given it back.</returns>
+    public bool Redock()
+    {
+        if (DeferWorkArea) return false;
+        UpdatePosition();
+        if (HasItsRoom() || !Native.GetWindowRect(Handle, out var rect)) return false;
+
+        switch (AppBarEdge)
+        {
+            case AppBarEdge.Left:
+                rect.Right--;
+                break;
+            case AppBarEdge.Right:
+                rect.Left++;
+                break;
+            case AppBarEdge.Top:
+                rect.Bottom--;
+                break;
+            default:
+                rect.Top++;
+                break;
+        }
+        Native.SetAppBarPosition(Handle, (uint)AppBarEdge, rect);
+        UpdatePosition();
+        Log.Info($"Taskbar on {TaskbarSettings.MonitorKey(Device)} had lost its room on the desktop; docked it again, " +
+            (HasItsRoom() ? "and it has its room back" : "but it has no room yet"));
+        return true;
+    }
+
+    /// <summary>
+    /// Docks the bar anew through Explorer's taskbar, after Explorer started again: the new Explorer does not know
+    /// the bar, so it gave the bar's strip back to the desktop. The bar stays open and where it is.
+    /// </summary>
+    public void DockAgain()
+    {
+        // Taken off ClearStart's own list first: while the bar is on it, registering it again does nothing.
+        // Explorer is told to forget a bar it does not know, which it ignores.
+        UnregisterAppBar();
+        RegisterAppBar();
+        Log.Info($"Taskbar on {TaskbarSettings.MonitorKey(Device)} docked again: " +
+            (HasItsRoom() ? "it has its room on the desktop" : "it has no room on the desktop yet"));
+    }
+
+    protected override IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == TaskbarCreatedMessage) _host.OnTaskbarCreated();
+        return base.WndProc(hwnd, msg, wParam, lParam, ref handled);
+    }
+
+    /// <summary>
+    /// Whether the desktop leaves the bar's strip to it, so maximized windows stop beside the bar. True when it
+    /// cannot be told.
+    /// </summary>
+    private bool HasItsRoom()
+    {
+        IntPtr monitor = Native.MonitorFromWindow(Handle, 2 /* MONITOR_DEFAULTTONEAREST */);
+        if (!Native.GetWindowRect(Handle, out var bar) || !Native.TryGetMonitor(monitor, out _, out var work)) return true;
+        return AppBarEdge switch
+        {
+            AppBarEdge.Left => work.Left >= bar.Right,
+            AppBarEdge.Right => work.Right <= bar.Left,
+            AppBarEdge.Top => work.Top >= bar.Bottom,
+            _ => work.Bottom <= bar.Top,
+        };
+    }
+
+    /// <summary>
     /// Docks the bar to another edge, or gives it another thickness or Start button, without closing it. Closing
     /// and reopening it would make Windows take its docked bar away and add a new one, and Explorer shows its own
     /// taskbar again each time that happens. Only the content is made anew, since its layout follows the edge.
@@ -105,7 +190,12 @@ internal sealed class TaskbarWindow : AppBarWindow
 
     protected override void OnSourceInitialized(object sender, EventArgs e)
     {
+        // Timed for the first bars only, the ones waited for at sign-in (see TaskbarView).
+        string? timing = _host.Mode != HostMode.SelfTest && !_host.HasRenderedBars ? TaskbarSettings.MonitorKey(Device) : null;
+        long step = StartTiming.BeginStep();
+        // Places the window and docks it: Windows works out every monitor's work area again.
         base.OnSourceInitialized(sender, e);
+        StartTiming.Lap(timing, "docking", step);
         try
         {
             Native.MakeToolWindow(Handle);

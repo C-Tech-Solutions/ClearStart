@@ -637,6 +637,26 @@ public sealed class Settings
         }
     }
 
+    /// <summary>
+    /// Reads the settings file on a thread of its own while a live run waits for Explorer, so that the JSON reader
+    /// has done its first-time work by the time <see cref="Load"/> reads the file for real. The result is only used to
+    /// see which pins to look up early; it never becomes the settings. Null when there is no file or it cannot be read.
+    /// </summary>
+    internal static Settings? ParseForWarmUp()
+    {
+        try
+        {
+            // Lets a save go ahead while this reads.
+            using var stream = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            return Parse(reader.ReadToEnd());
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     /// <summary>The settings as the file holds them. The self-test uses this to check what is written reads back.</summary>
     internal static string Write(Settings settings) => JsonSerializer.Serialize(settings, JsonOptions);
 
