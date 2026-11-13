@@ -7,7 +7,8 @@ namespace ClearStart;
 /// Lays the start menu's pinned tiles out in order, row by row, on a grid of medium tiles' places. A wide tile takes two
 /// places side by side, a large one two by two, and small tiles go four to a place. A tile goes in the first place at
 /// or after the one before it that it fits in, so a gap it does not fit is left as it is and the tiles keep their
-/// order. With every tile medium this is the same as a wrap panel.
+/// order. With every tile medium this is the same as a wrap panel. Where only one medium tile fits across, wide and
+/// large tiles are drawn medium; <see cref="ShownProperty"/> tells each tile the size it is drawn at.
 /// </summary>
 public sealed class TileGrid : Panel
 {
@@ -23,9 +24,22 @@ public sealed class TileGrid : Panel
 
     public static void SetSize(UIElement element, TileSize value) => element.SetValue(SizeProperty, value);
 
+    /// <summary>The size a tile is drawn at, set by the grid: its own, or medium where it does not fit across.</summary>
+    public static readonly DependencyProperty ShownProperty = DependencyProperty.RegisterAttached(
+        "Shown", typeof(TileSize), typeof(TileGrid), new FrameworkPropertyMetadata(TileSize.Medium));
+
+    public static TileSize GetShown(UIElement element) => (TileSize)element.GetValue(ShownProperty);
+
+    /// <summary>How many medium tiles fit across, as last measured.</summary>
+    internal int Columns { get; private set; } = 4;
+
     protected override Size MeasureOverride(Size available)
     {
         var places = Places(available.Width);
+        for (int i = 0; i < places.Length; i++)
+        {
+            InternalChildren[i].SetValue(ShownProperty, Drawn(GetSize(InternalChildren[i]), Columns));
+        }
         var extent = new Size();
         for (int i = 0; i < places.Length; i++)
         {
@@ -46,11 +60,15 @@ public sealed class TileGrid : Panel
     private Rect[] Places(double width)
     {
         // As many medium tiles across as fit; unbounded, as many as a wrap panel would put in a row of four.
-        int columns = double.IsInfinity(width) || double.IsNaN(width) ? 4 : Math.Max(1, (int)(width / CellWidth));
+        Columns = double.IsInfinity(width) || double.IsNaN(width) ? 4 : Math.Max(1, (int)(width / CellWidth));
         var sizes = new TileSize[InternalChildren.Count];
         for (int i = 0; i < sizes.Length; i++) sizes[i] = GetSize(InternalChildren[i]);
-        return Place(sizes, columns);
+        return Place(sizes, Columns);
     }
+
+    /// <summary>The size a tile of <paramref name="size"/> is drawn at: wide and large ones need two medium tiles across.</summary>
+    internal static TileSize Drawn(TileSize size, int columns) =>
+        columns < 2 && size is TileSize.Wide or TileSize.Large ? TileSize.Medium : size;
 
     /// <summary>Where each tile goes, given their sizes in order and how many medium tiles fit across.</summary>
     internal static Rect[] Place(IReadOnlyList<TileSize> sizes, int columns)
@@ -63,7 +81,7 @@ public sealed class TileGrid : Panel
 
         for (int i = 0; i < sizes.Count; i++)
         {
-            var size = sizes[i];
+            var size = Drawn(sizes[i], columns);
             if (size == TileSize.Small && smalls < 4)
             {
                 places[i] = SmallPlace(smallRow, smallColumn, smalls++);
@@ -76,7 +94,6 @@ public sealed class TileGrid : Panel
                 TileSize.Large => (2, 2),
                 _ => (1, 1),
             };
-            across = Math.Min(across, columns);
             (row, column) = FirstFree(taken, row, column, across, down, columns);
             for (int r = row; r < row + down; r++)
             {

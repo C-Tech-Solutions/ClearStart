@@ -74,7 +74,7 @@
 
         <!-- A pinned app. Dragged, it moves among the tiles, or onto another to make a folder of the two.
              The element named Icon is what floats under the pointer while it is dragged. The TileGrid gives the
-             tile its place, as big as its size: a small one has no name, a wide one has it beside the icon. -->
+             tile its place, and the size it is drawn at: a small one has no name, a wide one has it beside the icon. -->
         <DataTemplate x:Key="TileTemplate">
             <Button x:Name="Tile" Style="{StaticResource FlatButton}" Margin="2" ToolTip="{Binding Name}"
                     Click="Pin_Click" MouseRightButtonUp="Pin_RightClick"
@@ -87,12 +87,12 @@
                 </StackPanel>
             </Button>
             <DataTemplate.Triggers>
-                <DataTrigger Binding="{Binding Size}" Value="Small">
+                <Trigger Property="local:TileGrid.Shown" Value="Small">
                     <Setter TargetName="Icon" Property="Width" Value="24"/>
                     <Setter TargetName="Icon" Property="Height" Value="24"/>
                     <Setter TargetName="Label" Property="Visibility" Value="Collapsed"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Size}" Value="Wide">
+                </Trigger>
+                <Trigger Property="local:TileGrid.Shown" Value="Wide">
                     <Setter TargetName="Tile" Property="HorizontalContentAlignment" Value="Left"/>
                     <Setter TargetName="Face" Property="Orientation" Value="Horizontal"/>
                     <Setter TargetName="Icon" Property="Margin" Value="14,0,0,0"/>
@@ -102,15 +102,15 @@
                     <Setter TargetName="Label" Property="FontSize" Value="13"/>
                     <Setter TargetName="Label" Property="TextAlignment" Value="Left"/>
                     <Setter TargetName="Label" Property="VerticalAlignment" Value="Center"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Size}" Value="Large">
+                </Trigger>
+                <Trigger Property="local:TileGrid.Shown" Value="Large">
                     <Setter TargetName="Icon" Property="Source" Value="{Binding Item.JumboIcon}"/>
                     <Setter TargetName="Icon" Property="Width" Value="72"/>
                     <Setter TargetName="Icon" Property="Height" Value="72"/>
                     <Setter TargetName="Label" Property="Margin" Value="8,12,8,0"/>
                     <Setter TargetName="Label" Property="MaxHeight" Value="40"/>
                     <Setter TargetName="Label" Property="FontSize" Value="14"/>
-                </DataTrigger>
+                </Trigger>
             </DataTemplate.Triggers>
         </DataTemplate>
 
@@ -148,12 +148,12 @@
                 </StackPanel>
             </Button>
             <DataTemplate.Triggers>
-                <DataTrigger Binding="{Binding Size}" Value="Small">
+                <Trigger Property="local:TileGrid.Shown" Value="Small">
                     <Setter TargetName="Plate" Property="Width" Value="30"/>
                     <Setter TargetName="Plate" Property="Height" Value="30"/>
                     <Setter TargetName="Label" Property="Visibility" Value="Collapsed"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Size}" Value="Wide">
+                </Trigger>
+                <Trigger Property="local:TileGrid.Shown" Value="Wide">
                     <Setter TargetName="Tile" Property="HorizontalContentAlignment" Value="Left"/>
                     <Setter TargetName="Face" Property="Orientation" Value="Horizontal"/>
                     <Setter TargetName="Plate" Property="Margin" Value="13,0,0,0"/>
@@ -163,14 +163,14 @@
                     <Setter TargetName="Label" Property="FontSize" Value="13"/>
                     <Setter TargetName="Label" Property="TextAlignment" Value="Left"/>
                     <Setter TargetName="Label" Property="VerticalAlignment" Value="Center"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Size}" Value="Large">
+                </Trigger>
+                <Trigger Property="local:TileGrid.Shown" Value="Large">
                     <Setter TargetName="Plate" Property="Width" Value="76"/>
                     <Setter TargetName="Plate" Property="Height" Value="76"/>
                     <Setter TargetName="Label" Property="Margin" Value="8,10,8,0"/>
                     <Setter TargetName="Label" Property="MaxHeight" Value="40"/>
                     <Setter TargetName="Label" Property="FontSize" Value="14"/>
-                </DataTrigger>
+                </Trigger>
             </DataTemplate.Triggers>
         </DataTemplate>
 

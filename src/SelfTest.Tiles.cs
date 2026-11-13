@@ -38,7 +38,7 @@ internal static partial class SelfTest
             "0,0 100x92; 100,0 100x92; 200,0 100x92; 0,92 200x92; 200,92 100x92", 4, M, M, M, W, M);
         ExpectPlaces("a small one after a medium one starts a place of its own", "0,0 50x46; 100,0 100x92; 200,0 50x46",
             4, S, M, S);
-        ExpectPlaces("one across: a wide one as wide as it can be", "0,0 100x92; 0,92 100x92", 1, W, M);
+        ExpectPlaces("one across: wide and large ones drawn medium", "0,0 100x92; 0,92 100x92; 0,184 100x92", 1, W, L, M);
 
         var settings = Settings.Current.StartMenu;
         var pins = host.Pins;
@@ -85,9 +85,12 @@ internal static partial class SelfTest
             errors.Add($"Tile sizes: the settings list the sizes {written}; a medium tile should not be listed");
         }
 
-        // As drawn: each the right size against a medium one, and none on top of another.
+        // As drawn: each the right size against a medium one, none on top of another, and every name inside its
+        // tile. Where only one medium tile fits across, the wide and large ones are drawn medium.
         var places = menu.TilePlaces();
-        steps.Add("drawn: " + Shown(places));
+        int columns = menu.TileColumns();
+        double two = columns >= 2 ? 2 : 1;
+        steps.Add($"drawn, {columns} across: " + Shown(places));
         var medium = places[4];
         void ExpectDrawn(int tile, double across, double down)
         {
@@ -98,8 +101,8 @@ internal static partial class SelfTest
                     + $" against a medium tile's {medium.Width:0}x{medium.Height:0}");
             }
         }
-        ExpectDrawn(0, 2, 2);
-        ExpectDrawn(1, 2, 1);
+        ExpectDrawn(0, two, two);
+        ExpectDrawn(1, two, 1);
         ExpectDrawn(2, 0.5, 0.5);
         ExpectDrawn(3, 0.5, 0.5);
         for (int i = 0; i < places.Count; i++)
@@ -110,6 +113,7 @@ internal static partial class SelfTest
                 if (!overlap.IsEmpty && overlap.Width > 0.5 && overlap.Height > 0.5) errors.Add($"Tile sizes: tiles {i} and {j} overlap");
             }
         }
+        ExpectNamesInside(menu, "drawn");
 
         // The right-click menu ticks the size the tile is.
         var sizeMenu = menu.TileMenu((PinnedItem)start[1]).FirstOrDefault(entry => entry.Header == "Size");
@@ -134,25 +138,37 @@ internal static partial class SelfTest
         await Task.Delay(1500);
         stage.Save(Path.Combine(directory, "startmenu-tile-sizes.png"));
 
-        // Drawn half as big again: a medium tile half as wide again, and fewer of them across.
+        // Drawn half as big again in the narrowest menu: a medium tile half as wide again, one of them across, and
+        // the wide and large ones drawn medium with their names inside.
         settings.Pinned = paths.ToList();
         settings.PinFolders = null;
-        settings.TileSizes = null;
+        settings.TileSizes = new Dictionary<string, TileSize>(StringComparer.OrdinalIgnoreCase) { [paths[0]] = W, [paths[1]] = L };
         pins.ReloadStart();
         int scaleBefore = settings.PinScale;
         settings.PinScale = 150;
-        var bigger = new StartMenuView(host, () => { }) { Width = settings.Width, Height = settings.Height };
-        var onStage = new Stage(bigger, settings.Width + 40, settings.Height + 40);
+        const int narrow = 640;
+        var bigger = new StartMenuView(host, () => { }) { Width = narrow, Height = settings.Height };
+        var onStage = new Stage(bigger, narrow + 40, settings.Height + 40);
         try
         {
             await Task.Delay(1500);
             var big = bigger.TilePlaces();
-            steps.Add("drawn at 150%: " + Shown(big));
-            if (big.Count == 0 || Math.Abs(big[0].Width - TileGrid.CellWidth * 1.5) > 1)
+            int across = bigger.TileColumns();
+            double twice = across >= 2 ? 2 : 1;
+            steps.Add($"drawn at 150%, {across} across: " + Shown(big));
+            void ExpectBig(int tile, double wide, double tall)
             {
-                errors.Add($"Tile sizes: at 150% a medium tile is drawn {(big.Count > 0 ? big[0].Width : 0):0} wide,"
-                    + $" not {TileGrid.CellWidth * 1.5:0}");
+                double width = TileGrid.CellWidth * 1.5 * wide, height = TileGrid.CellHeight * 1.5 * tall;
+                if (big.Count <= tile || Math.Abs(big[tile].Width - width) > 1 || Math.Abs(big[tile].Height - height) > 1)
+                {
+                    errors.Add($"Tile sizes: at 150% tile {tile} is drawn {(big.Count > tile ? $"{big[tile].Width:0}x{big[tile].Height:0}" : "nowhere")},"
+                        + $" not {width:0}x{height:0}");
+                }
             }
+            ExpectBig(0, twice, 1);
+            ExpectBig(1, twice, twice);
+            ExpectBig(2, 1, 1);
+            ExpectNamesInside(bigger, "at 150% in a narrow menu");
             onStage.Save(Path.Combine(directory, "startmenu-tile-scale.png"));
         }
         finally
@@ -189,5 +205,12 @@ internal static partial class SelfTest
             if (!downloads.Loaded || downloads.AbsolutePidl == IntPtr.Zero) errors.Add("Properties: shell:Downloads could not be found");
         }
         return steps;
+
+        void ExpectNamesInside(StartMenuView view, string what)
+        {
+            var overflow = view.TileNameOverflow();
+            int tile = overflow.FindIndex(reach => reach > 0.5);
+            if (tile >= 0) errors.Add($"Tile sizes ({what}): tile {tile}'s name reaches {overflow[tile]:0} past its place");
+        }
     }
 }

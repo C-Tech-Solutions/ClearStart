@@ -1040,6 +1040,26 @@ public partial class StartMenuView : UserControl
             .ToList();
     }
 
+    /// <summary>How many medium tiles fit across the pins, as drawn; 0 with none shown.</summary>
+    internal int TileColumns()
+    {
+        UpdateLayout();
+        return PinList.Items.Cast<object>().Select(item => PinList.ItemContainerGenerator.ContainerFromItem(item))
+            .OfType<Visual>().Select(cell => VisualTreeHelper.GetParent(cell)).OfType<TileGrid>().FirstOrDefault()?.Columns ?? 0;
+    }
+
+    /// <summary>For each tile, how far its name reaches past the right of its place; 0 when it stays inside.</summary>
+    internal List<double> TileNameOverflow()
+    {
+        UpdateLayout();
+        return PinList.Items.Cast<object>()
+            .Select(item => PinList.ItemContainerGenerator.ContainerFromItem(item) is FrameworkElement { IsVisible: true } cell
+                && FindNamed(cell, "Label") is { } label
+                    ? Math.Max(0, label.TransformToAncestor(cell).TransformBounds(new Rect(label.RenderSize)).Right - cell.RenderSize.Width)
+                    : 0)
+            .ToList();
+    }
+
     /// <summary>A pinned tile's right-click menu.</summary>
     internal List<MenuEntry> TileMenu(PinnedItem pin) => ItemEntries(pin.Item, pin.Path, pin);
 

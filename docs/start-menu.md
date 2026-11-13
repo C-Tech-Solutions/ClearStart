@@ -88,8 +88,9 @@ share the place of one. A small tile shows only its icon; a large one shows a bi
 
 The tiles keep their order, row by row. Each goes in the first place after the one before it
 that it fits in, so a wide tile that does not fit at the end of a row starts the next one and
-leaves a gap. A folder made on a tile takes that tile's size. The sizes are kept in ClearStart's
-settings file.
+leaves a gap. Where only one medium tile fits across (a narrow menu, or tiles drawn big), wide and
+large tiles are drawn medium. A folder made on a tile takes that tile's size. The sizes are kept in
+ClearStart's settings file.
 
 To draw all the tiles bigger or smaller, use **Settings → Start menu → Pinned tile scale**
 (70% to 150%). Bigger tiles fit fewer across.

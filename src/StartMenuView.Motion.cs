@@ -428,14 +428,17 @@ public partial class StartMenuView
             : null;
 
     /// <summary>The element named Icon in a tile or a row of the list, as the templates name it.</summary>
-    private static FrameworkElement? FindIcon(DependencyObject root)
+    private static FrameworkElement? FindIcon(DependencyObject root) => FindNamed(root, "Icon");
+
+    /// <summary>The element of a template with this name, if it is drawn.</summary>
+    private static FrameworkElement? FindNamed(DependencyObject root, string name)
     {
         var queue = new Queue<DependencyObject>();
         queue.Enqueue(root);
         while (queue.Count > 0)
         {
             var next = queue.Dequeue();
-            if (next is FrameworkElement { Name: "Icon" } icon) return icon.ActualWidth > 0 ? icon : null;
+            if (next is FrameworkElement element && element.Name == name) return element.ActualWidth > 0 ? element : null;
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(next); i++) queue.Enqueue(VisualTreeHelper.GetChild(next, i));
         }
         return null;
