@@ -251,41 +251,54 @@ internal static class ExplorerTaskbar
     {
         try
         {
-            var bars = FindBars();
-            BarEdge? found = null;
-            long best = 0;
-            foreach (var (hwnd, _) in bars)
-            {
-                if (!Native.GetWindowRect(hwnd, out var bar) || bar.Width <= 0 || bar.Height <= 0) continue;
-
-                long overlap =
-                    (long)Math.Max(0, Math.Min(bar.Right, monitor.Right) - Math.Max(bar.Left, monitor.Left)) *
-                    Math.Max(0, Math.Min(bar.Bottom, monitor.Bottom) - Math.Max(bar.Top, monitor.Top));
-                if (overlap <= 0) continue;
-
-                // A bar that runs the whole length of one side belongs to this monitor even when most of
-                // it is slid off-screen (auto-hide) and so overlaps a neighbouring monitor more.
-                bool horizontal = bar.Width >= bar.Height;
-                bool spans = horizontal
-                    ? bar.Left == monitor.Left && bar.Right == monitor.Right
-                    : bar.Top == monitor.Top && bar.Bottom == monitor.Bottom;
-                long score = overlap + (spans ? long.MaxValue / 2 : 0);
-                if (score <= best) continue;
-
-                best = score;
-                found = horizontal
-                    ? ((bar.Top + bar.Bottom) / 2 < (monitor.Top + monitor.Bottom) / 2 ? BarEdge.Top : BarEdge.Bottom)
-                    : ((bar.Left + bar.Right) / 2 < (monitor.Left + monitor.Right) / 2 ? BarEdge.Left : BarEdge.Right);
-            }
-            // No taskbar at all: Explorer is starting again, which moving the taskbar does.
-            if (found == BarEdge.Bottom || bars.Count == 0) return TaskbarEdge.MovedFrom() ?? found;
-            return found;
+            // A monitor that had no taskbar before the move goes by the one it has now.
+            return EdgeOn(monitor, TaskbarEdge.OriginalBars()) ?? EdgeOn(monitor, BarRects());
         }
         catch (Exception ex)
         {
             Log.Warn("Could not tell where the Windows taskbar is: " + ex.Message);
             return null;
         }
+    }
+
+    /// <summary>Where each of Explorer's taskbar windows is.</summary>
+    public static List<Native.RECT> BarRects()
+    {
+        var rects = new List<Native.RECT>();
+        foreach (var (hwnd, _) in FindBars())
+        {
+            if (Native.GetWindowRect(hwnd, out var bar) && bar.Width > 0 && bar.Height > 0) rects.Add(bar);
+        }
+        return rects;
+    }
+
+    /// <summary>The edge of <paramref name="monitor"/> that the one of <paramref name="bars"/> on it sits on.</summary>
+    private static BarEdge? EdgeOn(Native.RECT monitor, List<Native.RECT> bars)
+    {
+        BarEdge? found = null;
+        long best = 0;
+        foreach (var bar in bars)
+        {
+            long overlap =
+                (long)Math.Max(0, Math.Min(bar.Right, monitor.Right) - Math.Max(bar.Left, monitor.Left)) *
+                Math.Max(0, Math.Min(bar.Bottom, monitor.Bottom) - Math.Max(bar.Top, monitor.Top));
+            if (overlap <= 0) continue;
+
+            // A bar that runs the whole length of one side belongs to this monitor even when most of
+            // it is slid off-screen (auto-hide) and so overlaps a neighbouring monitor more.
+            bool horizontal = bar.Width >= bar.Height;
+            bool spans = horizontal
+                ? bar.Left == monitor.Left && bar.Right == monitor.Right
+                : bar.Top == monitor.Top && bar.Bottom == monitor.Bottom;
+            long score = overlap + (spans ? long.MaxValue / 2 : 0);
+            if (score <= best) continue;
+
+            best = score;
+            found = horizontal
+                ? ((bar.Top + bar.Bottom) / 2 < (monitor.Top + monitor.Bottom) / 2 ? BarEdge.Top : BarEdge.Bottom)
+                : ((bar.Left + bar.Right) / 2 < (monitor.Left + monitor.Right) / 2 ? BarEdge.Left : BarEdge.Right);
+        }
+        return found;
     }
 
     /// <summary>

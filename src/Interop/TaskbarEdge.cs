@@ -17,7 +17,8 @@ namespace ClearStart;
 /// Explorer reads the edge only as it starts, and writes its own as it closes, so the edge is changed while Explorer
 /// is closed. The Restart Manager closes it the way Windows does for an update, the edge is written, and the Restart
 /// Manager starts it again; folder windows stay open. This takes under a second. An Explorer that does not close when
-/// asked is ended and started afresh instead.
+/// asked is ended and started afresh instead. Under the early-startup loader the taskbar is left where it is: the
+/// loader watches the Explorer it started, and takes its closing for a failure.
 ///
 /// The edges the taskbar had are written down first. They are put back when ClearStart closes, fails, or is
 /// uninstalled ("--restore"), and at the next sign-in when the user signs out and ClearStart does not start again.
@@ -31,6 +32,8 @@ internal static class TaskbarEdge
     private const string OtherMonitorsKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\MMStuckRects3";
     private const string RunOnceKey = @"Software\Microsoft\Windows\CurrentVersion\RunOnce";
     private const string RunOnceValue = "ClearStart taskbar edge";
+    // A line of the record that holds where a taskbar window was, rather than an edge from Windows' record.
+    private const string BarLine = "bar";
     // Within each value: the edge (0 left, 1 top, 2 right, 3 bottom), and in the main one the auto-hide flag.
     private const int EdgeOffset = 12;
     private const int FlagsOffset = 8;
@@ -119,6 +122,12 @@ internal static class TaskbarEdge
                 }
                 if (_tried) return;
                 _tried = true;
+                if (EarlySession.Active)
+                {
+                    Log.Warn("The Windows taskbar is not on the bottom edge. It is left there: moving it restarts " +
+                        "Explorer, and the early-startup loader takes the Explorer it started closing for a failure");
+                    return;
+                }
                 if (entries.All(entry => entry.Edge == Bottom))
                 {
                     Log.Warn("The Windows taskbar is not on the bottom edge, but Windows' record says it is; it is left there");
@@ -197,7 +206,10 @@ internal static class TaskbarEdge
                 if (_writtenForSignIn) return false;
                 var record = ReadRecord();
                 if (record == null) return false;
-                if (Matches(record))
+                IntPtr primary = ExplorerTaskbar.FindPrimary();
+                // Explorer keeps its edges in memory and writes them as it closes. One that still has its taskbar on
+                // the bottom (a sign-out that was cancelled after the edges were written) would write the bottom back.
+                if (Matches(record) && !(primary != IntPtr.Zero && ExplorerTaskbar.AllOnBottom()))
                 {
                     Forget();
                     return false;
@@ -212,7 +224,6 @@ internal static class TaskbarEdge
                     return false;
                 }
 
-                IntPtr primary = ExplorerTaskbar.FindPrimary();
                 if (primary == IntPtr.Zero)
                 {
                     // Explorer is not running: it reads the edges when it starts.
@@ -237,21 +248,32 @@ internal static class TaskbarEdge
         }
     }
 
-    /// <summary>The edge the main taskbar was moved from to the bottom, or null if it was not moved.</summary>
-    public static BarEdge? MovedFrom()
+    /// <summary>
+    /// Where Explorer's taskbar windows were before they were moved to the bottom, so that each monitor's bar can go
+    /// on the edge that monitor's taskbar had. Empty if the taskbar was not moved.
+    /// </summary>
+    public static List<Native.RECT> OriginalBars()
     {
-        foreach (var entry in ReadRecord() ?? new List<Entry>())
+        var bars = new List<Native.RECT>();
+        try
         {
-            if (entry.Key != MainKey || entry.Name != MainValue) continue;
-            return entry.Edge switch
+            if (!File.Exists(RecordFile)) return bars;
+            foreach (string line in File.ReadAllLines(RecordFile))
             {
-                0 => BarEdge.Left,
-                1 => BarEdge.Top,
-                2 => BarEdge.Right,
-                _ => null,
-            };
+                string[] parts = line.Split('\t');
+                if (parts.Length == 5 && parts[0] == BarLine
+                    && int.TryParse(parts[1], out int left) && int.TryParse(parts[2], out int top)
+                    && int.TryParse(parts[3], out int right) && int.TryParse(parts[4], out int bottom))
+                {
+                    bars.Add(new Native.RECT { Left = left, Top = top, Right = right, Bottom = bottom });
+                }
+            }
         }
-        return null;
+        catch (Exception ex)
+        {
+            Log.Warn("Could not read where the Windows taskbar was: " + ex.Message);
+        }
+        return bars;
     }
 
     /// <summary>The edges other than the bottom, the main taskbar's first, as in "top edge".</summary>
@@ -356,10 +378,13 @@ internal static class TaskbarEdge
         }
     }
 
+    /// <summary>Writes down the edges in Windows' record, and where each taskbar window is (see <see cref="OriginalBars"/>).</summary>
     private static void WriteRecord(List<Entry> entries)
     {
         Directory.CreateDirectory(Log.DataDirectory);
-        File.WriteAllLines(RecordFile, entries.Select(entry => $"{entry.Key}\t{entry.Name}\t{entry.Edge}"));
+        File.WriteAllLines(RecordFile, entries.Select(entry => $"{entry.Key}\t{entry.Name}\t{entry.Edge}")
+            .Concat(ExplorerTaskbar.BarRects().Select(bar =>
+                $"{BarLine}\t{bar.Left}\t{bar.Top}\t{bar.Right}\t{bar.Bottom}")));
     }
 
     /// <summary>Drops the record, and the run at the next sign-in that would have finished putting it back.</summary>
