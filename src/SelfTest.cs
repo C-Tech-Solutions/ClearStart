@@ -123,6 +123,16 @@ internal static partial class SelfTest
                 errors.Add("Hiding bars: " + ex);
             }
 
+            // The Windows taskbar on each edge, on made-up monitors: nothing is read from Windows or changed.
+            try
+            {
+                report["taskbarEdges"] = CheckTaskbarEdges(errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Taskbar edges: " + ex);
+            }
+
             // Start with Windows: read only. The switch is never thrown here.
             try
             {

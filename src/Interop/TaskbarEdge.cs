@@ -27,10 +27,10 @@ namespace ClearStart;
 /// </summary>
 internal static class TaskbarEdge
 {
-    private const string MainKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StuckRects3";
-    private const string MainValue = "Settings";
+    internal const string MainKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StuckRects3";
+    internal const string MainValue = "Settings";
     // One value for each monitor Windows has seen, for the taskbars on the other monitors.
-    private const string OtherMonitorsKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\MMStuckRects3";
+    internal const string OtherMonitorsKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\MMStuckRects3";
     private const string RunOnceKey = @"Software\Microsoft\Windows\CurrentVersion\RunOnce";
     private const string RunOnceValue = "ClearStart taskbar edge";
     // A line of the record that holds where a taskbar window was, rather than an edge from Windows' record.
@@ -99,7 +99,7 @@ internal static class TaskbarEdge
     private static string LoaderExplorerFile => Path.Combine(Log.DataDirectory, "early-startup-explorer.txt");
     private static bool _notedLoaderExplorer;
 
-    private readonly record struct Entry(string Key, string Name, byte Edge);
+    internal readonly record struct Entry(string Key, string Name, byte Edge);
 
     /// <summary>
     /// Moves the Windows taskbar to the bottom edge, with auto-hide on, if it is on another edge of any monitor. Runs on
@@ -151,7 +151,7 @@ internal static class TaskbarEdge
                 else if (entries.Where(entry => !record.Any(saved => saved.Key == entry.Key && saved.Name == entry.Name))
                              .ToList() is { Count: > 0 } added)
                 {
-                    File.AppendAllLines(RecordFile, added.Select(entry => $"{entry.Key}\t{entry.Name}\t{entry.Edge}"));
+                    File.AppendAllLines(RecordFile, added.Select(RecordLine));
                 }
                 _moving = moving = true;
             }
@@ -303,7 +303,7 @@ internal static class TaskbarEdge
     }
 
     /// <summary>The edges other than the bottom, the main taskbar's first, as in "top edge".</summary>
-    private static string Describe(List<Entry> entries)
+    internal static string Describe(List<Entry> entries)
     {
         var edges = entries.OrderBy(entry => entry.Key == MainKey ? 0 : 1).Select(entry => entry.Edge)
             .Where(edge => edge != Bottom).Distinct().Select(edge => EdgeNames[edge]).ToList();
@@ -385,17 +385,7 @@ internal static class TaskbarEdge
         try
         {
             if (!File.Exists(RecordFile)) return null;
-            var record = new List<Entry>();
-            foreach (string line in File.ReadAllLines(RecordFile))
-            {
-                string[] parts = line.Split('\t');
-                if (parts.Length == 3 && byte.TryParse(parts[2], out byte edge) && edge <= Bottom
-                    && (parts[0] == MainKey || parts[0] == OtherMonitorsKey))
-                {
-                    record.Add(new Entry(parts[0], parts[1], edge));
-                }
-            }
-            return record;
+            return ParseRecord(File.ReadAllLines(RecordFile));
         }
         catch (Exception ex)
         {
@@ -404,11 +394,29 @@ internal static class TaskbarEdge
         }
     }
 
+    /// <summary>The edges in the lines of the record; the lines that hold where a taskbar window was are skipped.</summary>
+    internal static List<Entry> ParseRecord(IEnumerable<string> lines)
+    {
+        var record = new List<Entry>();
+        foreach (string line in lines)
+        {
+            string[] parts = line.Split('\t');
+            if (parts.Length == 3 && byte.TryParse(parts[2], out byte edge) && edge <= Bottom
+                && (parts[0] == MainKey || parts[0] == OtherMonitorsKey))
+            {
+                record.Add(new Entry(parts[0], parts[1], edge));
+            }
+        }
+        return record;
+    }
+
+    internal static string RecordLine(Entry entry) => $"{entry.Key}\t{entry.Name}\t{entry.Edge}";
+
     /// <summary>Writes down the edges in Windows' record, and where each taskbar window is (see <see cref="OriginalBars"/>).</summary>
     private static void WriteRecord(List<Entry> entries)
     {
         Directory.CreateDirectory(Log.DataDirectory);
-        File.WriteAllLines(RecordFile, entries.Select(entry => $"{entry.Key}\t{entry.Name}\t{entry.Edge}")
+        File.WriteAllLines(RecordFile, entries.Select(RecordLine)
             .Concat(ExplorerTaskbar.BarRects().Select(bar =>
                 $"{BarLine}\t{bar.Left}\t{bar.Top}\t{bar.Right}\t{bar.Bottom}")));
     }
