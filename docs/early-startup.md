@@ -3,8 +3,8 @@
 [Back to the README](../README.md)
 
 This separate candidate targets the Windows taskbar flash at sign-in. It is disabled by default
-and is not part of the normal installer build. Colten approved and reported a successful test on
-his PC on November 12, 2026. It targets native x64 Windows 11; ARM64 is refused.
+and is not part of the normal installer build. It was first tested successfully on one PC on
+November 12, 2026. It targets native x64 Windows 11; ARM64 is refused.
 
 ## How it starts
 
@@ -30,8 +30,12 @@ sign-in, with Explorer ready at 2.7 and 1.6 seconds respectively. Candidate `b59
 ReadyToRun precompilation and deferred network discovery until after rendering. Its two logged
 sign-ins took 8.7 and 8.9 seconds, a modest improvement with a small sample. The next pass defers
 Start-menu pins, prioritizes taskbar-sized images, and measures construction/docking stages.
-Its timing and the optional icon animation still need a new sign-in test. Icon loading and
-animation do not delay the ready signal or change the native fallback mechanism.
+The 0.3.0 code also gives a newly started Explorer three seconds before ClearStart's shell
+services start beside it, which keeps Win+arrow snapping working. A candidate built from it
+showed the bars 10.9 seconds after sign-in on a cold boot, with Win+arrow and the Windows key
+working; most of the extra time is that wait. The optional icon animation still needs a sign-in
+test. Icon loading and animation do not delay the ready signal or change the native fallback
+mechanism.
 
 ## Recovery
 
@@ -47,6 +51,9 @@ that exact process if stuck. It restores the saved auto-hide setting and shows t
 If the guarded Explorer has exited, the loader starts plain Explorer once. It never injects into
 an already running Explorer or hunts for processes by name. A later ordinary Explorer restart
 uses the out-of-process guard and may flash; reinjection into a running desktop is not attempted.
+For the same reason, ClearStart does not move a Windows taskbar on the top or a side to the bottom
+under early startup, since that restarts Explorer: the taskbar stays on its edge, and its strip of
+the screen stays empty.
 
 Startup failures, crashes and watchdog recovery detected by the loader remove its own shell entry
 so the next sign-in uses Windows normally. Normal Exit keeps the entry for the next sign-in. The DLL stays loaded, inert,

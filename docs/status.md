@@ -2,14 +2,14 @@
 
 [← Back to the README](../README.md)
 
-ClearStart is at version 0.2.0 and is an early preview. This page says plainly what has been run,
+ClearStart is at version 0.3.0 and is an early preview. This page says plainly what has been run,
 what has not, and what is missing.
 
 - [What has been run](#what-has-been-run)
-- [Known problems in 0.2.0](#known-problems-in-020)
+- [Known problems in 0.3.0](#known-problems-in-030)
 - [What has not been run](#what-has-not-been-run)
 - [Not confirmed by hand yet](#not-confirmed-by-hand-yet)
-- [Changed since 0.2.0, not run yet](#changed-since-020-not-run-yet)
+- [In 0.3.0, not run yet](#in-030-not-run-yet)
 - [Not there yet](#not-there-yet)
 
 ## What has been run
@@ -17,39 +17,36 @@ what has not, and what is missing.
 | | |
 | --- | --- |
 | **Preview mode** | Run on one desktop: Windows 11 25H2, four monitors at 100% scaling. |
-| **Live mode** | Run on that desktop in the Windows taskbar's place, with a bar on each of the four monitors: hiding the Windows taskbar and putting it back on exit, your apps' tray icons on the bars, the hidden ones behind the arrow, dragging icons on and off the bar, and the Cast button. |
+| **Live mode** | Run on that desktop in the Windows taskbar's place, with a bar on each of the four monitors: hiding the Windows taskbar and putting it back on exit, your apps' tray icons on the bars, the hidden ones behind the arrow, dragging icons on and off the bar, and the Cast button. Win+arrow window snapping, and the Windows key raising the bars with the start menu over a fullscreen app, were checked by hand after signing in. Also run on a second PC, a laptop with one screen. |
+| **Start with Windows** | The sign-in task has started ClearStart on that desktop after signing out and in again, and after a restart (see [Known problems](#known-problems-in-030)). The tray, the weather and the list of apps started after the bars were on screen. |
+| **A taskbar on another edge** | On the laptop, a Windows taskbar on the top edge was moved to the bottom while ClearStart ran and put back on the top when it closed, including when Explorer did not close when asked and was ended and started again. |
 | **The self-test** | `ClearStart.exe --selftest` draws about eighty pictures of the bars, the start menu, the weather panel, the settings pages and the Start button designs, checks where things end up, and reports any error. It passes with no errors. |
-| **The installer** | A build from before the updater was added was signed and run on that desktop without its pages on screen: installing, installing again over a running copy, adding Start with Windows, and uninstalling. The installed copy passed the self-test. |
+| **The installer** | A build from before the updater was added was signed and run on that desktop without its pages on screen: installing, installing again over a running copy, adding Start with Windows, and uninstalling. The installed copy passed the self-test. An unsigned build of the 0.3.0 code was installed over a running copy the same way, with Start with Windows, and started ClearStart again. |
 | **The release** | The [0.2.0 release](https://github.com/C-Tech-Solutions/ClearStart/releases/tag/v0.2.0)'s installer was built from the tagged commit and signed. After it was published, its signature, its version and its SHA-256 were checked against the checksum file and GitHub's own record. The program in it passes the self-test, and GitHub's answer about the latest release passes every check the updater makes. It has been downloaded from the release, installed and run on that desktop. |
 
-## Known problems in 0.2.0
+## Known problems in 0.3.0
 
-These have been seen on that desktop. Resize and fullscreen/menu fixes are in the code but have
-not been run yet. Taskbar flashing during moves and sign-in is mitigated, not guaranteed absent;
-see [Changed since 0.2.0, not run yet](#changed-since-020-not-run-yet).
-
-- **Resizing a bar is choppy.** Dragging a bar's edge does not follow the mouse smoothly.
-- **The Windows taskbar shows for a moment** when a bar is moved or resized in live mode.
-- **After a restart, the Windows taskbar shows until ClearStart has loaded.**
-- **Over a fullscreen window, the Windows key opens the menu but leaves the bars behind.**
+- **After a restart, the Windows taskbar can show for a moment, and the bars can take a while.**
+  On one restart with Start with Windows, ClearStart's program waited about ten seconds before it
+  began, while Windows' virus scanner started, and the Windows taskbar showed a few times before
+  the bars took over. Signing out and in again did not do this.
+- **The bars wait for a newly started Explorer.** At sign-in, ClearStart gives Explorer three
+  seconds before its own tray starts beside it; one that is crowded sooner stops snapping windows
+  with Win+arrow. That adds up to three seconds before the bars are on screen.
 
 ## What has not been run
 
-**Parts of live mode.** These are written but have not been run:
+**Parts of live mode.** `ClearStart.exe --restore` after live mode has not been run. It has run
+only while a preview was up, when uninstalling, and there was nothing to put back.
 
-- `ClearStart.exe --restore` after live mode. It has run only while a preview was up, when
-  uninstalling, and there was nothing to put back;
-- starting with Windows (the switch starts live mode).
-
-**Experimental early startup.** Colten approved testing candidate `75cc2a5` on his PC and reported
-that it worked. The loader and Explorer guard ran at sign-in; two sessions logged the bars on
-screen at 8.9 and 9.7 seconds after sign-in. Candidate `b5905ea` precompiled the app and deferred
-network discovery; its two sign-ins took 8.7 and 8.9 seconds. The next startup pass defers Start-menu
-pins, prioritizes taskbar icons and adds stage timings. Its speed and the optional icon animation
-have not been tested at sign-in; focused headless pin/reveal checks pass. First-frame suppression across
-Windows builds, missing-file recovery, crash/hang recovery, sleep/resume, and removal remain
-unverified. The feature is disabled by default and outside the normal installer build. See
-[the isolated test plan](early-startup.md#validation-before-enabling-on-a-real-pc).
+**Experimental early startup.** It was first tested on one PC on November 12, 2026. The loader and
+Explorer guard ran at sign-in; the early candidates logged the bars on screen 8.7 to 9.7 seconds
+after sign-in. A candidate built from the 0.3.0 code logged them 10.9 seconds after sign-in on a
+cold boot, with Win+arrow and the Windows key working; most of the extra time is the wait for
+Explorer above. The optional icon animation has not been tested at sign-in. First-frame
+suppression across Windows builds, missing-file recovery, crash/hang recovery, sleep/resume, and
+removal remain unverified. The feature is disabled by default and outside the normal installer
+build. See [the isolated test plan](early-startup.md#validation-before-enabling-on-a-real-pc).
 
 **Updating.** The updater's parts are covered by the self-test: reading a release, comparing
 versions, the checksum and the signature checks, and refusing a download that fails them. No copy
@@ -58,15 +55,13 @@ newer release than the one it runs. So it has never downloaded a real update or 
 install it and start again, and the update button on the bar has only been seen in the
 self-test's pictures, with a made-up version.
 
-**Other setups.** Other versions of Windows, display scaling above 100%, and a PC with one monitor
-have not been tried.
+**Other setups.** Other versions of Windows and display scaling above 100% have not been tried.
 
 ## Not confirmed by hand yet
 
 These are written, and the self-test covers what it can of them, but nobody has yet confirmed each
 one by clicking it on a real desktop:
 
-- the Windows key opening the start menu in live mode;
 - the search button opening **Windows Search**, and switching what it opens from its right-click
   menu and from the settings page;
 - **Show desktop**;
@@ -80,36 +75,23 @@ one by clicking it on a real desktop:
 - how Windows shows the app icon on the program file and in Alt+Tab;
 - the installer's **Start ClearStart now** at the end, which starts live mode.
 
-## Changed since 0.2.0, not run yet
+## In 0.3.0, not run yet
 
 These are in the code, and build, but have not been run on a real desktop yet:
 
-- **Optional early-startup candidate:** a per-user loader starts Explorer with a taskbar guard
-  before its entry point, then starts ClearStart. Startup timeout, app exit, UI heartbeat timeout,
-  and loader death release suppression. Ordinary startup remains the default.
-
-- **Start with Windows is a task in Task Scheduler.** It starts ClearStart as you sign in, not
-  once the desktop is up and Windows has held back its Startup list for a while. A live run moves
-  0.2.0's Startup list entry to the task. Setup's tick box and uninstalling go through the same
-  code. See [Getting started](getting-started.md#start-with-windows).
-- **The Windows taskbar is hidden first,** before the settings and the bars load, and kept hidden
-  by a thread that hides it again the moment Windows reports it shown. Before, a check ten times a
-  second on the busy UI thread could fall behind for seconds while bars were rebuilt.
-- **Signing out with Start with Windows on leaves the Windows taskbar hiding itself** until
-  ClearStart is back. See [Getting started](getting-started.md#between-signing-out-and-signing-in).
 - **Resizing a bar** changes only that bar while the mouse is down, and docks it once when it is
-  let go.
-- **Moving a bar** keeps it open, instead of closing it and opening a new one.
-- **Opening the start menu over fullscreen windows** raises all bars until the menu closes,
-  then restores their normal fullscreen behavior.
+  let go. 0.2.0's resizing was choppy.
+- **Moving a bar** keeps it open, instead of closing it and opening a new one. In 0.2.0 the
+  Windows taskbar showed for a moment when a bar was moved or resized.
+- **A taskbar on another edge with more than one monitor:** each monitor's bar goes on the edge
+  that monitor's Windows taskbar had before it was moved.
+- **Monitors that wake from sleep:** each bar takes its monitor's new handle, and docks again if
+  the monitor gave its strip back to the desktop.
 - **Startup migration and the startup switch** are serialized, including commands from Setup.
   The switch also recognizes an enabled Run-key fallback when an older task remains.
 - **Uninstall stops if startup cleanup fails,** keeping the app files available for a retry.
 - **Auto-hide changes require a readable saved original setting,** and shutdown waits for native
   hides and auto-hide changes before restoring Windows' taskbar.
-- **The tray, the weather, the update check and the list of apps** start after the bars are on
-  screen.
-- **The installer's copy is compiled ahead of time** (ReadyToRun).
 
 ## Not there yet
 

@@ -23,26 +23,25 @@
 ClearStart draws its own taskbar and its own start menu. By default it runs as an ordinary
 program, and closing it brings the Windows taskbar back. An optional, experimental
 [early-startup loader](docs/early-startup.md) loads a guard inside Explorer before its taskbar
-is created. It is built separately and disabled by default. Colten reported a successful sign-in
-test on one PC; its failure recovery still needs desktop testing.
+is created. It is built separately, is not in the installer, and is disabled by default. It has
+passed sign-in tests on one PC; its failure recovery still needs desktop testing.
 
 > [!IMPORTANT]
 > **This is an early preview.** Get the signed installer from the
 > [latest release](https://github.com/C-Tech-Solutions/ClearStart/releases/latest), or build it
-> from source. It has been run on one PC so far, in both **preview mode**, which runs next to the
+> from source. It has been run on two PCs so far, in both **preview mode**, which runs next to the
 > Windows taskbar and hides nothing, and **live mode**, where ClearStart takes the Windows
 > taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
-The changes since 0.2.0 improve resize dragging, move bars without reopening them, and raise the
-bars with the start menu over fullscreen apps. Resize, move and fullscreen behavior still need
-explicit desktop verification.
-Start with Windows now prefers a sign-in task and hides Explorer's taskbar earlier, but cannot
-guarantee that the Windows taskbar is never drawn. See [startup limits](docs/getting-started.md#how-soon-it-takes-over).
-The separate early-startup candidate targets this gap and includes failure recovery. The first
-two logged sign-ins took 8.9 and 9.7 seconds to show the bars; precompilation and deferred network
-discovery brought the next two to 8.7 and 8.9 seconds. The next startup pass defers Start-menu pins
-and prioritizes taskbar-sized icons; its timing is not measured yet. Pinned icons appear together
-by default, with an optional [animated startup reveal](docs/taskbar.md#app-buttons).
+Version 0.3.0 starts with Windows from a sign-in task and hides the Windows taskbar earlier. It
+gives a newly started Explorer a moment first, so Win+arrow window snapping keeps working, and
+raises the bars with the start menu over fullscreen apps. A Windows taskbar on the top or a side
+of the screen, where Windows 11 cannot auto-hide it, is moved to the bottom while ClearStart runs
+and put back afterwards. The bars dock again after Explorer restarts or monitors wake from sleep.
+ClearStart still cannot guarantee that the Windows taskbar is never drawn at sign-in; see
+[startup limits](docs/getting-started.md#how-soon-it-takes-over). The separate early-startup
+candidate targets that gap. Pinned icons appear together by default, with an optional
+[animated startup reveal](docs/taskbar.md#app-buttons).
 
 ## Contents
 
