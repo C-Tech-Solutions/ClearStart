@@ -18,6 +18,12 @@
   #define AppVersion GetVersionNumbersString(AddBackslash(PublishDir) + "ClearStart.exe")
 #endif
 
+; build-installer.ps1 -NativeDir puts the early-startup loader and guard in the published app. Setup
+; then offers early startup (docs\early-startup.md).
+#if FileExists(AddBackslash(PublishDir) + "ClearStart.Loader.exe")
+  #define EarlyStartup
+#endif
+
 #define AppExe "ClearStart.exe"
 #define RepoUrl "https://github.com/C-Tech-Solutions/ClearStart"
 
@@ -67,6 +73,10 @@ SignedUninstaller=yes
 [Tasks]
 ; Off unless ticked while live mode is new. Once it has been run for a while, drop "unchecked".
 Name: "startup"; Description: "Start ClearStart when I sign in, in place of the Windows taskbar"; Flags: unchecked
+#ifdef EarlyStartup
+; Starts ClearStart's loader in place of Explorer at sign-in, so the Windows taskbar never shows.
+Name: "earlystartup"; Description: "Start ClearStart before Explorer, so the Windows taskbar never shows (experimental)"; Flags: unchecked
+#endif
 
 [Files]
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -75,6 +85,12 @@ Source: "..\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 #endif
 
+#ifdef EarlyStartup
+[UninstallDelete]
+; Early-startup files Setup moved aside (see MoveAsideInUse), where nothing has them open any more.
+Type: files; Name: "{app}\*.old"
+
+#endif
 [Icons]
 Name: "{autoprograms}\ClearStart"; Filename: "{app}\{#AppExe}"; Comment: "A see-through taskbar and a start menu"
 
@@ -83,6 +99,11 @@ Name: "{autoprograms}\ClearStart"; Filename: "{app}\{#AppExe}"; Comment: "A see-
 ; Scheduler that starts it at sign-in (or, if Task Scheduler will not take one, a Run key entry). The
 ; updater leaves this task unticked; a live run moves an older version's Run key entry to the task.
 Filename: "{app}\{#AppExe}"; Parameters: "--start-with-windows on"; StatusMsg: "Setting ClearStart to start when you sign in..."; Flags: runhidden waituntilterminated; Tasks: startup
+#ifdef EarlyStartup
+; Only when the user ticks it: Setup remembers ticked tasks, and an update, which runs silently, must
+; not turn early startup back on after it was switched off. It takes the place of the task above.
+Filename: "{app}\{#AppExe}"; Parameters: "--early-startup on"; StatusMsg: "Setting ClearStart to start before Explorer..."; Flags: runhidden waituntilterminated; Tasks: earlystartup; Check: not WizardSilent
+#endif
 Filename: "{app}\{#AppExe}"; Description: "Start ClearStart now"; Flags: nowait postinstall skipifsilent
 
 [Code]
@@ -91,6 +112,36 @@ const
   ApprovedKey = 'Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run';
   ShellKey = 'Software\Microsoft\Windows NT\CurrentVersion\Winlogon';
   InstanceMutex = 'Local\ClearStart.SingleInstance';
+
+#ifdef EarlyStartup
+{ Under early startup the loader runs, and Explorer keeps the guard loaded, until the user signs out,
+  so their files cannot be replaced. Windows lets them be renamed: move each aside and put a copy back
+  in its place for Setup to replace. Should Setup stop, the copy still starts the next sign-in. Files
+  moved aside earlier are deleted once nothing has them open. }
+procedure MoveAsideInUse(Name: String);
+var
+  Path, Old: String;
+  Found: TFindRec;
+begin
+  Path := ExpandConstant('{app}\' + Name);
+  if FindFirst(Path + '.*.old', Found) then
+  try
+    repeat
+      DeleteFile(ExpandConstant('{app}\') + Found.Name);
+    until not FindNext(Found);
+  finally
+    FindClose(Found);
+  end;
+  if not FileExists(Path) then
+    Exit;
+  Old := Path + '.' + GetDateTimeString('yyyymmddhhnnss', #0, #0) + '.old';
+  if RenameFile(Path, Old) and not FileCopy(Old, Path, False) then
+  begin
+    Log('Could not put a copy of ' + Name + ' back in place; it is left as it was.');
+    RenameFile(Old, Path);
+  end;
+end;
+#endif
 
 { A copy that is running holds its files open. When it is the copy being upgraded, ask it to close,
   which also brings the Windows taskbar back. A copy running from anywhere else holds nothing here. }
@@ -101,13 +152,20 @@ var
 begin
   Result := '';
   Exe := ExpandConstant('{app}\{#AppExe}');
-  if not CheckForMutexes(InstanceMutex) or not FileExists(Exe) then
-    Exit;
-
-  Exec(Exe, '--exit', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  if CheckForMutexes(InstanceMutex) then
-    Result := 'ClearStart is still running. Right-click an empty part of one of its taskbars, ' +
-              'choose Exit ClearStart, and then try again.';
+  if CheckForMutexes(InstanceMutex) and FileExists(Exe) then
+  begin
+    Exec(Exe, '--exit', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    if CheckForMutexes(InstanceMutex) then
+    begin
+      Result := 'ClearStart is still running. Right-click an empty part of one of its taskbars, ' +
+                'choose Exit ClearStart, and then try again.';
+      Exit;
+    end;
+  end;
+#ifdef EarlyStartup
+  MoveAsideInUse('ClearStart.Loader.exe');
+  MoveAsideInUse('ClearStart.ExplorerGuard.dll');
+#endif
 end;
 
 { Before anything is removed: close the running copy and make sure the Windows taskbar is showing.

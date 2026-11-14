@@ -2,8 +2,9 @@
 
 [Back to the README](../README.md)
 
-This separate candidate targets the Windows taskbar flash at sign-in. It is disabled by default
-and is not part of the normal installer build. It was first tested successfully on one PC on
+This option targets the Windows taskbar flash at sign-in. It is disabled by default. An installer
+built with `installeruild-installer.ps1 -NativeDir` includes it and offers to turn it on (see
+[Build only](#build-only)); the release installer does not. It was first tested successfully on one PC on
 November 12, 2026. It targets native x64 Windows 11; ARM64 is refused.
 
 ## How it starts
@@ -11,8 +12,9 @@ November 12, 2026. It targets native x64 Windows 11; ARM64 is refused.
 Explicit opt-in sets the current user's
 `HKCU\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell` to the fully quoted
 `ClearStart.Loader.exe --shell` command. Existing shell overrides or shell policies are refused.
-It removes this copy's ordinary startup task/Run entry first. Setup, automatic migration and the
-ordinary Start with Windows switch never enable this mode.
+It removes this copy's ordinary startup task/Run entry first. Automatic migration and the ordinary
+Start with Windows switch never enable this mode. Setup enables it only when its **Start ClearStart
+before Explorer** box is ticked; an update, which runs Setup silently, never does.
 
 The loader starts ClearStart suspended, then starts the system Explorer with
 `ClearStart.ExplorerGuard.dll` inserted before Explorer's entry point using Microsoft Detours.
@@ -68,8 +70,10 @@ After approved testing, turn off early startup before moving/deleting its folder
 ```
 
 The app's Start with Windows switch and uninstall also remove this copy's shell entry. Sign out
-after disabling and before replacing/removing the loaded DLL. Do not point the existing updater
-at this experimental folder: in-place native DLL replacement and release packaging are not enabled.
+after disabling and before removing the folder by hand. Setup can replace the loader and guard while
+they are in use: it renames them, puts copies in their place, and deletes the renamed files at a
+later install or uninstall, once nothing has them open. The release installer does not include
+them, so an update to a release leaves this copy's loader and guard as they are.
 
 If no usable desktop appears, press **Ctrl+Alt+Delete**, open **Task Manager**, choose **Run new task**,
 and run `explorer.exe` to get a Windows desktop. Then run the disable command above. If the ClearStart
@@ -89,8 +93,16 @@ native/build.ps1
 
 The second command compiles the native targets and publishes a self-contained ReadyToRun app to
 `artifacts/early-startup`, then stages the loader, guard and Detours license beside it. It runs
-none of those binaries and writes no startup settings. The ordinary installer and release asset
-names, AppId and application version are unchanged. These local candidates are unsigned.
+none of those binaries and writes no startup settings. These local candidates are unsigned.
+
+To put them in an installer instead, pass that folder to the installer build. With `-Sign`, the
+loader and guard are signed with the rest of the app:
+
+```powershell
+installer/build-installer.ps1 -Sign -NativeDir artifacts/early-startup
+```
+
+The installer's asset name, AppId and application version are unchanged.
 
 ## Validation before enabling on a real PC
 
