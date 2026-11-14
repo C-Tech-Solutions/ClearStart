@@ -286,13 +286,15 @@ internal static class TaskbarEdge
     {
         var waited = Stopwatch.StartNew();
         bool toldEveryone = !tell;
+        // A short wait tells everyone halfway, leaving time to see the taskbar move.
+        var everyoneAfter = wait < TellEveryoneAfter * 2 ? wait / 2 : TellEveryoneAfter;
         if (tell) TellSettingChanged(ExplorerTaskbar.FindPrimary());
         while (true)
         {
             // With no taskbar up there is nothing to see yet.
             if (ExplorerTaskbar.IsUp() && ExplorerTaskbar.AllOnBottom() == bottom) return true;
             if (stopping() || waited.Elapsed >= wait) return false;
-            if (!toldEveryone && waited.Elapsed >= TellEveryoneAfter)
+            if (!toldEveryone && waited.Elapsed >= everyoneAfter)
             {
                 toldEveryone = true;
                 TellSettingChanged(HWND_BROADCAST);

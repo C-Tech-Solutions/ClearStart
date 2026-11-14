@@ -10,8 +10,8 @@
 // Windows 11 25H2 with 2026's updates lets the user choose the edge in Settings, and keeps that choice as a number of
 // its own, which Explorer goes by over the older values. It is put on the bottom here too, where Windows has it.
 //
-// A loader that cannot start ClearStart puts the values back as they were before it starts plain Explorer: nothing
-// else would put the taskbar back on its own edge then.
+// When early startup fails, the loader puts the values back as they were before it starts plain Explorer: ClearStart
+// may not have put the taskbar back on its own edge, and does not start at the next sign-in.
 #include <windows.h>
 #include <shlobj.h>
 #include <string>

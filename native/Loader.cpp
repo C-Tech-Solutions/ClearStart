@@ -147,8 +147,9 @@ static int Run() {
         TerminateProcess(explorer.hProcess, ERROR_PROCESS_ABORTED);
         WaitForSingleObject(explorer.hProcess, 5000);
     }
-    // A ClearStart that never ran has not put the taskbar back on its own edge.
-    if (!resumed) PutTaskbarBack(HKEY_CURRENT_USER, changedEdges);
+    // ClearStart may not have put the taskbar back on its own edge (it never ran, crashed or was stopped), and it does
+    // not start at the next sign-in. Writing the same values again does no harm if it did.
+    if (!success) PutTaskbarBack(HKEY_CURRENT_USER, changedEdges);
     NormalExplorer();
     // A newly started plain Explorer needs time to recreate its bars before we can restore auto-hide.
     if (!success) {
