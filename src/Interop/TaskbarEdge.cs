@@ -229,10 +229,7 @@ internal static class TaskbarEdge
             if (setting)
             {
                 if (FollowsSetting(bottom: true, besideLoader ? SettingWaitBesideLoader : SettingWait, stopping))
-                {
-                    Log.Info("Windows taskbar moved to the bottom");
-                    return true;
-                }
+                    return MovedToBottom();
                 if (stopping()) return false;
                 if (besideLoader)
                 {
@@ -248,10 +245,7 @@ internal static class TaskbarEdge
             if (!WaitUntilSettled(primary, stopping)) return false;
             // It may have moved meanwhile, a little late.
             if (setting && FollowsSetting(bottom: true, TimeSpan.Zero, stopping, tell: false))
-            {
-                Log.Info("Windows taskbar moved to the bottom");
-                return true;
-            }
+                return MovedToBottom();
             if (!RestartWhenFree(primary, stopping, () => WriteEdges(OnBottom(ReadEntries()), autoHide: true))) return false;
             // The new Explorer has its main taskbar up; the others follow in a moment.
             if (FollowsSetting(bottom: true, SettingWait, stopping, tell: false))
@@ -273,6 +267,17 @@ internal static class TaskbarEdge
         {
             if (moving) _moving = false;
         }
+    }
+
+    /// <summary>
+    /// The taskbar is on the bottom now, so a later move off it in Settings is tried again. The sweep that would
+    /// otherwise make that possible may not have seen the taskbar before it moved.
+    /// </summary>
+    private static bool MovedToBottom()
+    {
+        lock (Gate) _tried = false;
+        Log.Info("Windows taskbar moved to the bottom");
+        return true;
     }
 
     /// <summary>
