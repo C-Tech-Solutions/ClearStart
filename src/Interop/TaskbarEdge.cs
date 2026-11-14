@@ -302,7 +302,9 @@ internal static class TaskbarEdge
             if (!toldEveryone && waited.Elapsed >= everyoneAfter)
             {
                 toldEveryone = true;
-                TellSettingChanged(HWND_BROADCAST);
+                // On another thread: each slow window can hold the message for a second, and this wait keeps its own
+                // deadline (two seconds when closing beside the loader, which stops ClearStart after five).
+                ThreadPool.QueueUserWorkItem(_ => TellSettingChanged(HWND_BROADCAST));
             }
             Thread.Sleep(100);
         }
