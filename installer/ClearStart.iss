@@ -71,11 +71,12 @@ SignedUninstaller=yes
 #endif
 
 [Tasks]
-; Off unless ticked while live mode is new. Once it has been run for a while, drop "unchecked".
-Name: "startup"; Description: "Start ClearStart when I sign in, in place of the Windows taskbar"; Flags: unchecked
+; Both are ticked unless the user unticks them. An upgrade keeps what the user chose the last time.
+Name: "startup"; Description: "Start ClearStart when I sign in, in place of the Windows taskbar"
 #ifdef EarlyStartup
-; Starts ClearStart's loader in place of Explorer at sign-in, so the Windows taskbar never shows.
-Name: "earlystartup"; Description: "Start ClearStart before Explorer, so the Windows taskbar never shows (experimental)"; Flags: unchecked
+; Starts ClearStart's loader in place of Explorer at sign-in, so the Windows taskbar never shows. It
+; takes the place of the task above, which stays as the way back should early startup be refused.
+Name: "earlystartup"; Description: "Start ClearStart before Explorer, so the Windows taskbar never shows (experimental)"
 #endif
 
 [Files]
@@ -100,7 +101,7 @@ Name: "{autoprograms}\ClearStart"; Filename: "{app}\{#AppExe}"; Comment: "A see-
 ; updater leaves this task unticked; a live run moves an older version's Run key entry to the task.
 Filename: "{app}\{#AppExe}"; Parameters: "--start-with-windows on"; StatusMsg: "Setting ClearStart to start when you sign in..."; Flags: runhidden waituntilterminated; Tasks: startup
 #ifdef EarlyStartup
-; Only when the user ticks it: Setup remembers ticked tasks, and an update, which runs silently, must
+; Only from Setup's own pages: Setup remembers ticked tasks, and an update, which runs silently, must
 ; not turn early startup back on after it was switched off. It takes the place of the task above.
 Filename: "{app}\{#AppExe}"; Parameters: "--early-startup on"; StatusMsg: "Setting ClearStart to start before Explorer..."; Flags: runhidden waituntilterminated; Tasks: earlystartup; Check: not WizardSilent
 #endif

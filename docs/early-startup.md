@@ -9,12 +9,14 @@ November 12, 2026. It targets native x64 Windows 11; ARM64 is refused.
 
 ## How it starts
 
-Explicit opt-in sets the current user's
+Turning it on sets the current user's
 `HKCU\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell` to the fully quoted
 `ClearStart.Loader.exe --shell` command. Existing shell overrides or shell policies are refused.
 It removes this copy's ordinary startup task/Run entry first. Automatic migration and the ordinary
-Start with Windows switch never enable this mode. Setup enables it only when its **Start ClearStart
-before Explorer** box is ticked; an update, which runs Setup silently, never does.
+Start with Windows switch never enable this mode. Setup enables it when its **Start ClearStart
+before Explorer** box is ticked, which it is unless you untick it; an update, which runs Setup
+silently, never does. Should early startup be refused, Setup's **Start ClearStart when I sign in**
+box, ticked too, leaves the ordinary sign-in task in place.
 
 The loader starts ClearStart suspended, then starts the system Explorer with
 `ClearStart.ExplorerGuard.dll` inserted before Explorer's entry point using Microsoft Detours.
