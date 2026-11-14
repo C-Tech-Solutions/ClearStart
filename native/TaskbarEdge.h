@@ -6,6 +6,9 @@
 // puts them back when it closes for good. Explorer reads the edge only as it starts, and writes its own back over it
 // while it runs, so under early startup the edge is written here, before the loader starts Explorer. Only while that
 // record is there: without it, ClearStart could not put the edges back.
+//
+// Windows 11 25H2 with 2026's updates lets the user choose the edge in Settings, and keeps that choice as a number of
+// its own, which Explorer goes by over the older values. It is put on the bottom here too, where Windows has it.
 #include <windows.h>
 #include <shlobj.h>
 #include <string>
@@ -15,6 +18,9 @@ constexpr wchar_t ExplorerKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion
 // Kept in step with TaskbarEdge.cs.
 constexpr DWORD TaskbarEdgeOffset = 12;
 constexpr BYTE TaskbarBottom = 3;
+// The edge chosen in Settings, as a number with the same meaning, under the Advanced key. Missing on a Windows without
+// that choice, and until it is first changed.
+constexpr wchar_t TaskbarLocationValue[] = L"TaskbarLocation";
 
 // The record ClearStart keeps of the taskbar's own edges, or an empty path if the folder cannot be found.
 inline std::wstring ClearStartRecordFile() {
@@ -45,6 +51,20 @@ inline int PutTaskbarOnBottom(HKEY root, const wchar_t* explorerKey, const wchar
             if (data[TaskbarEdgeOffset] >= TaskbarBottom) continue;
             data[TaskbarEdgeOffset] = TaskbarBottom;
             if (RegSetValueExW(key, value, 0, REG_BINARY, data, dataLength) == ERROR_SUCCESS) ++changed;
+        }
+        RegCloseKey(key);
+    }
+
+    // The edge chosen in Settings, only where it is there already: it is never made here.
+    const std::wstring advanced = std::wstring(explorerKey) + L"\\Advanced";
+    HKEY key = nullptr;
+    if (RegOpenKeyExW(root, advanced.c_str(), 0, KEY_QUERY_VALUE | KEY_SET_VALUE, &key) == ERROR_SUCCESS) {
+        DWORD location = 0, size = sizeof(location), type = 0;
+        if (RegQueryValueExW(key, TaskbarLocationValue, nullptr, &type, reinterpret_cast<BYTE*>(&location), &size) == ERROR_SUCCESS &&
+            type == REG_DWORD && size == sizeof(location) && location < TaskbarBottom) {
+            location = TaskbarBottom;
+            if (RegSetValueExW(key, TaskbarLocationValue, 0, REG_DWORD, reinterpret_cast<const BYTE*>(&location),
+                               sizeof(location)) == ERROR_SUCCESS) ++changed;
         }
         RegCloseKey(key);
     }

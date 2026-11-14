@@ -70,6 +70,25 @@ internal static partial class SelfTest
             if (!read.SequenceEqual(entries)) errors.Add($"Taskbar edges: the record of {named} does not read back as written");
             if (described != named) errors.Add($"Taskbar edges: the record of {named} is described as \"{described}\"");
         }
+
+        // Windows with the edge chosen in Settings: that edge is on record too, and every taskbar is on it, whatever
+        // the older values say.
+        {
+            var entries = new List<TaskbarEdge.Entry>
+            {
+                new(TaskbarEdge.LocationKey, TaskbarEdge.LocationValue, 1),
+                new(TaskbarEdge.MainKey, TaskbarEdge.MainValue, 3),
+                new(TaskbarEdge.OtherMonitorsKey, "MONITOR2", 0),
+            };
+            var read = TaskbarEdge.ParseRecord(entries.Select(TaskbarEdge.RecordLine).Append("bar\t0\t0\t1920\t48"));
+            string described = TaskbarEdge.Describe(read);
+            steps.Add($"record with the edge chosen in Settings: {described}");
+            if (!read.SequenceEqual(entries)) errors.Add("Taskbar edges: the record with the edge chosen in Settings does not read back as written");
+            if (described != "top edge") errors.Add($"Taskbar edges: the edge chosen in Settings (top) is described as \"{described}\"");
+            // Any other value under that key is not an edge.
+            var other = TaskbarEdge.ParseRecord(new[] { $"{TaskbarEdge.LocationKey}\tTaskbarAl\t1" });
+            if (other.Count != 0) errors.Add("Taskbar edges: another taskbar setting on record was read as an edge");
+        }
         return steps;
     }
 }

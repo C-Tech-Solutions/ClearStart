@@ -54,15 +54,21 @@ uses the out-of-process guard and may flash; reinjection into a running desktop 
 For the same reason, ClearStart does not restart the Explorer the loader started while the loader
 runs. A Windows taskbar on the top or a side goes on the bottom before that Explorer starts
 instead: when ClearStart has the taskbar's own edges on record, the loader puts the bottom edge in
-Windows' record just before it starts Explorer, which reads the edge only as it starts. Turning
-early startup on writes those edges down, so the first sign-in through the loader has the taskbar
-on the bottom too. A taskbar found on another edge beside the loader's Explorer anyway stays there
-for that session, with its strip of the screen empty, and goes on the bottom at the next sign-in.
-The ClearStart the loader started writes down which Explorer the loader started, so a copy started
-by hand while the loader still runs leaves it alone too. Closing ClearStart leaves the taskbar on
-the bottom while the loader runs; with early startup on, ClearStart starts again at the next
-sign-in anyway. Uninstalling closes ClearStart, waits for the loader to go, and then restarts
-Explorer to put the taskbar back on its own edges.
+Windows' record just before it starts Explorer, which reads the edge as it starts. On a Windows 11
+that has the taskbar's position in Settings, that is the setting itself (`TaskbarLocation`), which
+Explorer goes by; the loader changes it only where Windows already has it. Turning early startup
+on writes the edges down, so the first sign-in through the loader has the taskbar on the bottom
+too, and so does closing ClearStart after it has put the taskbar back.
+
+A taskbar found on another edge beside the loader's Explorer anyway is moved by that setting,
+which needs no restart. On a Windows without the setting it stays there for that session, with
+its strip of the screen empty, and goes on the bottom at the next sign-in. The ClearStart the
+loader started writes down which Explorer the loader started, so a copy started by hand while the
+loader still runs leaves it alone too. Closing ClearStart puts the taskbar back by the setting;
+without it, the taskbar stays on the bottom while the loader runs, and with early startup on
+ClearStart starts again at the next sign-in anyway. Uninstalling closes ClearStart and puts the
+taskbar back on its own edges: by the setting, or by waiting for the loader to go and restarting
+Explorer.
 
 Startup failures, crashes and watchdog recovery detected by the loader remove its own shell entry
 so the next sign-in uses Windows normally. Normal Exit keeps the entry for the next sign-in. The DLL stays loaded, inert,

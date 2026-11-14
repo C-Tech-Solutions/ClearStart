@@ -39,6 +39,8 @@ internal static class TaskbarGuard
 
     // The rest is only touched on the guard's own thread.
     private static readonly HashSet<IntPtr> Recorded = new();
+    // Whether Explorer's taskbars were all on the bottom edge at the last look; null before the first one.
+    private static bool? _onBottom;
     private static int _hiddenAgain;
     private static bool _firstHideLogged;
     private static DateTime _lastMissLogged = DateTime.MinValue;
@@ -157,18 +159,27 @@ internal static class TaskbarGuard
     private static void Sweep(bool first)
     {
         int hidden = 0;
+        IntPtr main = IntPtr.Zero;
+        bool mainIsNew = false;
+        var bars = new List<Native.RECT>();
         foreach (string name in TaskbarClasses)
         {
             IntPtr hwnd = IntPtr.Zero;
             while ((hwnd = Native.FindWindowEx(IntPtr.Zero, hwnd, name, null)) != IntPtr.Zero)
             {
                 if (KindOf(hwnd) is not { } primary) continue;
-                if (primary) KeepAutoHidden(hwnd);
+                if (primary)
+                {
+                    main = hwnd;
+                    mainIsNew = KeepAutoHidden(hwnd);
+                }
+                if (Native.GetWindowRect(hwnd, out var bar)) bars.Add(bar);
                 if (!Native.IsWindowVisible(hwnd)) continue;
                 Hide(hwnd);
                 hidden++;
             }
         }
+        if (main != IntPtr.Zero) WatchEdge(main, mainIsNew, bars);
 
         if (first)
         {
@@ -222,11 +233,35 @@ internal static class TaskbarGuard
     /// restarts); Explorer keeps the setting in between. Windows 11 cannot auto-hide a taskbar on the top or a side,
     /// so there the taskbar is also moved to the bottom (<see cref="TaskbarEdge"/>).
     /// </summary>
-    private static void KeepAutoHidden(IntPtr primary)
+    /// <returns>True the first time this taskbar is seen.</returns>
+    private static bool KeepAutoHidden(IntPtr primary)
     {
-        if (!Recorded.Add(primary)) return;
-        // Asking Explorer waits for its taskbar's thread, which can be busy for a while just after it starts. This
-        // thread has to stay free to hide the other taskbars as they appear, so the asking is done on another.
+        if (!Recorded.Add(primary)) return false;
+        CheckLater(primary);
+        return true;
+    }
+
+    /// <summary>
+    /// Windows 11 lets the user choose the taskbar's edge in Settings, also while ClearStart runs, and Explorer moves
+    /// its taskbar at once. When the taskbars leave the bottom edge, or come back to it, they are looked at again.
+    /// </summary>
+    private static void WatchEdge(IntPtr primary, bool isNew, List<Native.RECT> bars)
+    {
+        if (!OnWindows11) return;
+        bool onBottom = ExplorerTaskbar.AllOnBottom(bars,
+            System.Windows.Forms.Screen.AllScreens.Select(screen => screen.Bounds).ToList());
+        // A taskbar seen for the first time is being looked at already.
+        if (_onBottom is { } before && before != onBottom && !isNew) CheckLater(primary);
+        _onBottom = onBottom;
+    }
+
+    /// <summary>
+    /// Switches the taskbar to auto-hide and moves it to the bottom if need be, on another thread. Asking Explorer waits
+    /// for its taskbar's thread, which can be busy for a while just after it starts, and this thread has to stay free
+    /// to hide the other taskbars as they appear.
+    /// </summary>
+    private static void CheckLater(IntPtr primary)
+    {
         ThreadPool.QueueUserWorkItem(_ =>
         {
             bool checkEdge = false;
@@ -243,8 +278,34 @@ internal static class TaskbarGuard
                     Log.Error("Could not switch the Windows taskbar to auto-hide", ex);
                 }
             }
-            // Outside the gate: this can wait for Explorer to settle, and closing ClearStart must not wait for that.
-            if (checkEdge) TaskbarEdge.KeepAtBottom(primary, () => Stopping);
+            // Outside the gate: this can wait for Explorer, and closing ClearStart must not wait for that.
+            if (!checkEdge || !TaskbarEdge.KeepAtBottom(primary, () => Stopping)) return;
+
+            // The taskbar moved to the bottom in the Explorer that is running. There it can be auto-hidden.
+            lock (AutoHideGate)
+            {
+                if (Stopping) return;
+                try
+                {
+                    IntPtr now = ExplorerTaskbar.FindPrimary();
+                    if (now != IntPtr.Zero && !ExplorerTaskbar.EnsureAutoHide(now))
+                    {
+                        Log.Warn("The Windows taskbar is on the bottom edge now, but Windows did not switch it to auto-hide");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Could not switch the Windows taskbar to auto-hide", ex);
+                }
+            }
+            try
+            {
+                TaskbarEdge.AfterMove?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Could not dock ClearStart's taskbars again: " + ex.Message);
+            }
         });
     }
 

@@ -93,6 +93,14 @@ These are in the code, and build, but have not been run on a real desktop yet:
   With early startup on, the loader now puts the taskbar on the bottom just before it starts
   Explorer, at every sign-in, so that Explorer never has it on another edge. That has been checked
   on test values only; a real sign-in with the taskbar on the top has not been tried yet.
+- **A taskbar edge chosen in Settings:** Windows 11 25H2 with 2026's updates (seen on build
+  26200.9711) has the taskbar's position in Settings and keeps it as a setting of its own, which
+  Explorer goes by. Earlier 0.3.0 builds changed only the older record: Explorer restarted, came
+  back on the top with its strip of the screen empty, and the log said the taskbar had moved.
+  ClearStart and the loader now change that setting, ClearStart checks where the taskbar's
+  windows are before it says so, and it looks again when the taskbar leaves the bottom while it
+  runs. This has been checked on test values only: neither the move without a restart nor a
+  sign-in through the loader has been run on a real desktop with it yet.
 - **Monitors that wake from sleep:** each bar takes its monitor's new handle, and docks again if
   the monitor gave its strip back to the desktop.
 - **Startup migration and the startup switch** are serialized, including commands from Setup.

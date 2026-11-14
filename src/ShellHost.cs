@@ -223,6 +223,7 @@ internal sealed class ShellHost : IDisposable
             // taskbar hidden from now until ClearStart closes, on a thread of its own.
             TaskbarGuard.Start();
             TaskbarEdge.BeforeRestart = BeforeExplorerRestart;
+            TaskbarEdge.AfterMove = AfterTaskbarMove;
             // Which edge each Windows taskbar is docked to. A hidden taskbar still has its place on the screen.
             long step = StartTiming.BeginStep();
             FindWindowsTaskbars();
@@ -452,6 +453,24 @@ internal sealed class ShellHost : IDisposable
             Log.Warn("Could not move ClearStart's tray out of Explorer's way: " + ex.Message);
         }
         return held;
+    }
+
+    /// <summary>
+    /// Explorer has moved its taskbar to the bottom while it runs, where it is auto-hidden (see
+    /// <see cref="TaskbarEdge"/>): the strip it kept on its old edge is free, and the bars are docked again to take it.
+    /// Runs on a background thread.
+    /// </summary>
+    private void AfterTaskbarMove()
+    {
+        _dispatcher.BeginInvoke(DispatcherPriority.Normal, new Action(() =>
+        {
+            if (_disposed) return;
+            Log.Info($"The Windows taskbar moved to the bottom; docking {_bars.Count} taskbar(s) again");
+            foreach (var bar in _bars)
+            {
+                bar.DockAgain();
+            }
+        }));
     }
 
     // Windows' own volume and network icons.
@@ -1541,6 +1560,12 @@ internal sealed class ShellHost : IDisposable
             // taskbar's own edges go back only now too, since that starts Explorer again: an Explorer that closes or
             // starts while ClearStart's tray is still there deals with that tray as well as its own.
             Step("put the Windows taskbar back", () => GiveBackWindowsTaskbar(keepAutoHide, sessionEnding, keepEdge: startsAgain));
+            if (!sessionEnding && EarlyStartup.IsEnabled)
+            {
+                // The taskbar is back on its own edge. The early-startup loader puts it on the bottom before it starts
+                // Explorer at the next sign-in only while that edge is on record, so it is written down again.
+                Step("write the Windows taskbar's edges down for the next sign-in", TaskbarEdge.RecordForEarlyStartup);
+            }
         }
         Step("close the shell library log", () => _shellLog?.Dispose());
     }
