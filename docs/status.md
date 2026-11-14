@@ -45,8 +45,8 @@ after sign-in. A candidate built from the 0.3.0 code logged them 10.9 seconds af
 cold boot, with Win+arrow and the Windows key working; most of the extra time is the wait for
 Explorer above. The optional icon animation has not been tested at sign-in. First-frame
 suppression across Windows builds, missing-file recovery, crash/hang recovery, sleep/resume, and
-removal remain unverified. The feature is disabled by default and outside the normal installer
-build. See [the isolated test plan](early-startup.md#validation-before-enabling-on-a-real-pc).
+removal remain unverified. Setup turns it on unless its box is unticked; an update never does.
+See [the isolated test plan](early-startup.md#validation-before-enabling-on-a-real-pc).
 
 **Updating.** The updater's parts are covered by the self-test: reading a release, comparing
 versions, the checksum and the signature checks, and refusing a download that fails them. No copy

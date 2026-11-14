@@ -89,7 +89,8 @@ Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreve
 #ifdef EarlyStartup
 [UninstallDelete]
 ; Early-startup files Setup moved aside (see MoveAsideInUse), where nothing has them open any more.
-Type: files; Name: "{app}\*.old"
+Type: files; Name: "{app}\ClearStart.Loader.exe.*.old"
+Type: files; Name: "{app}\ClearStart.ExplorerGuard.dll.*.old"
 
 #endif
 [Icons]
@@ -99,6 +100,11 @@ Name: "{autoprograms}\ClearStart"; Filename: "{app}\{#AppExe}"; Comment: "A see-
 ; "Start with Windows" is set up by the app itself, exactly as its own switch does it: a task in Task
 ; Scheduler that starts it at sign-in (or, if Task Scheduler will not take one, a Run key entry). The
 ; updater leaves this task unticked; a live run moves an older version's Run key entry to the task.
+#ifdef EarlyStartup
+; Early startup unticked on Setup's own pages turns it off, so the task below can take its place. An
+; update, which runs silently, leaves it as it is.
+Filename: "{app}\{#AppExe}"; Parameters: "--early-startup off"; StatusMsg: "Setting ClearStart to start after Explorer..."; Flags: runhidden waituntilterminated; Tasks: not earlystartup; Check: not WizardSilent
+#endif
 Filename: "{app}\{#AppExe}"; Parameters: "--start-with-windows on"; StatusMsg: "Setting ClearStart to start when you sign in..."; Flags: runhidden waituntilterminated; Tasks: startup
 #ifdef EarlyStartup
 ; Only from Setup's own pages: Setup remembers ticked tasks, and an update, which runs silently, must

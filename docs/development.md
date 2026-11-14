@@ -249,7 +249,8 @@ The script finds its tools by itself, or you can point it at them:
 | | |
 | --- | --- |
 | **Where** | `%LOCALAPPDATA%\Programs\ClearStart`, for the one user, with no administrator rights. A shortcut goes in the Start menu. |
-| **Start with Windows** | An optional task, off by default while live mode is new. Setup runs `ClearStart.exe --start-with-windows on`, which does what the app's own switch does (see [`src/AutoStart.cs`](../src/AutoStart.cs)): a task in Task Scheduler that starts ClearStart at sign-in, or the Run key if Task Scheduler refuses the task. An update leaves it as it was; a live run moves an older version's Run key entry to the task. |
+| **Start with Windows** | An optional task, ticked by default. Setup runs `ClearStart.exe --start-with-windows on`, which does what the app's own switch does (see [`src/AutoStart.cs`](../src/AutoStart.cs)): a task in Task Scheduler that starts ClearStart at sign-in, or the Run key if Task Scheduler refuses the task. An update leaves it as it was; a live run moves an older version's Run key entry to the task. |
+| **Early startup** | An optional task, ticked by default, in an installer built with `-NativeDir`. Setup runs `ClearStart.exe --early-startup on` when it is ticked and `--early-startup off` when it is not, only from its own pages: an update leaves it as it was. See [Early startup](early-startup.md). |
 | **Upgrading** | If the installed copy is running, Setup runs it with `--exit` first. |
 | **Updating** | ClearStart's updater runs Setup with `/VERYSILENT`, `/MERGETASKS="!startup"`, so that Start with Windows stays as it was, and `/RESTART=live` or `/RESTART=preview`. At the end Setup starts the installed copy again in that mode, unless a copy is already running. Without `/RESTART` it starts nothing. |
 | **Uninstalling** | Runs `--restore`, then `--start-with-windows off`, then removes the files. Start with Windows goes only if it starts this copy; an older version's Run key entry is checked too. If ClearStart is still running after `--restore`, or startup cleanup fails, it stops before removing anything. A Task Scheduler read failure is an error, not proof the task is absent. The settings and the log stay. |
@@ -265,12 +266,17 @@ they look for:
 
 1. Raise `<Version>` in `src/ClearStart.csproj`, as three numbers like `0.2.0`, and merge that to
    `main`.
-2. With that commit of `main` checked out, build and sign the installer, passing the metadata
-   file or setting `CLEARSTART_SIGNING_METADATA` (see [Signing it](#signing-it)):
+2. With that commit of `main` checked out, build the early-startup loader and guard (see
+   [Early startup](early-startup.md#build-only)), then build and sign the installer with them,
+   passing the metadata file or setting `CLEARSTART_SIGNING_METADATA` (see
+   [Signing it](#signing-it)):
 
    ```powershell
-   installer\build-installer.ps1 -Sign -MetadataPath C:\path\to\azure-artifact-signing.json
+   native\build.ps1
+   installer\build-installer.ps1 -Sign -MetadataPath C:\path\to\azure-artifact-signing.json -NativeDir artifacts\early-startup
    ```
+
+   Without `-NativeDir` the installer has no early startup.
 
 3. Check what would be published, then publish it. This needs `gh`, signed in with an account that
    may create releases:

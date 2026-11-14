@@ -2,10 +2,11 @@
 
 [Back to the README](../README.md)
 
-This option targets the Windows taskbar flash at sign-in. It is disabled by default. An installer
-built with `installeruild-installer.ps1 -NativeDir` includes it and offers to turn it on (see
-[Build only](#build-only)); the release installer does not. It was first tested successfully on one PC on
-November 12, 2026. It targets native x64 Windows 11; ARM64 is refused.
+This option targets the Windows taskbar flash at sign-in. The release installer includes it, and
+Setup turns it on unless you untick its box (see [How it starts](#how-it-starts)). An installer
+built without `installer\build-installer.ps1 -NativeDir` leaves it out (see
+[Build only](#build-only)). It was first tested successfully on one PC on November 12, 2026. It
+targets native x64 Windows 11; ARM64 is refused.
 
 ## How it starts
 
@@ -74,8 +75,7 @@ After approved testing, turn off early startup before moving/deleting its folder
 The app's Start with Windows switch and uninstall also remove this copy's shell entry. Sign out
 after disabling and before removing the folder by hand. Setup can replace the loader and guard while
 they are in use: it renames them, puts copies in their place, and deletes the renamed files at a
-later install or uninstall, once nothing has them open. The release installer does not include
-them, so an update to a release leaves this copy's loader and guard as they are.
+later install or uninstall, once nothing has them open. An update replaces them the same way.
 
 If no usable desktop appears, press **Ctrl+Alt+Delete**, open **Task Manager**, choose **Run new task**,
 and run `explorer.exe` to get a Windows desktop. Then run the disable command above. If the ClearStart
