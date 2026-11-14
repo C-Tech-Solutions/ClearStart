@@ -19,15 +19,17 @@ namespace ClearStart;
 /// Manager starts it again; folder windows stay open. This takes two or three seconds. An Explorer that does not close
 /// when asked is ended and started afresh instead.
 ///
-/// The Explorer the early-startup loader started is never restarted, whichever copy of ClearStart is running: the
-/// loader watches it, and takes its closing for a failure. Its taskbar stays where it is for that session. With early
-/// startup on, the bottom edge is written for the Explorer the loader starts at the next sign-in instead, and written
-/// again as the user signs out (see <see cref="KeepForNextSignIn"/>). That holds only if Explorer does not write its
-/// own edge over it as it closes at sign-out, which has not been tried yet.
+/// The Explorer the early-startup loader started is not restarted while the loader runs, whichever copy of ClearStart
+/// is running: the loader watches it, and takes its closing for a failure. With early startup on, the loader puts the
+/// bottom edge in Windows' record before it starts Explorer at each sign-in instead, whenever ClearStart has the
+/// taskbar's own edges on record (native\TaskbarEdge.h). Turning early startup on writes them down
+/// (<see cref="RecordForEarlyStartup"/>), so the first sign-in through the loader has the taskbar on the bottom too.
 ///
 /// The edges the taskbar had are written down first. They are put back when ClearStart closes, fails, or is
 /// uninstalled ("--restore"), and at the next sign-in when the user signs out and ClearStart does not start again.
-/// Beside the loader's Explorer they are only written back, for the next Explorer to read.
+/// While the loader watches Explorer, the taskbar is left on the bottom and the record kept instead. The loader goes
+/// soon after the ClearStart it started has closed, and a "--restore" after that (an uninstall) restarts Explorer as
+/// usual; otherwise the taskbar goes back at the first sign-in that ClearStart does not start at.
 /// Self-contained like <see cref="ExplorerTaskbar"/>, for the same reasons.
 /// </summary>
 internal static class TaskbarEdge
@@ -52,6 +54,8 @@ internal static class TaskbarEdge
     private static readonly TimeSpan CloseWait = TimeSpan.FromSeconds(5);
     // How long a new Explorer has to put up its taskbar. It normally takes a second or two.
     private static readonly TimeSpan TaskbarWait = TimeSpan.FromSeconds(30);
+    // How long the early-startup loader has to go once the ClearStart it started has closed. It takes well under one.
+    private static readonly TimeSpan LoaderWait = TimeSpan.FromSeconds(5);
 
     private static readonly object Gate = new();
     // Set once the taskbar was moved, until it is seen on the bottom: a move that did not hold is not tried again.
@@ -138,16 +142,17 @@ internal static class TaskbarEdge
                 var record = ReadRecord();
                 if (EarlySession.Active || StartedByLoader(primary))
                 {
-                    // That Explorer stays as it is. The one the loader starts at the next sign-in reads the bottom edge
-                    // written now. A record that is there already means the bottom edge was written by an earlier copy.
+                    // That Explorer stays as it is. With the edges on record, the loader puts the bottom edge in Windows'
+                    // record before it starts Explorer at the next sign-in. It is written now too, for an Explorer that
+                    // ends without writing its own.
                     if (EarlyStartup.IsEnabled && (record != null || entries.Any(entry => entry.Edge != Bottom)))
                     {
                         record = Remember(entries, record);
                         WriteEdges(entries.Select(entry => entry with { Edge = Bottom }), autoHide: null);
                         Log.Info($"The Windows taskbar is on the {Describe(record)}, where Windows cannot auto-hide it. " +
                             "It stays there until the next sign-in: moving it now restarts Explorer, and the early-startup " +
-                            "loader takes the Explorer it started closing for a failure. The bottom edge is written for " +
-                            "the Explorer the loader starts then");
+                            "loader takes the Explorer it started closing for a failure. The loader puts it on the bottom " +
+                            "before it starts Explorer then");
                     }
                     else
                     {
@@ -262,23 +267,28 @@ internal static class TaskbarEdge
 
                 if (StartedByLoader(primary))
                 {
-                    // That Explorer is not restarted (see KeepAtBottom). The next one reads the edges written now.
-                    WriteEdges(record, autoHide: null);
+                    // That Explorer is not restarted (see KeepAtBottom).
                     if (!ExplorerTaskbar.AllOnBottom())
                     {
-                        // Its taskbar never left its own edge.
+                        // Its taskbar never left its own edge. The next Explorer reads the edges written now.
+                        WriteEdges(record, autoHide: null);
                         Forget();
                         Log.Info($"Windows taskbar edges written back ({Describe(record)}); the taskbar is still there");
                         return false;
                     }
-                    // It started on the bottom, from the edge written for it, and may write that back as it closes. The
-                    // record stays for the next copy of ClearStart; with none at the next sign-in, a run then finishes.
-                    // Not when ClearStart starts then: the run would close it.
-                    if (!AutoStart.StartsAtSignIn()) RunOnceAtSignIn();
+                    // It started on the bottom and writes that edge into Windows' record while it runs, so nothing is
+                    // written here: a copy of ClearStart started after this one would find the two disagreeing, and
+                    // restart Explorer for nothing. The record stays. With early startup on, the loader puts the taskbar
+                    // on the bottom again at the next sign-in; a "--restore" once the loader has gone (an uninstall) puts
+                    // it back now. With ClearStart not starting at the next sign-in, a run then puts it back; not when it
+                    // starts then, as the run would close it.
+                    bool startsAgain = AutoStart.StartsAtSignIn();
+                    if (!startsAgain) RunOnceAtSignIn();
                     _writtenForSignIn = true;
-                    Log.Warn($"The Windows taskbar stays on the bottom edge until the next sign-in, when it goes back on the " +
-                        $"{Describe(record)}: putting it back now restarts Explorer, and the early-startup loader takes the " +
-                        "Explorer it started closing for a failure");
+                    Log.Warn("The Windows taskbar stays on the bottom edge for now: putting it back restarts Explorer, and " +
+                        "the early-startup loader takes the Explorer it started closing for a failure. " + (startsAgain
+                            ? "ClearStart starts again at the next sign-in, and keeps it on the bottom"
+                            : $"It goes back on the {Describe(record)} at the next sign-in"));
                     return false;
                 }
 
@@ -298,26 +308,29 @@ internal static class TaskbarEdge
     }
 
     /// <summary>
-    /// The user is signing out, and ClearStart starts again at the next sign-in. If ClearStart has the taskbar's own
-    /// edges on record, the bottom edge is written again for the Explorer that starts then: Explorer may have written
-    /// its own over it meanwhile, and the one the early-startup loader started was never moved. Runs first, in case
-    /// Windows ends ClearStart early, and again last, after the taskbar's auto-hide setting has gone back.
+    /// Early startup is being turned on. If the taskbar is on another edge, its edges are written down now, so that the
+    /// loader puts it on the bottom before it starts Explorer at the next sign-in (native\TaskbarEdge.h), and ClearStart
+    /// can put it back later. The taskbar is not moved now.
     /// </summary>
-    public static void KeepForNextSignIn()
+    public static void RecordForEarlyStartup()
     {
         lock (Gate)
         {
             try
             {
-                if (!Moved) return;
+                if (ReadRecord() != null) return;
                 var entries = ReadEntries();
-                if (entries.All(entry => entry.Edge == Bottom)) return;
-                WriteEdges(entries.Select(entry => entry with { Edge = Bottom }), autoHide: null);
-                Log.Info("The Windows taskbar's bottom edge is written again for the next sign-in");
+                // As in KeepAtBottom: Windows' record decides for the main taskbar, the windows for the others.
+                bool mainOnBottom = entries.All(entry => entry.Key != MainKey || entry.Edge == Bottom);
+                if (entries.All(entry => entry.Edge == Bottom) || (mainOnBottom && ExplorerTaskbar.AllOnBottom())) return;
+                Remember(entries, null);
+                Log.Info($"The Windows taskbar is on the {Describe(entries)}, where Windows cannot auto-hide it. Its edges " +
+                    "are written down: at the next sign-in, the early-startup loader puts it on the bottom before it " +
+                    "starts Explorer");
             }
             catch (Exception ex)
             {
-                Log.Warn("Could not write the Windows taskbar's bottom edge for the next sign-in: " + ex.Message);
+                Log.Warn("Could not write down the Windows taskbar's edges for early startup: " + ex.Message);
             }
         }
     }
@@ -543,9 +556,10 @@ internal static class TaskbarEdge
     }
 
     /// <summary>
-    /// True if <paramref name="primary"/> belongs to the Explorer the early-startup loader started at sign-in. The loader
-    /// watches that one for as long as it runs and takes its closing for a failure, so no copy of ClearStart restarts
-    /// it: not the one the loader started, nor one started by hand later in the same session.
+    /// True if <paramref name="primary"/> belongs to the Explorer the early-startup loader started at sign-in, and the
+    /// loader is still there. The loader watches that Explorer for as long as it runs and takes its closing for a
+    /// failure, so no copy of ClearStart restarts it meanwhile. The loader goes soon after the ClearStart it started
+    /// has closed; any other copy waits a few seconds for that ("--restore" right after closing it, as an uninstall does).
     /// </summary>
     private static bool StartedByLoader(IntPtr primary)
     {
@@ -559,13 +573,44 @@ internal static class TaskbarEdge
             }
             Native.GetWindowThreadProcessId(primary, out uint pid);
             if (pid == 0 || pid != noted) return false;
-            using var shell = Process.GetProcessById((int)pid);
-            return shell.StartTime.ToFileTime() == started;
+            using (var shell = Process.GetProcessById((int)pid))
+            {
+                if (shell.StartTime.ToFileTime() != started) return false;
+            }
+            return LoaderRunning(wait: !EarlySession.Active);
         }
         catch
         {
             // Gone, or not readable: not the loader's Explorer as far as anything here can tell.
             return false;
+        }
+    }
+
+    /// <summary>True while an early-startup loader runs in this session; waits up to <see cref="LoaderWait"/> for it to go.</summary>
+    private static bool LoaderRunning(bool wait)
+    {
+        int session;
+        using (var self = Process.GetCurrentProcess()) session = self.SessionId;
+        var waited = Stopwatch.StartNew();
+        while (true)
+        {
+            bool running = false;
+            foreach (var loader in Process.GetProcessesByName("ClearStart.Loader"))
+            {
+                using (loader)
+                {
+                    try
+                    {
+                        running |= loader.SessionId == session;
+                    }
+                    catch
+                    {
+                        // Gone meanwhile.
+                    }
+                }
+            }
+            if (!running || !wait || waited.Elapsed >= LoaderWait) return running;
+            Thread.Sleep(250);
         }
     }
 

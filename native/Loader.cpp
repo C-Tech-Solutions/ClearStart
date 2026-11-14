@@ -1,4 +1,5 @@
 #include "Protocol.h"
+#include "TaskbarEdge.h"
 #include "detours.h"
 #include <objbase.h>
 #include <vector>
@@ -160,6 +161,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR command, int) {
     HANDLE single = CreateMutexW(nullptr, TRUE, L"Local\\ClearStart.EarlyLoader");
     if (!single || GetLastError() == ERROR_ALREADY_EXISTS) return 2;
     int result = 1;
+    // Before any Explorer starts: it reads the taskbar's edge only then (see TaskbarEdge.h).
+    PutTaskbarOnBottom(HKEY_CURRENT_USER, ExplorerKey, ClearStartRecordFile().c_str());
     try { result = Run(); }
     catch (...) { DisableOwnStartup(); NormalExplorer(); }
     ReleaseMutex(single);
