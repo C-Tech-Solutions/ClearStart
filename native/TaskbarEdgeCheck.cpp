@@ -1,4 +1,4 @@
-// Checks PutTaskbarOnBottom (TaskbarEdge.h) on made-up values under a test key of its own, with a made-up record
+// Checks PutTaskbarOnBottom and PutTaskbarBack (TaskbarEdge.h) on made-up values under a test key of its own, with a made-up record
 // file. Windows' own taskbar settings are not read or written. Built beside the loader, never shipped.
 #include "TaskbarEdge.h"
 #include <cstdio>
@@ -75,7 +75,9 @@ int wmain() {
 
     HANDLE file = CreateFileW(record.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     CloseHandle(file);
-    Expect(PutTaskbarOnBottom(HKEY_CURRENT_USER, TestExplorerKey, record.c_str()) == 4, "record: four edges changed");
+    std::vector<TaskbarValue> saved;
+    Expect(PutTaskbarOnBottom(HKEY_CURRENT_USER, TestExplorerKey, record.c_str(), &saved) == 4, "record: four edges changed");
+    Expect(saved.size() == 4, "record: the four values are kept as they were");
     Expect(Number(TaskbarLocationValue) == 3, "record: the edge chosen in Settings becomes the bottom");
     Expect(Number(L"TaskbarAl") == 1, "record: another taskbar setting is left alone");
     Expect(Edge(L"\\StuckRects3", L"Settings") == 3, "record: the main taskbar goes on the bottom, nothing else changed");
@@ -84,6 +86,18 @@ int wmain() {
     Expect(Edge(L"\\MMStuckRects3", L"MONITOR3") == 3, "record: a bottom edge stays");
     Expect(Edge(L"\\MMStuckRects3", L"SHORT", 8) == 0, "record: a value too short for an edge is left alone");
     Expect(PutTaskbarOnBottom(HKEY_CURRENT_USER, TestExplorerKey, record.c_str()) == 0, "again: nothing left to change");
+
+    // The loader could not start ClearStart: the values go back as they were.
+    PutTaskbarBack(HKEY_CURRENT_USER, saved);
+    Expect(Edge(L"\\StuckRects3", L"Settings") == 1, "put back: the main taskbar is on the top again, nothing else changed");
+    Expect(Edge(L"\\MMStuckRects3", L"MONITOR1") == 0, "put back: the left edge is back");
+    Expect(Edge(L"\\MMStuckRects3", L"MONITOR2") == 2, "put back: the right edge is back");
+    Expect(Edge(L"\\MMStuckRects3", L"MONITOR3") == 3, "put back: the bottom edge stays");
+    Expect(Number(TaskbarLocationValue) == 1, "put back: the edge chosen in Settings is the top again");
+    Expect(Number(L"TaskbarAl") == 1, "put back: another taskbar setting is left alone");
+    PutTaskbarBack(HKEY_CURRENT_USER, {});
+    Expect(Edge(L"\\StuckRects3", L"Settings") == 1, "nothing to put back: nothing changed");
+    Expect(PutTaskbarOnBottom(HKEY_CURRENT_USER, TestExplorerKey, record.c_str()) == 4, "after putting back: four edges change again");
 
     // A Windows without the edge chosen in Settings: the number is not made.
     HKEY advanced = nullptr;

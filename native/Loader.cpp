@@ -5,6 +5,8 @@
 #include <vector>
 
 static std::wstring modulePath, explorerPath;
+// The taskbar values put on the bottom before Explorer starts (see TaskbarEdge.h), as they were.
+static std::vector<TaskbarValue> changedEdges;
 constexpr wchar_t ShellKey[] = L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon";
 
 static void DisableOwnStartup() {
@@ -62,6 +64,14 @@ static std::string DllPath(const std::wstring& path) {
     return length > 0 && length < 32768 ? convert(shortPath) : std::string();
 }
 
+// ClearStart could not be started: the next sign-in uses Windows normally, the taskbar goes back on its own edge, and
+// plain Explorer starts.
+static void FallBack() {
+    DisableOwnStartup();
+    PutTaskbarBack(HKEY_CURRENT_USER, changedEdges);
+    NormalExplorer();
+}
+
 static int Run() {
     const std::wstring folder = modulePath.substr(0, modulePath.find_last_of(L'\\'));
     const std::wstring appPath = folder + L"\\ClearStart.exe";
@@ -69,12 +79,12 @@ static int Run() {
     const std::string guardAnsi = DllPath(guardPath);
     if (guardAnsi.empty() || GetFileAttributesW(appPath.c_str()) == INVALID_FILE_ATTRIBUTES
         || GetFileAttributesW(guardPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
-        DisableOwnStartup(); NormalExplorer(); return 1;
+        FallBack(); return 1;
     }
     GUID id{};
     wchar_t guid[40]{};
     if (FAILED(CoCreateGuid(&id)) || !StringFromGUID2(id, guid, 40)) {
-        DisableOwnStartup(); NormalExplorer(); return 1;
+        FallBack(); return 1;
     }
     const std::wstring token(guid + 1, 36);
     HANDLE mapping = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0,
@@ -84,7 +94,7 @@ static int Run() {
     HANDLE ready = CreateEventW(nullptr, TRUE, FALSE, ObjectName(token, L".Ready").c_str());
     HANDLE release = CreateEventW(nullptr, TRUE, FALSE, ObjectName(token, L".Release").c_str());
     if (!state || !attached || !ready || !release) {
-        DisableOwnStartup(); NormalExplorer(); return 1;
+        FallBack(); return 1;
     }
     *state = {};
     state->version = 1;
@@ -137,6 +147,8 @@ static int Run() {
         TerminateProcess(explorer.hProcess, ERROR_PROCESS_ABORTED);
         WaitForSingleObject(explorer.hProcess, 5000);
     }
+    // A ClearStart that never ran has not put the taskbar back on its own edge.
+    if (!resumed) PutTaskbarBack(HKEY_CURRENT_USER, changedEdges);
     NormalExplorer();
     // A newly started plain Explorer needs time to recreate its bars before we can restore auto-hide.
     if (!success) {
@@ -162,9 +174,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR command, int) {
     if (!single || GetLastError() == ERROR_ALREADY_EXISTS) return 2;
     int result = 1;
     // Before any Explorer starts: it reads the taskbar's edge only then (see TaskbarEdge.h).
-    PutTaskbarOnBottom(HKEY_CURRENT_USER, ExplorerKey, ClearStartRecordFile().c_str());
+    PutTaskbarOnBottom(HKEY_CURRENT_USER, ExplorerKey, ClearStartRecordFile().c_str(), &changedEdges);
     try { result = Run(); }
-    catch (...) { DisableOwnStartup(); NormalExplorer(); }
+    catch (...) { FallBack(); }
     ReleaseMutex(single);
     CloseHandle(single);
     return result;

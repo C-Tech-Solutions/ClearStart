@@ -71,7 +71,8 @@ taskbar back on its own edges: by the setting, or by waiting for the loader to g
 Explorer.
 
 Startup failures, crashes and watchdog recovery detected by the loader remove its own shell entry
-so the next sign-in uses Windows normally. Normal Exit keeps the entry for the next sign-in. The DLL stays loaded, inert,
+so the next sign-in uses Windows normally. A loader that could not start ClearStart also puts the
+taskbar's edges back as they were before it starts plain Explorer. Normal Exit keeps the entry for the next sign-in. The DLL stays loaded, inert,
 until Explorer exits; restarting ClearStart in the same session uses the ordinary hiding guard.
 Crash/hang and missing-file recovery have not been tested yet. If the loader itself cannot start at all
 (for example its executable was deleted), its recovery code cannot run: use the manual route below.

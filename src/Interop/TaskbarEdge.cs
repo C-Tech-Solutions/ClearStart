@@ -75,6 +75,9 @@ internal static class TaskbarEdge
     // longer.
     private static readonly TimeSpan SettingWait = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan SettingWaitBesideLoader = TimeSpan.FromSeconds(20);
+    // Putting the taskbar back as the ClearStart the loader started closes: the loader has let the taskbar go already,
+    // and stops a ClearStart that has not closed five seconds later, taking that for a failure (native\Protocol.h).
+    private static readonly TimeSpan SettingWaitClosingBesideLoader = TimeSpan.FromSeconds(2);
     // After this long without the taskbar moving, every window is told the setting changed, not only Explorer's taskbar.
     private static readonly TimeSpan TellEveryoneAfter = TimeSpan.FromSeconds(2);
 
@@ -195,7 +198,9 @@ internal static class TaskbarEdge
                     }
                     return false;
                 }
-                if (entries.All(entry => entry.Edge == Bottom))
+                // With the edge chosen in Settings, Explorer is told the setting again below, as it may not have
+                // read it since it was written.
+                if (!setting && entries.All(entry => entry.Edge == Bottom))
                 {
                     Log.Warn("The Windows taskbar is not on the bottom edge, but Windows' record says it is; it is left there");
                     return false;
@@ -387,7 +392,9 @@ internal static class TaskbarEdge
                     // loader's Explorer does too.
                     WriteEdges(record, autoHide: null);
                     wroteSetting = true;
-                    if (FollowsSetting(bottom: own.Edge == Bottom, SettingWait, () => false))
+                    // On a timeout beside the loader's Explorer, the record stays for later (see below).
+                    var wait = EarlySession.Active ? SettingWaitClosingBesideLoader : SettingWait;
+                    if (FollowsSetting(bottom: own.Edge == Bottom, wait, () => false))
                     {
                         Forget();
                         Log.Info($"Windows taskbar put back on the {Describe(record)}");

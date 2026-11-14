@@ -9,9 +9,13 @@
 //
 // Windows 11 25H2 with 2026's updates lets the user choose the edge in Settings, and keeps that choice as a number of
 // its own, which Explorer goes by over the older values. It is put on the bottom here too, where Windows has it.
+//
+// A loader that cannot start ClearStart puts the values back as they were before it starts plain Explorer: nothing
+// else would put the taskbar back on its own edge then.
 #include <windows.h>
 #include <shlobj.h>
 #include <string>
+#include <vector>
 
 constexpr wchar_t ExplorerKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer";
 // The edge in StuckRects3's value and in each of MMStuckRects3's (one per monitor): 0 left, 1 top, 2 right, 3 bottom.
@@ -32,8 +36,17 @@ inline std::wstring ClearStartRecordFile() {
     return path;
 }
 
-// Puts every edge under explorerKey on the bottom if recordFile is there. Returns how many values it changed.
-inline int PutTaskbarOnBottom(HKEY root, const wchar_t* explorerKey, const wchar_t* recordFile) {
+// A value PutTaskbarOnBottom changed, as it was before, for PutTaskbarBack.
+struct TaskbarValue {
+    std::wstring key, name;
+    DWORD type;
+    std::vector<BYTE> data;
+};
+
+// Puts every edge under explorerKey on the bottom if recordFile is there. Returns how many values it changed, and
+// adds each one as it was to saved, if given.
+inline int PutTaskbarOnBottom(HKEY root, const wchar_t* explorerKey, const wchar_t* recordFile,
+                              std::vector<TaskbarValue>* saved = nullptr) {
     if (!recordFile || !*recordFile || GetFileAttributesW(recordFile) == INVALID_FILE_ATTRIBUTES) return 0;
     int changed = 0;
     for (const wchar_t* name : { L"\\StuckRects3", L"\\MMStuckRects3" }) {
@@ -49,8 +62,11 @@ inline int PutTaskbarOnBottom(HKEY root, const wchar_t* explorerKey, const wchar
             if (status != ERROR_SUCCESS || type != REG_BINARY || dataLength <= TaskbarEdgeOffset) continue;
             // On the bottom already, or not an edge at all.
             if (data[TaskbarEdgeOffset] >= TaskbarBottom) continue;
+            std::vector<BYTE> before(data, data + dataLength);
             data[TaskbarEdgeOffset] = TaskbarBottom;
-            if (RegSetValueExW(key, value, 0, REG_BINARY, data, dataLength) == ERROR_SUCCESS) ++changed;
+            if (RegSetValueExW(key, value, 0, REG_BINARY, data, dataLength) != ERROR_SUCCESS) continue;
+            ++changed;
+            if (saved) saved->push_back({ path, value, REG_BINARY, std::move(before) });
         }
         RegCloseKey(key);
     }
@@ -62,11 +78,23 @@ inline int PutTaskbarOnBottom(HKEY root, const wchar_t* explorerKey, const wchar
         DWORD location = 0, size = sizeof(location), type = 0;
         if (RegQueryValueExW(key, TaskbarLocationValue, nullptr, &type, reinterpret_cast<BYTE*>(&location), &size) == ERROR_SUCCESS &&
             type == REG_DWORD && size == sizeof(location) && location < TaskbarBottom) {
-            location = TaskbarBottom;
-            if (RegSetValueExW(key, TaskbarLocationValue, 0, REG_DWORD, reinterpret_cast<const BYTE*>(&location),
-                               sizeof(location)) == ERROR_SUCCESS) ++changed;
+            const BYTE* before = reinterpret_cast<const BYTE*>(&location);
+            std::vector<BYTE> was(before, before + sizeof(location));
+            const DWORD bottom = TaskbarBottom;
+            if (RegSetValueExW(key, TaskbarLocationValue, 0, REG_DWORD, reinterpret_cast<const BYTE*>(&bottom),
+                               sizeof(bottom)) == ERROR_SUCCESS) {
+                ++changed;
+                if (saved) saved->push_back({ advanced, TaskbarLocationValue, REG_DWORD, std::move(was) });
+            }
         }
         RegCloseKey(key);
     }
     return changed;
+}
+
+// Puts back the values PutTaskbarOnBottom changed, as they were.
+inline void PutTaskbarBack(HKEY root, const std::vector<TaskbarValue>& saved) {
+    for (const TaskbarValue& value : saved)
+        RegSetKeyValueW(root, value.key.c_str(), value.name.c_str(), value.type, value.data.data(),
+                        static_cast<DWORD>(value.data.size()));
 }
