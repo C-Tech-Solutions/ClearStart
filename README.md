@@ -33,9 +33,10 @@ its failure recovery still needs desktop testing.
 > Windows taskbar and hides nothing, and **live mode**, where ClearStart takes the Windows
 > taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
-Version 0.4.0 puts [early startup](docs/early-startup.md) in the installer, ticked by default
-with Start with Windows, so ClearStart starts before Explorer and the Windows taskbar is not drawn
-at sign-in. Without it, ClearStart still cannot guarantee that; see
+Version 0.5.0 keeps [early startup](docs/early-startup.md) on when ClearStart takes a few seconds
+to close: showing the Windows taskbar again on several monitors can take that long, and the loader
+in 0.4.0 took it for a failure. Early startup is in the installer, ticked by default with Start
+with Windows, so ClearStart starts before Explorer and the Windows taskbar is not drawn at sign-in. Without it, ClearStart still cannot guarantee that; see
 [startup limits](docs/getting-started.md#how-soon-it-takes-over). A Windows taskbar on the top or a
 side of the screen, where Windows 11 cannot auto-hide it, is moved to the bottom while ClearStart
 runs and put back afterwards. Where Windows 11 has the taskbar's position in Settings, it moves
