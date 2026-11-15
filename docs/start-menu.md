@@ -176,7 +176,9 @@ if it stops, ClearStart watches the key itself, as it always has.
 
 An update asks for no administrator rights, so it leaves the helper in Program Files as it is. To
 put a newer one there, run Setup again with the box ticked. Uninstalling ClearStart asks once
-more, to take the helper away; `ClearStart.exe --win-key-helper remove` does the same.
+more, to take the helper away; `ClearStart.exe --win-key-helper remove` does the same. Everyone
+who uses the PC shares that one helper: taking it away for one person takes it away for all, and
+running Setup again with the box ticked puts it back.
 
 The helper was tried on one PC on November 15, 2026, in two runs, with a signed copy put in
 `C:\Program Files\ClearStart\` by hand. Windows started it, and the Windows key opened
