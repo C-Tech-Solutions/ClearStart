@@ -69,12 +69,15 @@ internal static class ExplorerTaskbar
     /// another. An auto-hidden taskbar slides mostly off its monitor, so where one monitor sits above another, the
     /// bottom of the upper one and the top of the lower one can look alike; that counts as the bottom.
     /// </summary>
-    public static bool AllOnBottom()
+    public static bool AllOnBottom() =>
+        AllOnBottom(BarRects(), System.Windows.Forms.Screen.AllScreens.Select(screen => screen.Bounds).ToList());
+
+    /// <summary><see cref="AllOnBottom()"/> for these taskbar windows on these monitors.</summary>
+    internal static bool AllOnBottom(IEnumerable<Native.RECT> bars, IReadOnlyList<System.Drawing.Rectangle> monitors)
     {
-        var monitors = System.Windows.Forms.Screen.AllScreens.Select(screen => screen.Bounds).ToList();
-        foreach (var (hwnd, _) in FindBars())
+        foreach (var bar in bars)
         {
-            if (!Native.GetWindowRect(hwnd, out var bar) || bar.Width <= 0 || bar.Height <= 0) continue;
+            if (bar.Width <= 0 || bar.Height <= 0) continue;
             if (bar.Width < bar.Height) return false;
             var under = monitors.Where(monitor => bar.Left < monitor.Right && bar.Right > monitor.Left).ToList();
             bool onTop = under.Any(monitor => bar.Top <= monitor.Top && bar.Bottom > monitor.Top);
@@ -273,7 +276,7 @@ internal static class ExplorerTaskbar
     }
 
     /// <summary>The edge of <paramref name="monitor"/> that the one of <paramref name="bars"/> on it sits on.</summary>
-    private static BarEdge? EdgeOn(Native.RECT monitor, List<Native.RECT> bars)
+    internal static BarEdge? EdgeOn(Native.RECT monitor, List<Native.RECT> bars)
     {
         BarEdge? found = null;
         long best = 0;

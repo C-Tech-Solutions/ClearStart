@@ -59,6 +59,20 @@ internal static class AutoStart
         }
     }
 
+    /// <summary><see cref="IsEnabled"/>, or false if Windows' startup settings cannot be read (logged).</summary>
+    public static bool StartsAtSignIn()
+    {
+        try
+        {
+            return IsEnabled;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("Could not tell whether ClearStart starts with Windows: " + ex.Message);
+            return false;
+        }
+    }
+
     /// <summary>Sets Windows to start this copy at sign-in, or to start no copy.</summary>
     public static void Set(bool enabled) => ChangeStartup(() => SetCore(enabled));
 

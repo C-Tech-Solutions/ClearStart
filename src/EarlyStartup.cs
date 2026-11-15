@@ -78,6 +78,8 @@ internal static class EarlyStartup
         using var key = Registry.CurrentUser.CreateSubKey(ShellKey, writable: true);
         key.SetValue("Shell", Command, RegistryValueKind.String);
         Log.Info("Early startup enabled for the next sign-in. The current desktop was not changed.");
+        // A taskbar on the top or a side goes on the bottom before the loader starts Explorer (see TaskbarEdge).
+        TaskbarEdge.RecordForEarlyStartup();
     }
 
     public static void Disable()

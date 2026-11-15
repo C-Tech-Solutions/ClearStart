@@ -17,7 +17,10 @@ add_library(detours STATIC
 target_include_directories(detours PUBLIC ${detours_SOURCE_DIR}/src)
 add_executable(ClearStart.Loader WIN32 Loader.cpp)
 add_library(ClearStart.ExplorerGuard SHARED ExplorerGuard.cpp ExplorerGuard.def)
-foreach(target detours ClearStart.Loader ClearStart.ExplorerGuard)
+# Checks the loader's taskbar-edge step on test values (TaskbarEdge.h). Not staged or shipped.
+add_executable(ClearStart.TaskbarEdgeCheck TaskbarEdgeCheck.cpp)
+target_link_libraries(ClearStart.TaskbarEdgeCheck PRIVATE shell32 advapi32 ole32)
+foreach(target detours ClearStart.Loader ClearStart.ExplorerGuard ClearStart.TaskbarEdgeCheck)
   set_property(TARGET ${target} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   target_compile_features(${target} PRIVATE cxx_std_17)
   target_compile_definitions(${target} PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00)
