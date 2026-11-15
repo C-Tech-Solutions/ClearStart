@@ -19,6 +19,7 @@ what has not, and what is missing.
 | **Preview mode** | Run on one desktop: Windows 11 25H2, four monitors at 100% scaling. |
 | **Live mode** | Run on that desktop in the Windows taskbar's place, with a bar on each of the four monitors: hiding the Windows taskbar and putting it back on exit, your apps' tray icons on the bars, the hidden ones behind the arrow, dragging icons on and off the bar, and the Cast button. Win+arrow window snapping, and the Windows key raising the bars with the start menu over a fullscreen app, were checked by hand after signing in. Also run on a second PC, a laptop with one screen. |
 | **Start with Windows** | The sign-in task has started ClearStart on that desktop after signing out and in again, and after a restart (see [Known problems](#known-problems-in-050)). The tray, the weather and the list of apps started after the bars were on screen. |
+| **Minimizing towards the bar** | On that desktop, with bars on the top, left and right edges of three monitors, windows shrank into their button on ClearStart's bar and grew back out of it, also after a bar was moved to another edge. ClearStart had started after Explorer there. Its log showed that Windows had Explorer's answer first and used ClearStart's, which came after it. |
 | **A taskbar on another edge** | On the laptop, a Windows taskbar on the top edge was moved to the bottom while ClearStart ran and put back on the top when it closed, including when Explorer did not close when asked and was ended and started again. |
 | **The self-test** | `ClearStart.exe --selftest` draws about eighty pictures of the bars, the start menu, the weather panel, the settings pages and the Start button designs, checks where things end up, and reports any error. It passes with no errors. |
 | **The installer** | A build from before the updater was added was signed and run on that desktop without its pages on screen: installing, installing again over a running copy, adding Start with Windows, and uninstalling. The installed copy passed the self-test. An unsigned build of the 0.3.0 code was installed over a running copy the same way, with Start with Windows, and started ClearStart again. |
@@ -66,6 +67,10 @@ one by clicking it on a real desktop:
 - switching the output device and spatial sound from the volume menu;
 - the weather's location search against the live service;
 - hiding and showing a bar from the right-click menu;
+- windows minimizing towards their button on ClearStart's bar when ClearStart started before
+  Explorer (early startup), and after Explorer started again. Windows uses the answer of the
+  program that registered last, so ClearStart registers again when Explorer has a new taskbar;
+  that has not been watched on a desktop;
 - choosing which pinned apps a bar shows, from the menus and from the chips on the Taskbar page;
 - opening Windows' settings and tools from the start menu's search, and adding one to the
   places from its right-click menu;

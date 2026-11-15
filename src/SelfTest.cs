@@ -881,6 +881,16 @@ internal static partial class SelfTest
                 errors.Add("Window previews: " + ex);
             }
 
+            // Where each window's button is on a bar: what Windows asks, so that a window minimizes towards it.
+            try
+            {
+                await CheckButtonPlacesAsync(host, screens.FirstOrDefault(s => s.Primary) ?? screens.First(), report, errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Button places: " + ex);
+            }
+
             // Every open window should have handed over an icon by now.
             try
             {

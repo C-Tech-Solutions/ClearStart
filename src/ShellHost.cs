@@ -74,6 +74,8 @@ internal sealed class ShellHost : IDisposable
     private readonly DispatcherTimer _saveTimer;
     private StartMenuWindow? _startMenu;
     private ThumbnailWindow? _previews;
+    // Tells Windows where the windows' buttons are on the bars, so that they minimize towards them.
+    private MinimizeTarget? _minimizeTarget;
     private SettingsWindow? _settingsWindow;
     // A change from the settings window that needs the bars reopened, once the changes stop coming.
     private bool _rebuildPending;
@@ -235,6 +237,7 @@ internal sealed class ShellHost : IDisposable
         _explorerTaskbar = ExplorerTaskbar.FindPrimary();
         WatchExplorer(_explorerTaskbar);
         RebuildBars();
+        StartMinimizeTarget();
 
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         Settings.Changed += OnSettingsChanged;
@@ -642,6 +645,9 @@ internal sealed class ShellHost : IDisposable
             {
                 bar.DockAgain();
             }
+            // The new Explorer answers where the windows' buttons are, for its own hidden taskbar: ClearStart's
+            // answer goes behind it again.
+            _minimizeTarget?.AnswerLast();
             // The apps handed their icons to Explorer's tray as it started. They are asked for them again once it has
             // settled; closing was normally noticed already, and the tray is behind Explorer's.
             if (!ExplorerTaskbar.HasSettled(taskbar))
@@ -1122,6 +1128,43 @@ internal sealed class ShellHost : IDisposable
         ?? _bars.FirstOrDefault(b => SameDevice(b.Device, _mainDevice))
         ?? _bars.FirstOrDefault();
 
+    /// <summary>
+    /// From now on windows minimize towards their buttons on ClearStart's bars instead of towards the hidden Windows
+    /// taskbar. Only while ClearStart stands in for that taskbar: beside it, the windows' buttons there are the ones
+    /// in view.
+    /// </summary>
+    private void StartMinimizeTarget()
+    {
+        if (Mode != HostMode.Live || _minimizeTarget != null) return;
+        try
+        {
+            _minimizeTarget = new MinimizeTarget(ButtonPlace);
+            _minimizeTarget.AnswerLast();
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("Could not start telling Windows where the windows' buttons are: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Where a window's button is on the screen, or nothing for a window no bar lists. With every bar listing every
+    /// window, several bars have a button for it: the bar on the window's own display comes first, then the main bar.
+    /// </summary>
+    internal Native.RECT? ButtonPlace(IntPtr window)
+    {
+        // For a minimized window this is the display it was on before.
+        IntPtr monitor = Native.MonitorFromWindow(window, 2 /* MONITOR_DEFAULTTONEAREST */);
+        var bars = _bars
+            .OrderByDescending(b => b.Monitor == monitor)
+            .ThenByDescending(b => SameDevice(b.Device, _mainDevice));
+        foreach (var bar in bars)
+        {
+            if (bar.ButtonPlace(window) is { } place) return place;
+        }
+        return null;
+    }
+
     /// <summary>Moves one monitor's bar to another edge and remembers the choice.</summary>
     public void MoveBar(string device, BarEdge edge)
     {
@@ -1549,6 +1592,7 @@ internal sealed class ShellHost : IDisposable
         Step("close the start menu", CloseStartMenu);
         Step("close the window previews", ClosePreviews);
         Step("signal shutdown", () => Shell.AppBarManager.SignalGracefulShutdown());
+        Step("stop telling Windows where the windows' buttons are", () => { _minimizeTarget?.Dispose(); _minimizeTarget = null; });
         Step("close the taskbars", CloseBars);
         if (Mode == HostMode.Live)
         {
