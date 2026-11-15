@@ -167,5 +167,13 @@ For now that is done by hand: copy the signed `ClearStart.WinKey.exe` from Clear
 log then says that the Windows key is watched by `ClearStart.WinKey.exe`. With no helper there, or
 if it stops, ClearStart watches the key itself, as it always has.
 
-The helper has been built and the rules it follows are checked, but it has not been run yet,
-because Windows starts it only once it is signed.
+The helper was tried on one PC on November 15, 2026, in two runs, with a signed copy put in
+`C:\Program Files\ClearStart\` by hand. Windows started it, and the Windows key opened
+ClearStart's menu with Task Manager in front, which runs as administrator, and in a full-screen
+game.
+
+In the first run the PC's keyboard stopped answering a few minutes after the game started, and
+worked again only after it was unplugged and plugged back in. The cause was not found. Nothing in
+the helper talks to a keyboard: it listens for the key and types one do-nothing key into Windows,
+as ClearStart itself has always done. The second run, with the same game, had no such trouble.
+Two short runs do not rule the helper out, though, so treat it as experimental.

@@ -34,8 +34,8 @@ what has not, and what is missing.
   seconds before its own tray starts beside it; one that is crowded sooner stops snapping windows
   with Win+arrow. That adds up to three seconds before the bars are on screen.
 - **Over an app running as administrator, the Windows key opens the Windows Start menu.** Some
-  games run that way. Windows does not let ClearStart see the key there. A helper for it is
-  written but [has not been run](#what-has-not-been-run).
+  games run that way. Windows does not let ClearStart see the key there. A helper for it
+  [has worked on one PC](#what-has-not-been-run), but Setup does not install it yet.
 
 ## What has not been run
 
@@ -57,9 +57,13 @@ again as 0.4.0. Early startup was off on that PC, so an update that closes Clear
 early-startup loader runs it has not been tried yet.
 
 **The Windows key over apps running as administrator.** `ClearStart.WinKey.exe`, the helper for
-it, is not in 0.5.0. It has been built, and the self-test covers ClearStart's side of it, but the
-helper itself has never been run: Windows starts it only signed and from a folder under Program
-Files, and Setup does not put it there. See
+it, is not in 0.5.0, and Setup does not put it in Program Files, the only place Windows lets it
+work from. A signed copy put there by hand was tried on one PC on November 15, 2026, in two runs.
+Windows started it, and the Windows key opened ClearStart's menu over Task Manager, which runs as
+administrator, and in a full-screen game. In the first run the PC's keyboard stopped answering a
+few minutes after the game started, until it was plugged in again. The cause was not found, and
+the second run, with the same game, had no such trouble. A long session in a game has not been
+tried. See
 [the start menu](start-menu.md#the-windows-key-over-apps-running-as-administrator).
 
 **Other setups.** Other versions of Windows and display scaling above 100% have not been tried.
