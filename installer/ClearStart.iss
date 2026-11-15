@@ -188,10 +188,11 @@ end;
 { A copy that is running holds its files open. When it is the copy being upgraded, ask it to close,
   which also brings the Windows taskbar back. A copy running from anywhere else holds nothing here.
 
-  Under early startup, the loader stops a ClearStart that takes more than five seconds to close (showing
-  the Windows taskbar on several monitors can take that long), and its lock can outlast it for a moment.
-  The loader also takes that stop for a failure and turns early startup off as it goes. An update is no
-  failure, so the [Run] section turns early startup back on once the new files are in. }
+  Under early startup, the loader from 0.4.0 and earlier stops a ClearStart that takes more than five
+  seconds to close (showing the Windows taskbar on several monitors can take that long), and its lock can
+  outlast it for a moment. That loader also takes the stop for a failure and turns early startup off as it
+  goes. It is still the one running during an update, which is no failure, so the [Run] section turns
+  early startup back on once the new files are in. Later loaders give a normal close 30 seconds. }
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   Exe: String;

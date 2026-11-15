@@ -131,6 +131,9 @@ static int Run() {
         if (GetExitCodeProcess(application.hProcess, &code) && code != 0 && code != STILL_ACTIVE) success = false;
         if (WaitForSingleObject(explorer.hProcess, 0) == WAIT_OBJECT_0) success = false;
     }
+    // Recovery rather than a normal Exit, so ClearStart gets the short time to stop (see Restore). Set before the
+    // release below, which the guard's watchdog acts on too.
+    if (!success) InterlockedExchange(&state->failed, 1);
     // No more suppression, even if the app cannot service its exit request.
     InterlockedExchange(&state->enabled, 0);
     SetEvent(release);
