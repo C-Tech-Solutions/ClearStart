@@ -422,6 +422,10 @@ internal sealed partial class SettingsView : UserControl
         page.Children.Add(Row("Height", null,
             SliderWith(420, 1400, 20, () => StartMenu.Height, value => StartMenu.Height = (int)value,
                 value => $"{value:0} px", SettingsChange.StartMenu)));
+        page.Children.Add(Row("Pinned tile scale",
+            "How big the pinned tiles are drawn; bigger ones fit fewer across. Right-click a tile to change its own size",
+            SliderWith(70, 150, 10, () => StartMenu.PinScale, value => StartMenu.PinScale = (int)value,
+                value => $"{value:0}%", SettingsChange.StartMenu)));
 
         page.Children.Add(Group("Look"));
         AddLookRows(page, "Start menu", look);

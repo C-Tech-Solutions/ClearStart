@@ -2,7 +2,8 @@
 
 [← Back to the README](../README.md)
 
-Right-click a bar and choose **Settings**, or click the gear in the start menu. Changes take
+Right-click a bar and choose **Settings**, or right-click the gear in the start menu and choose
+**ClearStart settings** (clicking the gear opens Windows' settings). Changes take
 effect as you make them and are saved to [the settings file](settings-file.md).
 
 - [The pages](#the-pages)

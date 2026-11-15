@@ -921,16 +921,93 @@ internal static partial class SelfTest
                 report["startMenuAppCount"] = menu.VisibleAppCount;
 
                 var searches = new Dictionary<string, List<string>>();
-                foreach (string query in new[] { "calc", "note", "term", "paint", "vsc", "zzzzqq" })
+                foreach (string query in new[]
+                {
+                    "calc", "note", "term", "paint", "vsc", "zzzzqq",
+                    "power options", "control panel", "add or remove", "regedit", "dark mode", "p",
+                    "appwiz.cpl", "devmgmt.msc", "regedit.exe", "ms-settings:network", "ms-settings:netw", "services.ms",
+                })
                 {
                     menu.SetQuery(query);
-                    searches[query] = menu.TopResults(3);
+                    searches[query] = menu.TopResults(query.Length == 1 ? 1000 : 3);
                 }
-                report["searchResults"] = searches;
+                report["searchResults"] = searches.Where(search => search.Key.Length > 1)
+                    .ToDictionary(search => search.Key, search => search.Value);
+
+                // Windows settings and tools come up beside the apps, and only once each.
+                void ExpectFeature(string query, string name, bool first)
+                {
+                    var found = searches[query];
+                    bool ok = first ? found.FirstOrDefault() == name : found.Count(result => result == name) == 1;
+                    if (!ok) errors.Add($"Search \"{query}\" found [{string.Join(", ", found)}], not {name}{(first ? " first" : " once")}");
+                }
+                ExpectFeature("power options", "Power Options", first: true);
+                ExpectFeature("control panel", "Control Panel", first: false);
+                ExpectFeature("add or remove", "Programs and Features", first: false);
+                ExpectFeature("regedit", "Registry Editor", first: true);
+                ExpectFeature("dark mode", "Colors", first: true);
+                ExpectFeature("appwiz.cpl", "Programs and Features", first: true);
+                ExpectFeature("devmgmt.msc", "Device Manager", first: true);
+                ExpectFeature("regedit.exe", "Registry Editor", first: true);
+                ExpectFeature("ms-settings:network", "Network & internet", first: true);
+                // A command typed in part finds nothing, so Enter runs it as typed.
+                foreach (string part in new[] { "ms-settings:netw", "services.ms" })
+                {
+                    if (searches[part].Count > 0) errors.Add($"Search \"{part}\" found " + string.Join(", ", searches[part]));
+                }
+                var oneLetter = searches["p"].Where(name => WindowsFeatures.All.Any(feature => feature.Name == name)
+                    && !host.Apps.Apps.Any(app => app.DisplayName == name)).ToList();
+                if (oneLetter.Count > 0) errors.Add("Search \"p\" found Windows settings: " + string.Join(", ", oneLetter));
+
+                var catalog = WindowsFeatures.Catalog();
+                var named = catalog.GroupBy(feature => feature.Name, StringComparer.OrdinalIgnoreCase)
+                    .Where(group => group.Count() > 1).Select(group => group.Key).ToList();
+                if (named.Count > 0) errors.Add("Windows features with the same name: " + string.Join(", ", named));
+                report["windowsFeatures"] = new
+                {
+                    listed = catalog.Count,
+                    notOnThisPc = catalog.Where(feature => WindowsFeatures.All.All(here => here.Name != feature.Name))
+                        .Select(feature => feature.Name).ToList(),
+                };
 
                 menu.SetQuery("note");
                 await Task.Delay(1500);
                 stage.Save(Path.Combine(directory, "startmenu-search.png"));
+
+                menu.SetQuery("power");
+                await Task.Delay(1500);
+                stage.Save(Path.Combine(directory, "startmenu-search-windows.png"));
+
+                // The pinned tiles and folders, in memory; the pins are read back as they were after.
+                var pinsBefore = (Pinned: menuSettings.Pinned?.ToList(), Folders: menuSettings.PinFolders?
+                    .Select(folder => new PinFolderEntry { Name = folder.Name, Items = folder.Items.ToList(), Size = folder.Size })
+                    .ToList(), Sizes: menuSettings.TileSizes?.ToDictionary(StringComparer.OrdinalIgnoreCase));
+                try
+                {
+                    try
+                    {
+                        report["pinFolders"] = await CheckPinFoldersAsync(host, menu, stage, directory, errors);
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add("Pinned folders: " + ex);
+                    }
+                    try
+                    {
+                        report["tileSizes"] = await CheckTileSizesAsync(host, menu, stage, directory, errors);
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add("Tile sizes: " + ex);
+                    }
+                }
+                finally
+                {
+                    menuSettings.Pinned = pinsBefore.Pinned;
+                    menuSettings.PinFolders = pinsBefore.Folders;
+                    menuSettings.TileSizes = pinsBefore.Sizes;
+                    host.Pins.ReloadStart();
+                }
 
                 stage.Close();
                 menu.Detach();

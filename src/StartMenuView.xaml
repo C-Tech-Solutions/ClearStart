@@ -1,10 +1,11 @@
 <UserControl x:Class="ClearStart.StartMenuView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:ClearStart"
              FontFamily="{StaticResource UiFont}" FontSize="13"
              Foreground="{DynamicResource ForegroundBrush}"
              UseLayoutRounding="True" SnapsToDevicePixels="True"
-             PreviewKeyDown="View_PreviewKeyDown">
+             PreviewKeyDown="View_PreviewKeyDown" GiveFeedback="View_GiveFeedback">
 
     <UserControl.Resources>
 
@@ -18,6 +19,7 @@
             <Setter Property="Margin" Value="0,0,6,0"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="App_Press"/>
+            <EventSetter Event="PreviewMouseMove" Handler="App_Move"/>
             <EventSetter Event="PreviewMouseLeftButtonUp" Handler="App_Click"/>
             <EventSetter Event="MouseRightButtonUp" Handler="App_RightClick"/>
             <Setter Property="Template">
@@ -46,22 +48,130 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Image Source="{Binding LargeIcon}" Width="24" Height="24" RenderOptions.BitmapScalingMode="HighQuality"/>
+                <Image x:Name="Icon" Source="{Binding LargeIcon}" Width="24" Height="24"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
                 <TextBlock Grid.Column="1" Text="{Binding DisplayName}" Margin="12,0,0,0" VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"/>
             </Grid>
         </DataTemplate>
 
+        <!-- A Windows setting or tool among the search results. One-time bindings: the catalog lives for good. -->
+        <DataTemplate x:Key="FeatureTemplate">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock FontFamily="{StaticResource IconFont}" FontSize="18" Width="24" TextAlignment="Center"
+                           Text="{Binding Glyph, Mode=OneTime}" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Kind, Mode=OneTime}" FontSize="11" Opacity="0.6"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <!-- A pinned app. Dragged, it moves among the tiles, or onto another to make a folder of the two.
+             The element named Icon is what floats under the pointer while it is dragged. The TileGrid gives the
+             tile its place, and the size it is drawn at: a small one has no name, a wide one has it beside the icon. -->
         <DataTemplate x:Key="TileTemplate">
-            <Button Style="{StaticResource FlatButton}" Width="96" Height="88" Margin="2" ToolTip="{Binding Name}"
-                    Click="Pin_Click" MouseRightButtonUp="Pin_RightClick">
-                <StackPanel>
-                    <Image Source="{Binding Item.ExtraLargeIcon}" Width="36" Height="36"
+            <Button x:Name="Tile" Style="{StaticResource FlatButton}" Margin="2" ToolTip="{Binding Name}"
+                    Click="Pin_Click" MouseRightButtonUp="Pin_RightClick"
+                    PreviewMouseLeftButtonDown="Tile_Press" PreviewMouseMove="Tile_Move">
+                <StackPanel x:Name="Face">
+                    <Image x:Name="Icon" Source="{Binding Item.ExtraLargeIcon}" Width="36" Height="36"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
-                    <TextBlock Text="{Binding Name}" FontSize="12" Margin="4,6,4,0" MaxHeight="32" TextWrapping="Wrap"
-                               TextTrimming="CharacterEllipsis" TextAlignment="Center"/>
+                    <TextBlock x:Name="Label" Text="{Binding Name}" FontSize="12" Margin="4,6,4,0" MaxHeight="32"
+                               TextWrapping="Wrap" TextTrimming="CharacterEllipsis" TextAlignment="Center"/>
                 </StackPanel>
             </Button>
+            <DataTemplate.Triggers>
+                <Trigger Property="local:TileGrid.Shown" Value="Small">
+                    <Setter TargetName="Icon" Property="Width" Value="24"/>
+                    <Setter TargetName="Icon" Property="Height" Value="24"/>
+                    <Setter TargetName="Label" Property="Visibility" Value="Collapsed"/>
+                </Trigger>
+                <Trigger Property="local:TileGrid.Shown" Value="Wide">
+                    <Setter TargetName="Tile" Property="HorizontalContentAlignment" Value="Left"/>
+                    <Setter TargetName="Face" Property="Orientation" Value="Horizontal"/>
+                    <Setter TargetName="Icon" Property="Margin" Value="14,0,0,0"/>
+                    <Setter TargetName="Label" Property="Width" Value="122"/>
+                    <Setter TargetName="Label" Property="Margin" Value="12,0,8,0"/>
+                    <Setter TargetName="Label" Property="MaxHeight" Value="36"/>
+                    <Setter TargetName="Label" Property="FontSize" Value="13"/>
+                    <Setter TargetName="Label" Property="TextAlignment" Value="Left"/>
+                    <Setter TargetName="Label" Property="VerticalAlignment" Value="Center"/>
+                </Trigger>
+                <Trigger Property="local:TileGrid.Shown" Value="Large">
+                    <Setter TargetName="Icon" Property="Source" Value="{Binding Item.JumboIcon}"/>
+                    <Setter TargetName="Icon" Property="Width" Value="72"/>
+                    <Setter TargetName="Icon" Property="Height" Value="72"/>
+                    <Setter TargetName="Label" Property="Margin" Value="8,12,8,0"/>
+                    <Setter TargetName="Label" Property="MaxHeight" Value="40"/>
+                    <Setter TargetName="Label" Property="FontSize" Value="14"/>
+                </Trigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- A folder's picture, on its tile and while it is dragged: its first four apps drawn small. -->
+        <DataTemplate x:Key="FolderPlate">
+            <Border Width="38" Height="38" CornerRadius="6" Background="#24FFFFFF" Padding="3">
+                <ItemsControl ItemsSource="{Binding Preview}" Focusable="False" IsHitTestVisible="False">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="2" Rows="2"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Image Source="{Binding Item.LargeIcon}" Width="14" Height="14"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+        </DataTemplate>
+
+        <!-- A folder of pinned apps. A click opens it out of its tile, in place of the pins. Its sizes are an app's,
+             the picture of its apps drawn bigger or smaller. -->
+        <DataTemplate x:Key="FolderTileTemplate">
+            <Button x:Name="Tile" Style="{StaticResource FlatButton}" Margin="2" ToolTip="{Binding Name}"
+                    Click="Pin_Click" MouseRightButtonUp="Pin_RightClick"
+                    PreviewMouseLeftButtonDown="Tile_Press" PreviewMouseMove="Tile_Move">
+                <StackPanel x:Name="Face">
+                    <Viewbox x:Name="Plate" Width="38" Height="38">
+                        <ContentPresenter x:Name="Icon" Content="{Binding}" ContentTemplate="{StaticResource FolderPlate}"/>
+                    </Viewbox>
+                    <TextBlock x:Name="Label" Text="{Binding Name}" FontSize="12" Margin="4,4,4,0" MaxHeight="32"
+                               TextWrapping="Wrap" TextTrimming="CharacterEllipsis" TextAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <DataTemplate.Triggers>
+                <Trigger Property="local:TileGrid.Shown" Value="Small">
+                    <Setter TargetName="Plate" Property="Width" Value="30"/>
+                    <Setter TargetName="Plate" Property="Height" Value="30"/>
+                    <Setter TargetName="Label" Property="Visibility" Value="Collapsed"/>
+                </Trigger>
+                <Trigger Property="local:TileGrid.Shown" Value="Wide">
+                    <Setter TargetName="Tile" Property="HorizontalContentAlignment" Value="Left"/>
+                    <Setter TargetName="Face" Property="Orientation" Value="Horizontal"/>
+                    <Setter TargetName="Plate" Property="Margin" Value="13,0,0,0"/>
+                    <Setter TargetName="Label" Property="Width" Value="122"/>
+                    <Setter TargetName="Label" Property="Margin" Value="11,0,8,0"/>
+                    <Setter TargetName="Label" Property="MaxHeight" Value="36"/>
+                    <Setter TargetName="Label" Property="FontSize" Value="13"/>
+                    <Setter TargetName="Label" Property="TextAlignment" Value="Left"/>
+                    <Setter TargetName="Label" Property="VerticalAlignment" Value="Center"/>
+                </Trigger>
+                <Trigger Property="local:TileGrid.Shown" Value="Large">
+                    <Setter TargetName="Plate" Property="Width" Value="76"/>
+                    <Setter TargetName="Plate" Property="Height" Value="76"/>
+                    <Setter TargetName="Label" Property="Margin" Value="8,10,8,0"/>
+                    <Setter TargetName="Label" Property="MaxHeight" Value="40"/>
+                    <Setter TargetName="Label" Property="FontSize" Value="14"/>
+                </Trigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
 
         <!-- One entry in the column of places. Its sizes come from the settings: see ArrangePlaces. -->
@@ -122,7 +232,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock FontFamily="{StaticResource IconFont}" FontSize="15" Text="&#xE721;" Opacity="0.8"
                                Margin="12,0,10,0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="SearchHint" Grid.Column="1" Text="Search apps, or type a command and press Enter"
+                    <TextBlock x:Name="SearchHint" Grid.Column="1" Text="Search apps and settings, or type a command and press Enter"
                                Opacity="0.55" Margin="2,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
                     <TextBox x:Name="SearchBox" Grid.Column="1" Margin="0,0,10,0" Background="Transparent" BorderThickness="0"
                              Foreground="{DynamicResource ForegroundBrush}" CaretBrush="{DynamicResource ForegroundBrush}"
@@ -143,29 +253,81 @@
                 <TextBlock x:Name="AppHeader" DockPanel.Dock="Top" Style="{StaticResource SectionHeader}" Text="All apps"/>
                 <Grid>
                     <ListBox x:Name="AppList" Background="Transparent" BorderThickness="0" Padding="0" Focusable="False"
-                             ItemContainerStyle="{StaticResource AppRow}" ItemTemplate="{StaticResource AppTemplate}"
+                             ItemContainerStyle="{StaticResource AppRow}"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              VirtualizingPanel.ScrollUnit="Pixel"/>
                     <TextBlock x:Name="NoResults" Visibility="Collapsed" Opacity="0.6" Margin="8,4" TextWrapping="Wrap"
-                               Text="No app matches. Press Enter to run what you typed as a command."/>
+                               Text="Nothing matches. Press Enter to run what you typed as a command."/>
                 </Grid>
             </DockPanel>
 
             <!-- Pinned -->
             <DockPanel x:Name="PinsPanel" Grid.Row="1" Grid.Column="1" Margin="14,0,10,0">
-                <TextBlock DockPanel.Dock="Top" Style="{StaticResource SectionHeader}" Text="Pinned"/>
-                <Grid>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
-                        <ItemsControl x:Name="PinList" ItemTemplate="{StaticResource TileTemplate}" Focusable="False">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                        </ItemsControl>
-                    </ScrollViewer>
-                    <TextBlock x:Name="PinHint" Opacity="0.6" Margin="8,4" TextWrapping="Wrap" IsHitTestVisible="False"
-                               Text="Nothing pinned yet. Right-click an app and choose “Pin to Start” to keep it here."/>
+                <Grid DockPanel.Dock="Top">
+                    <TextBlock x:Name="PinsHeader" Style="{StaticResource SectionHeader}" Text="Pinned"/>
+                    <!-- An open folder: the way back to the pins, and the folder's name, which can be changed there.
+                         A tile dropped on the arrow comes out of the folder. As tall as the header it stands in for. -->
+                    <DockPanel x:Name="FolderHeader" Visibility="Collapsed" Height="30" Margin="0,-7,0,1"
+                               VerticalAlignment="Top">
+                        <Button x:Name="FolderBack" Style="{StaticResource FlatButton}" Width="30" Height="30"
+                                ToolTip="Back to the pins" Click="FolderBack_Click" AllowDrop="True"
+                                DragEnter="FolderBack_DragOver" DragOver="FolderBack_DragOver" Drop="FolderBack_Drop">
+                            <TextBlock FontFamily="{StaticResource IconFont}" FontSize="12" Text="&#xE72B;"/>
+                        </Button>
+                        <Border Margin="6,0,0,0" CornerRadius="4" Background="#14FFFFFF" Padding="8,0">
+                            <TextBox x:Name="FolderName" Background="Transparent" BorderThickness="0" MaxLength="60"
+                                     FontWeight="SemiBold" VerticalAlignment="Center" ToolTip="Click to rename the folder"
+                                     Foreground="{DynamicResource ForegroundBrush}" CaretBrush="{DynamicResource ForegroundBrush}"
+                                     SelectionBrush="{StaticResource AccentBrush}" LostKeyboardFocus="FolderName_LostFocus">
+                                <TextBox.Template>
+                                    <ControlTemplate TargetType="TextBox">
+                                        <ScrollViewer x:Name="PART_ContentHost" Focusable="False"
+                                                      HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                                    </ControlTemplate>
+                                </TextBox.Template>
+                            </TextBox>
+                        </Border>
+                    </DockPanel>
+                </Grid>
+                <!-- Takes drops anywhere, between the tiles and below them too. -->
+                <Grid x:Name="PinsArea" Background="Transparent" AllowDrop="True" DragEnter="Pins_DragOver"
+                      DragOver="Pins_DragOver" DragLeave="Pins_DragLeave" Drop="Pins_Drop"
+                      MouseRightButtonUp="Pins_RightClick">
+                    <!-- While a folder opens or closes: a picture of what was shown before, going away. -->
+                    <Image x:Name="PinsBefore" Visibility="Collapsed" IsHitTestVisible="False" Stretch="None"
+                           HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                    <!-- The pins, or an open folder's: grown out of the folder's tile as it opens. -->
+                    <Grid x:Name="PinStage">
+                        <ScrollViewer x:Name="PinScroller" VerticalScrollBarVisibility="Auto" Focusable="False">
+                            <!-- An open folder is drawn on a card of its own, as tall as its apps. -->
+                            <Border x:Name="PinCard" CornerRadius="8" VerticalAlignment="Top">
+                                <!-- Drawn bigger or smaller as the settings ask: see ScalePins. -->
+                                <ItemsControl x:Name="PinList" Focusable="False">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <local:TileGrid/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemContainerStyle>
+                                        <Style TargetType="ContentPresenter">
+                                            <Setter Property="local:TileGrid.Size" Value="{Binding Size}"/>
+                                        </Style>
+                                    </ItemsControl.ItemContainerStyle>
+                                </ItemsControl>
+                            </Border>
+                        </ScrollViewer>
+                        <TextBlock x:Name="PinHint" Opacity="0.6" Margin="8,4" TextWrapping="Wrap" IsHitTestVisible="False"
+                                   Text="Nothing pinned yet. Drag an app here, or right-click it and choose “Pin to Start”."/>
+                        <!-- While something is dragged over the pins: a line where it would go, or a frame round the
+                             tile it would join. -->
+                        <Canvas x:Name="DropLayer" IsHitTestVisible="False" ClipToBounds="True">
+                            <Border x:Name="DropLine" Width="3" CornerRadius="1.5" Opacity="0.85"
+                                    Background="{DynamicResource ForegroundBrush}" Visibility="Collapsed"/>
+                            <Border x:Name="DropTarget" BorderThickness="2" CornerRadius="6" Opacity="0.85"
+                                    Background="#18FFFFFF" BorderBrush="{DynamicResource ForegroundBrush}"
+                                    Visibility="Collapsed"/>
+                        </Canvas>
+                    </Grid>
                 </Grid>
             </DockPanel>
 
@@ -182,8 +344,8 @@
                 </Button>
 
                 <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Style="{StaticResource FlatButton}" Width="40" Height="40" ToolTip="ClearStart settings"
-                            Click="Settings_Click">
+                    <Button x:Name="SettingsButton" Style="{StaticResource FlatButton}" Width="40" Height="40"
+                            ToolTip="Settings" Click="Settings_Click" MouseRightButtonUp="Settings_RightClick">
                         <TextBlock FontFamily="{StaticResource IconFont}" FontSize="16" Text="&#xE713;"/>
                     </Button>
                     <Button x:Name="PowerButton" Style="{StaticResource FlatButton}" Width="40" Height="40" Margin="4,0,0,0"
@@ -199,6 +361,11 @@
                     <ItemsControl x:Name="PlaceList" ItemTemplate="{StaticResource PlaceTemplate}" Focusable="False"/>
                 </ScrollViewer>
             </DockPanel>
+
+            <!-- What is dragged floats here, above everything in the menu. -->
+            <Canvas x:Name="MotionLayer" Grid.RowSpan="2" Grid.ColumnSpan="3" IsHitTestVisible="False">
+                <Border x:Name="Ghost" Visibility="Collapsed" RenderTransformOrigin="0.5,0.5"/>
+            </Canvas>
         </Grid>
     </Border>
 </UserControl>
