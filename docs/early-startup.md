@@ -16,7 +16,8 @@ Turning it on sets the current user's
 It removes this copy's ordinary startup task/Run entry first. Automatic migration and the ordinary
 Start with Windows switch never enable this mode. Setup enables it when its **Start ClearStart
 before Explorer** box is ticked, which it is unless you untick it; an update, which runs Setup
-silently, never does. Should early startup be refused, Setup's **Start ClearStart when I sign in**
+silently, only turns it back on when closing ClearStart for the update turned it off (see
+Recovery). Should early startup be refused, Setup's **Start ClearStart when I sign in**
 box, ticked too, leaves the ordinary sign-in task in place.
 
 The loader starts ClearStart suspended, then starts the system Explorer with
@@ -61,7 +62,10 @@ under early startup, since that restarts Explorer: the taskbar stays on its edge
 the screen stays empty.
 
 Startup failures, crashes and watchdog recovery detected by the loader remove its own shell entry
-so the next sign-in uses Windows normally. Normal Exit keeps the entry for the next sign-in. The DLL stays loaded, inert,
+so the next sign-in uses Windows normally. Normal Exit keeps the entry for the next sign-in, but an
+Exit that takes longer than the five seconds above is stopped like a stuck one and turns early
+startup off too; showing the Windows taskbar on several monitors can take that long. Setup waits for
+a copy the loader stopped, and an update turns early startup back on. The DLL stays loaded, inert,
 until Explorer exits; restarting ClearStart in the same session uses the ordinary hiding guard.
 Crash/hang and missing-file recovery have not been tested yet. If the loader itself cannot start at all
 (for example its executable was deleted), its recovery code cannot run: use the manual route below.

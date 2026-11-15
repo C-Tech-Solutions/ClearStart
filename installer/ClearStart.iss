@@ -110,6 +110,8 @@ Filename: "{app}\{#AppExe}"; Parameters: "--start-with-windows on"; StatusMsg: "
 ; Only from Setup's own pages: Setup remembers ticked tasks, and an update, which runs silently, must
 ; not turn early startup back on after it was switched off. It takes the place of the task above.
 Filename: "{app}\{#AppExe}"; Parameters: "--early-startup on"; StatusMsg: "Setting ClearStart to start before Explorer..."; Flags: runhidden waituntilterminated; Tasks: earlystartup; Check: not WizardSilent
+; An update turns early startup back on when closing ClearStart turned it off (see PrepareToInstall).
+Filename: "{app}\{#AppExe}"; Parameters: "--early-startup on"; StatusMsg: "Setting ClearStart to start before Explorer..."; Flags: runhidden waituntilterminated; Check: WizardSilent and EarlyStartupWasTurnedOff
 #endif
 Filename: "{app}\{#AppExe}"; Description: "Start ClearStart now"; Flags: nowait postinstall skipifsilent
 
@@ -119,6 +121,39 @@ const
   ApprovedKey = 'Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run';
   ShellKey = 'Software\Microsoft\Windows NT\CurrentVersion\Winlogon';
   InstanceMutex = 'Local\ClearStart.SingleInstance';
+  LoaderMutex = 'Local\ClearStart.EarlyLoader';
+
+var
+  { Early startup was on when Setup closed ClearStart, and off once ClearStart and its loader had gone. }
+  EarlyStartupTurnedOff: Boolean;
+
+{ Waits up to Seconds for no copy to hold Mutex any more. False if one still does. }
+function WaitForMutexToGo(Mutex: String; Seconds: Integer): Boolean;
+var
+  Waited: Integer;
+begin
+  Waited := 0;
+  while CheckForMutexes(Mutex) and (Waited < Seconds * 1000) do
+  begin
+    Sleep(250);
+    Waited := Waited + 250;
+  end;
+  Result := not CheckForMutexes(Mutex);
+end;
+
+{ True while this copy's early-startup loader is the sign-in shell. }
+function EarlyStartupIsOn: Boolean;
+var
+  Command: String;
+begin
+  Result := RegQueryStringValue(HKCU, ShellKey, 'Shell', Command) and
+            (CompareText(Command, '"' + ExpandConstant('{app}\ClearStart.Loader.exe') + '" --shell') = 0);
+end;
+
+function EarlyStartupWasTurnedOff: Boolean;
+begin
+  Result := EarlyStartupTurnedOff;
+end;
 
 #ifdef EarlyStartup
 { Under early startup the loader runs, and Explorer keeps the guard loaded, until the user signs out,
@@ -151,22 +186,36 @@ end;
 #endif
 
 { A copy that is running holds its files open. When it is the copy being upgraded, ask it to close,
-  which also brings the Windows taskbar back. A copy running from anywhere else holds nothing here. }
+  which also brings the Windows taskbar back. A copy running from anywhere else holds nothing here.
+
+  Under early startup, the loader stops a ClearStart that takes more than five seconds to close (showing
+  the Windows taskbar on several monitors can take that long), and its lock can outlast it for a moment.
+  The loader also takes that stop for a failure and turns early startup off as it goes. An update is no
+  failure, so the [Run] section turns early startup back on once the new files are in. }
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   Exe: String;
   ResultCode: Integer;
+  WasEarly: Boolean;
 begin
   Result := '';
   Exe := ExpandConstant('{app}\{#AppExe}');
   if CheckForMutexes(InstanceMutex) and FileExists(Exe) then
   begin
+    WasEarly := EarlyStartupIsOn;
     Exec(Exe, '--exit', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-    if CheckForMutexes(InstanceMutex) then
+    if not WaitForMutexToGo(InstanceMutex, 10) then
     begin
       Result := 'ClearStart is still running. Right-click an empty part of one of its taskbars, ' +
                 'choose Exit ClearStart, and then try again.';
       Exit;
+    end;
+    if WasEarly then
+    begin
+      WaitForMutexToGo(LoaderMutex, 10);
+      EarlyStartupTurnedOff := not EarlyStartupIsOn;
+      if EarlyStartupTurnedOff then
+        Log('Early startup was turned off as ClearStart closed; an update turns it back on.');
     end;
   end;
 #ifdef EarlyStartup
@@ -187,7 +236,8 @@ begin
   if FileExists(Exe) then
     Exec(Exe, '--restore', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
-  if CheckForMutexes(InstanceMutex) then
+  { As in PrepareToInstall: a copy the early-startup loader had to stop can hold its lock a moment longer. }
+  if not WaitForMutexToGo(InstanceMutex, 10) then
   begin
     Log('ClearStart is still running, so the uninstall stops here.');
     if not UninstallSilent then
@@ -208,8 +258,7 @@ var
 begin
   Exe := ExpandConstant('{app}\{#AppExe}');
   { Also works if the managed executable is missing. Never leave a removed loader as the sign-in shell. }
-  if RegQueryStringValue(HKCU, ShellKey, 'Shell', Command) and
-     (CompareText(Command, '"' + ExpandConstant('{app}\ClearStart.Loader.exe') + '" --shell') = 0) then
+  if EarlyStartupIsOn then
   begin
     if not RegDeleteValue(HKCU, ShellKey, 'Shell') then
     begin
