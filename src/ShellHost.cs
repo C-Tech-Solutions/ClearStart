@@ -243,8 +243,38 @@ internal sealed class ShellHost : IDisposable
         Log.Info($"Started in {Mode} mode with {_bars.Count} taskbar(s)");
         if (Mode == HostMode.Live) TaskbarEdge.StartedUp();
 
-        // Queued behind the drawing of the bars, so it runs when they are on screen.
-        _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(StartDeferredServices));
+        // Queued behind the drawing of the bars, so it runs when they are on screen, and then held until their pinned
+        // icons have come in.
+        _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => AfterPinsAppear(StartDeferredServices)));
+    }
+
+    // The longest the rest of the start-up waits for the pinned icons: the two seconds the icons themselves wait for a
+    // slow one, and the animation.
+    private static readonly TimeSpan PinsAppearLimit = TimeSpan.FromSeconds(3);
+
+    /// <summary>
+    /// Runs <paramref name="then"/> once the first bars' pinned icons have come in. Their animation is drawn by this
+    /// thread, and work started beside it makes it stutter. So what the bars do not need in order to appear waits for
+    /// it: well under a second as a rule, and never longer than <see cref="PinsAppearLimit"/>. With the animation
+    /// turned off there is nothing to wait for.
+    /// </summary>
+    private void AfterPinsAppear(Action then)
+    {
+        if (!_bars.Any(bar => bar.PinsAppearing))
+        {
+            then();
+            return;
+        }
+
+        var waited = System.Diagnostics.Stopwatch.StartNew();
+        var timer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher) { Interval = TimeSpan.FromMilliseconds(50) };
+        timer.Tick += (_, _) =>
+        {
+            if (!_disposed && waited.Elapsed < PinsAppearLimit && _bars.Any(bar => bar.PinsAppearing)) return;
+            timer.Stop();
+            then();
+        };
+        timer.Start();
     }
 
     /// <summary>Everything the bars do not need in order to appear, started once they are on screen.</summary>
@@ -270,6 +300,7 @@ internal sealed class ShellHost : IDisposable
             if (_disposed) return;
             Apps.Load();
             Log.Info($"App list read ({Apps.Apps.Count} apps so far), {StartTiming.Describe()}");
+            PrepareStartMenuWhenIdle();
         }));
         if (Mode == HostMode.Live)
         {
@@ -506,6 +537,76 @@ internal sealed class ShellHost : IDisposable
         foreach (var bar in _bars) bar.SetStartMenuVisible(visible);
     }
 
+    /// <summary>
+    /// Gets the start menu ready before it is first asked for (see <see cref="StartMenuWindow.Prepare"/>), once this
+    /// thread has nothing else to do. In two steps, so a click on a bar in between is not kept waiting for both.
+    /// A menu opened before then is made on the spot, as it always was.
+    /// </summary>
+    private void PrepareStartMenuWhenIdle()
+    {
+        if (Mode != HostMode.Live) return;
+        _dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
+        {
+            if (_disposed || _startMenu != null) return;
+            // Reads the pins from the settings and asks the shell for each one.
+            _ = Pins.Start;
+            _dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() => PrepareStartMenu()));
+        }));
+    }
+
+    // How long the settings have to be left alone before the menu is made again.
+    private static readonly TimeSpan MenuAfterSettings = TimeSpan.FromSeconds(2);
+    private DispatcherTimer? _menuAfterSettings;
+
+    /// <summary>
+    /// A change of settings closes the start menu, so that the next one is made with the new settings. It is made
+    /// again ahead of its next opening, but not on every step of a slider being dragged in the settings window:
+    /// once the settings have been left alone for a moment.
+    /// </summary>
+    private void PrepareStartMenuAfterSettings()
+    {
+        if (Mode != HostMode.Live) return;
+        if (_menuAfterSettings == null)
+        {
+            _menuAfterSettings = new DispatcherTimer(DispatcherPriority.ContextIdle, _dispatcher) { Interval = MenuAfterSettings };
+            _menuAfterSettings.Tick += (_, _) =>
+            {
+                _menuAfterSettings.Stop();
+                PrepareStartMenuWhenIdle();
+            };
+        }
+        _menuAfterSettings.Stop();
+        _menuAfterSettings.Start();
+    }
+
+    /// <summary>Makes the start menu's window and its contents without showing it. False if that failed.</summary>
+    internal bool PrepareStartMenu()
+    {
+        if (_disposed || _startMenu != null) return false;
+        long started = StartTiming.BeginStep();
+        try
+        {
+            _startMenu = new StartMenuWindow(this);
+            _startMenu.Prepare();
+            Log.Info($"Start menu ready before its first use ({_startMenu.PinTilesMade} pinned tiles), " +
+                $"{System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds:0} ms");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // The first opening makes a fresh one.
+            Log.Warn("Could not get the start menu ready ahead of its first use: " + ex.Message);
+            CloseStartMenu();
+            return false;
+        }
+    }
+
+    /// <summary>How many pinned tiles the start menu has made; -1 while there is no menu (for the self-test).</summary>
+    internal int StartMenuTilesMade => _startMenu?.PinTilesMade ?? -1;
+
+    /// <summary>True while the start menu is on screen.</summary>
+    internal bool StartMenuShown => _startMenu?.IsVisible == true;
+
     /// <param name="monitor">Monitor to open on; zero = the one the mouse is on.</param>
     public void ToggleStartMenu(IntPtr monitor)
     {
@@ -515,7 +616,8 @@ internal sealed class ShellHost : IDisposable
             HidePreview();
             if (monitor == IntPtr.Zero) monitor = Native.MonitorFromCursor();
             if (_startMenu is { IsClosed: true }) _startMenu = null;
-            // Normally loaded by now; if the menu is opened in the first moments, load it here.
+            // Normally both are there by now (see PrepareStartMenuWhenIdle); opened in the first moments, the app list
+            // is loaded and the menu made here.
             Apps.Load();
             _startMenu ??= new StartMenuWindow(this);
             _startMenu.Toggle(monitor);
@@ -1458,6 +1560,7 @@ internal sealed class ShellHost : IDisposable
             Shell.NotificationArea?.SetPinnedIcons(Settings.Current.Taskbar.PinnedTrayIcons.ToArray());
             CloseStartMenu();
             RebuildBars();
+            PrepareStartMenuAfterSettings();
             UpdateWinKeyHook();
             Weather.SettingsChanged();
             Updates.SettingsChanged();
@@ -1533,6 +1636,7 @@ internal sealed class ShellHost : IDisposable
             _wakeTimer.Stop();
             _explorerTimer.Stop();
             _trayTimer.Stop();
+            _menuAfterSettings?.Stop();
             StopWatchingExplorer();
             SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
             Settings.Changed -= OnSettingsChanged;

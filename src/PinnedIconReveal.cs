@@ -10,8 +10,19 @@ namespace ClearStart;
 /// <summary>Reveals one bar's initial pinned icons together, optionally with a short staggered animation.</summary>
 internal sealed class PinnedIconReveal : IDisposable
 {
+    // One icon's fade and slide, in milliseconds, and how far it slides.
+    private const double IconTime = 320, Slide = 7;
+    // The pause between one icon starting and the next, and the longest the whole row takes to start. An icon is still
+    // moving while the next several start, so the row comes in as one wave rather than icon by icon.
+    private const double Gap = 40, RowTime = 440;
+    // WPF draws an animation 60 times a second unless told otherwise, which shows on a faster monitor. It never draws
+    // more often than the monitor does, so this only lifts the limit.
+    private const int FrameRate = 240;
+
     private readonly Dictionary<Image, int> _images = new();
     private readonly HashSet<Image> _fallbacks = new();
+    // The icons whose animation has not ended yet.
+    private readonly HashSet<Image> _moving = new();
     private readonly DispatcherTimer _timer;
     private readonly Stopwatch _wait = new();
     private readonly bool _animate, _vertical;
@@ -26,6 +37,13 @@ internal sealed class PinnedIconReveal : IDisposable
         _timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(50) };
         _timer.Tick += Check;
     }
+
+    /// <summary>
+    /// True from the first icon being held back until the animation has played. It is drawn by the UI thread, so the
+    /// host starts nothing else there meanwhile (see ShellHost.AfterPinsAppear). Never true with the animation off:
+    /// icons that simply appear have nothing to disturb.
+    /// </summary>
+    internal bool Playing => _animate && !_disposed && (_moving.Count > 0 || (!Finished && _images.Count > 0));
 
     public void Add(Image image, int order)
     {
@@ -66,6 +84,10 @@ internal sealed class PinnedIconReveal : IDisposable
         Finished = true;
         _timer.Stop();
         var images = _images.OrderBy(pair => pair.Value).Select(pair => pair.Key).ToArray();
+        var duration = TimeSpan.FromMilliseconds(IconTime);
+        // The same curve for the fade and the slide, so an icon settles into place as it becomes solid.
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        ease.Freeze();
         for (int i = 0; i < images.Length; i++)
         {
             var image = images[i];
@@ -77,21 +99,23 @@ internal sealed class PinnedIconReveal : IDisposable
             }
             if (!_animate) { image.Opacity = 1; continue; }
 
-            double delay = images.Length <= 1 ? 0 : i * Math.Min(60.0, 600.0 / (images.Length - 1));
-            var offset = new TranslateTransform(_vertical ? 5 : 0, _vertical ? 0 : 5);
+            var delay = TimeSpan.FromMilliseconds(images.Length <= 1 ? 0 : i * Math.Min(Gap, RowTime / (images.Length - 1)));
+            var offset = new TranslateTransform(_vertical ? Slide : 0, _vertical ? 0 : Slide);
             image.RenderTransform = offset;
-            var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)) { BeginTime = TimeSpan.FromMilliseconds(delay) };
+            var fade = new DoubleAnimation(0, 1, duration) { BeginTime = delay, EasingFunction = ease };
+            var move = new DoubleAnimation(Slide, 0, duration) { BeginTime = delay, EasingFunction = ease };
+            Timeline.SetDesiredFrameRate(fade, FrameRate);
+            Timeline.SetDesiredFrameRate(move, FrameRate);
+            _moving.Add(image);
             fade.Completed += (_, _) =>
             {
+                // Unless it was taken off the bar meanwhile, and put right then.
+                if (!_moving.Remove(image)) return;
                 image.Opacity = 1;
                 image.BeginAnimation(Image.OpacityProperty, null);
+                image.ClearValue(Image.RenderTransformProperty);
             };
             image.BeginAnimation(Image.OpacityProperty, fade);
-            var move = new DoubleAnimation(5, 0, TimeSpan.FromMilliseconds(180))
-            {
-                BeginTime = TimeSpan.FromMilliseconds(delay),
-                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
-            };
             offset.BeginAnimation(_vertical ? TranslateTransform.XProperty : TranslateTransform.YProperty, move);
         }
     }
@@ -106,6 +130,7 @@ internal sealed class PinnedIconReveal : IDisposable
 
     private void Reset(Image image)
     {
+        _moving.Remove(image);
         image.BeginAnimation(Image.OpacityProperty, null);
         image.Opacity = 1;
         image.ClearValue(Image.RenderTransformProperty);
@@ -118,5 +143,6 @@ internal sealed class PinnedIconReveal : IDisposable
         _timer.Stop();
         foreach (var image in _images.Keys) Reset(image);
         _images.Clear();
+        _moving.Clear();
     }
 }

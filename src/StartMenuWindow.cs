@@ -53,6 +53,25 @@ internal sealed class StartMenuWindow : Window
     /// <summary>True once the window is gone for good (for example after Alt+F4) and must be replaced.</summary>
     public bool IsClosed { get; private set; }
 
+    /// <summary>How many pinned tiles the menu has made so far (for the self-test).</summary>
+    internal int PinTilesMade => _view.PinTilesMade;
+
+    /// <summary>
+    /// Gets the menu ready without showing it: makes the window, and lays its contents out once at the menu's size.
+    /// That makes the pinned tiles and the first rows of the app list, which ask for their icons. Left to the first
+    /// opening, all of it happened under the user's hand, and the pins came in after the menu had appeared.
+    /// </summary>
+    public void Prepare()
+    {
+        if (IsClosed || IsVisible) return;
+        _handle = new WindowInteropHelper(this).EnsureHandle();
+        // A window that has never been shown lays nothing out by itself.
+        var size = new Size(Width, Height);
+        _view.Measure(size);
+        _view.Arrange(new Rect(size));
+        _view.UpdateLayout();
+    }
+
     /// <param name="monitor">The monitor to open on.</param>
     public void Toggle(IntPtr monitor)
     {

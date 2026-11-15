@@ -42,6 +42,9 @@ internal sealed class TaskbarWindow : AppBarWindow
 
     public AppBarEdge Edge => AppBarEdge;
 
+    /// <summary>True while this bar's pinned icons are held back or coming in with their animation.</summary>
+    public bool PinsAppearing => _view.PinsAppearing;
+
     /// <summary>Temporarily raises every bar with the menu, then resumes normal fullscreen handling.</summary>
     public void SetStartMenuVisible(bool visible)
     {

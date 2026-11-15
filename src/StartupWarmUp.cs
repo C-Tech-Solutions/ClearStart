@@ -15,8 +15,9 @@ namespace ClearStart;
 ///
 /// Only what the whole process shares is warmed this way: loaded libraries, file and shell caches, fonts, the JSON
 /// reader. Nothing made here is kept. Anything that belongs to the thread that makes it (a window, a WPF control or
-/// style, a shell object kept for later, Windows Forms screens, system events) stays on the UI thread. A warm-up that
-/// fails or is still running when the UI thread gets there only means the UI thread does that work itself.
+/// style, a shell object kept for later, Windows Forms screens, system events) stays on the UI thread: of those, the
+/// bar's layout is read ahead there (<see cref="BarLayout"/>). A warm-up that fails or is still running when the UI
+/// thread gets there only means the UI thread does that work itself.
 /// </summary>
 internal static class StartupWarmUp
 {
@@ -29,6 +30,25 @@ internal static class StartupWarmUp
         Run("settings and pins", SettingsAndPins);
         Run("text", Text);
         Run("libraries", LoadLibraries);
+    }
+
+    /// <summary>
+    /// The one warm-up that has to be the UI thread's own, so the caller runs it there before it waits for Explorer:
+    /// the first reading of the bar's layout (see <see cref="TaskbarView.WarmUp"/>). Without a wait ahead it costs
+    /// next to nothing: the first bar would have done the same work a moment later.
+    /// </summary>
+    public static void BarLayout()
+    {
+        long started = StartTiming.BeginStep();
+        try
+        {
+            TaskbarView.WarmUp();
+            Log.Info($"Start-up warm-up: bar layout, {Stopwatch.GetElapsedTime(started).TotalMilliseconds:0} ms");
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Start-up warm-up of bar layout stopped: {ex.Message}");
+        }
     }
 
     private static void Run(string name, Action work)
