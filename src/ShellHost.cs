@@ -547,24 +547,27 @@ internal sealed class ShellHost : IDisposable
         if (Mode != HostMode.Live) return;
         _dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
         {
-            if (_disposed || _startMenu != null) return;
+            // A menu made before the app list could be read would keep its empty stand-in. The first opening reads
+            // the list again and makes the menu from that.
+            if (_disposed || _startMenu != null || !Apps.Loaded) return;
             // Reads the pins from the settings and asks the shell for each one.
             _ = Pins.Start;
             _dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() => PrepareStartMenu()));
         }));
     }
 
-    // How long the settings have to be left alone before the menu is made again.
+    // How long the settings and the bars have to be left alone before the menu is made again.
     private static readonly TimeSpan MenuAfterSettings = TimeSpan.FromSeconds(2);
     private DispatcherTimer? _menuAfterSettings;
 
     /// <summary>
-    /// A change of settings closes the start menu, so that the next one is made with the new settings. It is made
-    /// again ahead of its next opening, but not on every step of a slider being dragged in the settings window:
-    /// once the settings have been left alone for a moment.
+    /// Closes the start menu because what it was made from has changed (the settings, the bars), so that the next
+    /// one is made new. It is made again ahead of its next opening, but not on every step of a slider being dragged
+    /// in the settings window: once things have been left alone for a moment.
     /// </summary>
-    private void PrepareStartMenuAfterSettings()
+    private void RenewStartMenu()
     {
+        CloseStartMenu();
         if (Mode != HostMode.Live) return;
         if (_menuAfterSettings == null)
         {
@@ -951,7 +954,7 @@ internal sealed class ShellHost : IDisposable
     private void SyncBars()
     {
         if (_disposed || !_started) return;
-        CloseStartMenu();
+        RenewStartMenu();
         try
         {
             string? mainBefore = _mainDevice;
@@ -1171,7 +1174,7 @@ internal sealed class ShellHost : IDisposable
     private void ReplaceBar(string device)
     {
         if (_disposed) return;
-        CloseStartMenu();
+        RenewStartMenu();
         try
         {
             int index = _bars.FindIndex(b => SameDevice(b.Device, device));
@@ -1262,7 +1265,7 @@ internal sealed class ShellHost : IDisposable
         _dispatcher.BeginInvoke(() =>
         {
             if (_disposed) return;
-            CloseStartMenu();
+            RenewStartMenu();
             RebuildBars();
         });
     }
@@ -1412,7 +1415,7 @@ internal sealed class ShellHost : IDisposable
         }
         if (what.HasFlag(SettingsChange.StartMenu))
         {
-            CloseStartMenu();
+            RenewStartMenu();
             UpdateWinKeyHook();
         }
         if (what.HasFlag(SettingsChange.Bars)) _rebuildPending = true;
@@ -1431,7 +1434,7 @@ internal sealed class ShellHost : IDisposable
 
         if (!_rebuildPending || _disposed) return;
         _rebuildPending = false;
-        CloseStartMenu();
+        RenewStartMenu();
         RebuildBars();
     }
 
@@ -1558,9 +1561,8 @@ internal sealed class ShellHost : IDisposable
 
             Pins.Reload();
             Shell.NotificationArea?.SetPinnedIcons(Settings.Current.Taskbar.PinnedTrayIcons.ToArray());
-            CloseStartMenu();
+            RenewStartMenu();
             RebuildBars();
-            PrepareStartMenuAfterSettings();
             UpdateWinKeyHook();
             Weather.SettingsChanged();
             Updates.SettingsChanged();
