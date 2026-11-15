@@ -147,3 +147,44 @@ Also on the Start menu page:
 | Start menu color | The color laid over it |
 
 Changes on this page show the next time the menu opens.
+
+## The Windows key over apps running as administrator
+
+While an app that runs as administrator has the keyboard, as some games do, Windows does not let
+ClearStart see the Windows key, and the Windows Start menu opens instead. `ClearStart.WinKey.exe`
+is a small helper for that. It does nothing but watch the Windows key and tell ClearStart of each
+tap, and Windows lets it see the key over those apps too.
+
+Windows allows that only for a signed program in a folder under Program Files, so ClearStart uses
+the helper only from one of two places:
+
+- beside `ClearStart.exe`, if ClearStart itself is in a folder under Program Files;
+- otherwise `C:\Program Files\ClearStart\ClearStart.WinKey.exe`.
+
+Setup installs ClearStart in your own user folder, so the helper has to be put in Program Files
+as well, and that takes administrator rights. There are two ways:
+
+- In Setup, tick **Let the Windows key open ClearStart's menu over apps that run as
+  administrator**. It is the one box that is not ticked to begin with.
+- With ClearStart installed, run `ClearStart.exe --win-key-helper install` from its folder, and
+  start ClearStart again.
+
+Either way Windows asks once whether ClearStart may make changes to the PC. The helper goes into
+`C:\Program Files\ClearStart\` only if it carries the same signature as ClearStart itself. The log
+then says that the Windows key is watched by `ClearStart.WinKey.exe`. With no helper there, or
+if it stops, ClearStart watches the key itself, as it always has.
+
+An update asks for no administrator rights, so it leaves the helper in Program Files as it is. To
+put a newer one there, run Setup again with the box ticked. Uninstalling ClearStart asks once
+more, to take the helper away; `ClearStart.exe --win-key-helper remove` does the same.
+
+The helper was tried on one PC on November 15, 2026, in two runs, with a signed copy put in
+`C:\Program Files\ClearStart\` by hand. Windows started it, and the Windows key opened
+ClearStart's menu with Task Manager in front, which runs as administrator, and in a full-screen
+game. Setup's box and the two commands have not been run on a real PC yet.
+
+In the first run the PC's keyboard stopped answering a few minutes after the game started, and
+worked again only after it was unplugged and plugged back in. The cause was not found. Nothing in
+the helper talks to a keyboard: it listens for the key and types one do-nothing key into Windows,
+as ClearStart itself has always done. The second run, with the same game, had no such trouble.
+Two short runs do not rule the helper out, though, so treat it as experimental.

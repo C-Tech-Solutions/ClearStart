@@ -117,11 +117,11 @@ installer, `ClearStart-Setup-<version>.exe`, about 55 MB and signed by C-Tech So
 | | |
 | --- | --- |
 | **Everything in one file** | It carries its own copy of .NET, so the PC needs nothing installed first. |
-| **For you alone** | It installs into `%LOCALAPPDATA%\Programs\ClearStart` unless you choose another folder, adds ClearStart to the Start menu, and asks for no administrator rights. |
-| **Its choices** | Before it installs: start ClearStart when you sign in, and start it before Explorer so the Windows taskbar never shows ([early startup](early-startup.md), experimental). At the end: start it now. All three are ticked; untick any you do not want. They start [live mode](#live-mode). |
+| **For you alone** | It installs into `%LOCALAPPDATA%\Programs\ClearStart` unless you choose another folder, adds ClearStart to the Start menu, and asks for no administrator rights unless you tick the Windows-key box below. |
+| **Its choices** | Before it installs: start ClearStart when you sign in, and start it before Explorer so the Windows taskbar never shows ([early startup](early-startup.md), experimental). At the end: start it now. All three are ticked; untick any you do not want. They start [live mode](#live-mode). One more is not ticked: let the Windows key open ClearStart's menu [over apps that run as administrator](start-menu.md#the-windows-key-over-apps-running-as-administrator) (experimental). For that one Windows asks for administrator rights. |
 | **Upgrades in place** | A newer installer replaces the old copy, and closes it first if it is running. |
 | **Updates itself** | The installed copy can fetch and install newer versions from GitHub. See [Updates](updates.md). |
-| **Uninstall** | From **Settings → Apps → Installed apps**. It closes ClearStart, puts the Windows taskbar back as it was, and takes away Start with Windows if it starts this copy. If startup cleanup fails, uninstall stops and keeps the program files so you can retry. Your settings stay. |
+| **Uninstall** | From **Settings → Apps → Installed apps**. It closes ClearStart, puts the Windows taskbar back as it was, and takes away Start with Windows if it starts this copy. If startup cleanup fails, uninstall stops and keeps the program files so you can retry. If the Windows-key helper is in Program Files, Windows asks for administrator rights to take it away. Your settings stay. |
 
 To check a download yourself, compare its SHA-256 with the one in the `.sha256.txt` file:
 

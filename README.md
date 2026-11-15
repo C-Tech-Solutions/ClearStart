@@ -143,7 +143,10 @@ Download `ClearStart-Setup-<version>.exe` from the
 one file of about 55 MB, signed by C-Tech Solutions LLC, and carries its own copy of .NET, so the
 PC needs nothing else. It installs for you alone, by default into
 `%LOCALAPPDATA%\Programs\ClearStart`, without administrator rights, and uninstalls from Windows'
-list of apps. If you choose another folder in Setup, use it in the commands below.
+list of apps. If you choose another folder in Setup, use it in the commands below. One box in
+Setup, not ticked to begin with, does ask for administrator rights: it lets the Windows key open
+ClearStart's menu
+[over apps that run as administrator](docs/start-menu.md#the-windows-key-over-apps-running-as-administrator).
 
 Setup's last page has **Start ClearStart now** ticked, which starts
 [live mode](#two-ways-to-run-it). To start with the preview, untick it.

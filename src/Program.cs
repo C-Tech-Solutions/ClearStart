@@ -17,6 +17,8 @@ internal static class Program
         if (command >= 0) return AutoStart.RunCommand(command + 1 < args.Length ? args[command + 1] : null);
         int early = Array.FindIndex(args, a => a.Equals("--early-startup", StringComparison.OrdinalIgnoreCase));
         if (early >= 0) return EarlyStartup.RunCommand(early + 1 < args.Length ? args[early + 1] : null);
+        int winKey = Array.FindIndex(args, a => a.Equals("--win-key-helper", StringComparison.OrdinalIgnoreCase));
+        if (winKey >= 0) return WinKeyHelperSetup.RunCommand(winKey + 1 < args.Length ? args[winKey + 1] : null);
 
         try
         {

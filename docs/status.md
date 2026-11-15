@@ -34,6 +34,9 @@ what has not, and what is missing.
 - **The bars wait for a newly started Explorer.** At sign-in, ClearStart gives Explorer three
   seconds before its own tray starts beside it; one that is crowded sooner stops snapping windows
   with Win+arrow. That adds up to three seconds before the bars are on screen.
+- **Over an app running as administrator, the Windows key opens the Windows Start menu.** Some
+  games run that way. Windows does not let ClearStart see the key there. A helper for it
+  [has worked on one PC](#what-has-not-been-run), but Setup does not install it yet.
 
 ## What has not been run
 
@@ -53,6 +56,18 @@ See [the isolated test plan](early-startup.md#validation-before-enabling-on-a-re
 offered the release, downloaded it, checked its checksum and signature, ran Setup, and started
 again as 0.4.0. Early startup was off on that PC, so an update that closes ClearStart while the
 early-startup loader runs it has not been tried yet.
+
+**The Windows key over apps running as administrator.** `ClearStart.WinKey.exe`, the helper for
+it, works only from Program Files. A signed copy put there by hand was tried on one PC on
+November 15, 2026, in two runs. Windows started it, and the Windows key opened ClearStart's menu
+over Task Manager, which runs as administrator, and in a full-screen game. In the first run the
+PC's keyboard stopped answering a few minutes after the game started, until it was plugged in
+again. The cause was not found, and the second run, with the same game, had no such trouble. A
+long session in a game has not been tried. Setup's box that puts the helper there, the
+`--win-key-helper install` and `remove` commands, and its removal when ClearStart is uninstalled
+have not been run on a real PC: each brings up Windows' question about administrator rights. The
+self-test puts a stand-in in a folder of its own and takes it away again. See
+[the start menu](start-menu.md#the-windows-key-over-apps-running-as-administrator).
 
 **Other setups.** Other versions of Windows and display scaling above 100% have not been tried.
 

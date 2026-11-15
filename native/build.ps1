@@ -1,4 +1,5 @@
-<# Builds and stages the optional startup components. Does not run, register or enable any of them. #>
+<# Builds and stages the optional native components: early startup's loader and guard, and the Windows-key helper.
+   Does not run, register or enable any of them. #>
 [CmdletBinding()]
 param()
 $ErrorActionPreference = 'Stop'
@@ -11,7 +12,7 @@ cmake --build $nativeBuild --config Release
 if ($LASTEXITCODE -ne 0) { throw 'Native build failed' }
 dotnet publish (Join-Path $repo 'src\ClearStart.csproj') -c Release -r win-x64 --self-contained true -p:PublishReadyToRun=true -o $stage
 if ($LASTEXITCODE -ne 0) { throw 'ClearStart publish failed' }
-foreach ($name in @('ClearStart.Loader.exe', 'ClearStart.ExplorerGuard.dll')) {
+foreach ($name in @('ClearStart.Loader.exe', 'ClearStart.ExplorerGuard.dll', 'ClearStart.WinKey.exe')) {
     Copy-Item -LiteralPath (Join-Path $nativeBuild "Release\$name") -Destination $stage
 }
 Copy-Item -LiteralPath (Join-Path $nativeBuild 'Detours-LICENSE.txt') -Destination $stage
