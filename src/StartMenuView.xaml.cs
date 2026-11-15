@@ -1008,6 +1008,10 @@ public partial class StartMenuView : UserControl
 
     internal int VisibleAppCount => _apps.Count;
 
+    /// <summary>How many pinned tiles have been made and filled in: none until the menu has been laid out once.</summary>
+    internal int PinTilesMade => Enumerable.Range(0, PinList.Items.Count).Count(i =>
+        PinList.ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement cell && VisualTreeHelper.GetChildrenCount(cell) > 0);
+
     internal void ShowFolder(PinFolder? folder, bool animate = false) => OpenFolder(folder, animate);
 
     internal PinFolder? ShownFolder => _openFolder;

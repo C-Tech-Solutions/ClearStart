@@ -32,6 +32,16 @@ internal static partial class SelfTest
         try
         {
             Settings.Load(createIfMissing: false);
+
+            // What a live run does while it waits for Explorer: the bar's layout read once, ahead of the bars. First of
+            // all here too, so the report shows what the first reading costs and what is left for the one after it.
+            long reading = Stopwatch.GetTimestamp();
+            TaskbarView.WarmUp();
+            report["barLayoutFirstReadMs"] = Math.Round(Stopwatch.GetElapsedTime(reading).TotalMilliseconds);
+            reading = Stopwatch.GetTimestamp();
+            TaskbarView.WarmUp();
+            report["barLayoutNextReadMs"] = Math.Round(Stopwatch.GetElapsedTime(reading).TotalMilliseconds);
+
             host = new ShellHost(HostMode.SelfTest, directory);
 
             var screens = AppBarScreen.FromAllScreens();
@@ -881,6 +891,16 @@ internal static partial class SelfTest
                 errors.Add("Window previews: " + ex);
             }
 
+            // Where each window's button is on a bar: what Windows asks, so that a window minimizes towards it.
+            try
+            {
+                await CheckButtonPlacesAsync(host, screens.FirstOrDefault(s => s.Primary) ?? screens.First(), report, errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Button places: " + ex);
+            }
+
             // Every open window should have handed over an icon by now.
             try
             {
@@ -977,6 +997,57 @@ internal static partial class SelfTest
             catch (Exception ex)
             {
                 errors.Add("Windows-key helper: " + ex);
+            }
+
+            // The start menu made before its first use, as a live run does once its bars are up: with its pinned tiles,
+            // and without coming on screen.
+            try
+            {
+                if (!host.PrepareStartMenu()) errors.Add("Start menu ahead of time: it could not be made");
+                await Task.Delay(500);
+                int made = host.StartMenuTilesMade, pins = host.Pins.Start.Count;
+                report["startMenuTilesMadeAhead"] = made;
+                if (made != pins) errors.Add($"Start menu ahead of time: {made} of its {pins} pinned tiles were made");
+                if (host.StartMenuShown) errors.Add("Start menu ahead of time: it must stay hidden until it is asked for");
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Start menu ahead of time: " + ex);
+            }
+
+            // The pinned icons' animation: the rest of the start-up waits for it, so it has to say when it is over.
+            try
+            {
+                var row = new StackPanel { Orientation = Orientation.Horizontal };
+                var icons = Enumerable.Range(0, 6).Select(_ => new Image { Width = 24, Height = 24, Source = AppIcon.Render(32) }).ToList();
+                foreach (var icon in icons) row.Children.Add(icon);
+                var stage = new Stage(row, 200, 60);
+                try
+                {
+                    using var reveal = new PinnedIconReveal(animate: true, vertical: false);
+                    for (int i = 0; i < icons.Count; i++) reveal.Add(icons[i], i);
+                    reveal.Seal();
+                    if (!reveal.Playing) errors.Add("Pinned icons: held back, they should count as still coming in");
+                    if (icons.Any(icon => icon.Opacity != 0)) errors.Add("Pinned icons: they should be hidden until they come in together");
+                    await Task.Delay(1500);
+                    if (reveal.Playing) errors.Add("Pinned icons: the animation never said it was over");
+                    if (icons.Any(icon => icon.Opacity != 1 || icon.RenderTransform != Transform.Identity))
+                        errors.Add("Pinned icons: after the animation they should be solid and in place");
+
+                    using var still = new PinnedIconReveal(animate: false, vertical: false);
+                    var plain = new Image { Width = 24, Height = 24, Source = AppIcon.Render(32) };
+                    row.Children.Add(plain);
+                    still.Add(plain, 0);
+                    if (still.Playing) errors.Add("Pinned icons: with the animation off there is nothing to wait for");
+                }
+                finally
+                {
+                    stage.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Pinned icons: " + ex);
             }
 
             // Start menu

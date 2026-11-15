@@ -42,6 +42,9 @@ internal sealed class TaskbarWindow : AppBarWindow
 
     public AppBarEdge Edge => AppBarEdge;
 
+    /// <summary>True while this bar's pinned icons are held back or coming in with their animation.</summary>
+    public bool PinsAppearing => _view.PinsAppearing;
+
     /// <summary>Temporarily raises every bar with the menu, then resumes normal fullscreen handling.</summary>
     public void SetStartMenuVisible(bool visible)
     {
@@ -75,6 +78,9 @@ internal sealed class TaskbarWindow : AppBarWindow
 
     /// <summary>Looks again at which windows belong on this bar, after another display gained or lost its bar.</summary>
     public void RefreshApps() => _view.RefreshApps();
+
+    /// <summary>Where the button of a window is on the screen, if this bar has one for it.</summary>
+    public Native.RECT? ButtonPlace(IntPtr window) => _view.ButtonPlace(window);
 
     /// <summary>
     /// Takes the handle Windows gave the bar's monitor when it woke from sleep: the same monitor in the same place,

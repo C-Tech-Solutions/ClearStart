@@ -341,6 +341,16 @@ internal static class Native
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     internal static extern bool SendNotifyMessage(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
 
+    [DllImport("user32.dll", EntryPoint = "SendMessageW")]
+    internal static extern IntPtr SendMessage(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    /// <summary>Has Windows send a window the shell's window news: windows opening, closing, and where their buttons are.</summary>
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern bool RegisterShellHookWindow(IntPtr hwnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern bool DeregisterShellHookWindow(IntPtr hwnd);
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     internal static extern IntPtr FindWindowEx(IntPtr parent, IntPtr childAfter, string? className, string? windowName);
 

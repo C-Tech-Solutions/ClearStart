@@ -139,6 +139,12 @@ one window, and the app in front is highlighted.
 | Right-click | New window, pin or unpin, show or hide its pin on this taskbar, open file location, minimize / maximize / close |
 | Mouse wheel over the buttons | Scrolls them when there are more than fit |
 
+A window that is minimized shrinks into its button on ClearStart's bar, and grows out of it when it
+comes back: on the bar of its own monitor if that bar lists it, whichever edge the bar is on.
+Windows asks where the button is before it draws that. Without an answer from ClearStart it used
+the place of the hidden Windows taskbar, at the bottom of the screen. ClearStart answers in live
+mode only; in preview mode the Windows taskbar is in view and its buttons are the ones to fly to.
+
 With **Show window titles next to the icons** on, running apps show their title too:
 
 <p align="center">

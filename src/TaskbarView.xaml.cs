@@ -35,6 +35,8 @@ public partial class TaskbarView : UserControl
     private readonly bool _showClock;
     // The main display's bar, or the first one there is when that display's bar is hidden.
     private readonly bool _main;
+    // Said once: Windows asks for a button's place at every minimize.
+    private bool _buttonPlaceFailed;
     // A short bar that is not the main one: no room for the tray, the clock or the weather.
     private readonly bool _cramped;
     private readonly StartButtonPlacement _startPlacement;
@@ -62,6 +64,18 @@ public partial class TaskbarView : UserControl
     // The clock's text sizes, measured once: they depend only on the font, which a bar keeps.
     private double? _digitHeight;
     private double? _widestDayName;
+
+    /// <summary>
+    /// Reads the bar's layout file once and throws the result away. The first reading in a run is the slow one, a
+    /// second and a half at a cold sign-in: it loads WPF's controls and their styles and templates. Done while
+    /// ClearStart waits for Explorer (see <see cref="StartupWarmUp.BarLayout"/>), the first bar finds all that loaded.
+    /// On the UI thread only: what it loads belongs to the thread.
+    /// </summary>
+    internal static void WarmUp() => _ = new TaskbarView();
+
+#pragma warning disable CS8618 // Nothing but the layout is made: this view is never shown, and none of its code runs.
+    private TaskbarView() => InitializeComponent();
+#pragma warning restore CS8618
 
     /// <param name="thickness">Height of a top or bottom bar, width of a side bar.</param>
     /// <param name="startButton">Where the Start button goes; null = what the settings say for this monitor.</param>
@@ -229,6 +243,9 @@ public partial class TaskbarView : UserControl
         _clock.Stop();
         _apps.Dispose();
     }
+
+    /// <summary>True while the pinned icons of a first bar are held back or coming in with their animation.</summary>
+    internal bool PinsAppearing => _pinReveal?.Playing == true;
 
     private void AppIcon_Loaded(object sender, RoutedEventArgs e)
     {
@@ -639,21 +656,69 @@ public partial class TaskbarView : UserControl
         {
             if (PresentationSource.FromVisual(button) is not HwndSource source) return null;
             if (!Native.GetWindowRect(source.Handle, out var bar)) return null;
-
-            var topLeft = button.PointToScreen(new Point(0, 0));
-            var bottomRight = button.PointToScreen(new Point(button.ActualWidth, button.ActualHeight));
-            var rect = new Native.RECT
-            {
-                Left = (int)Math.Floor(topLeft.X),
-                Top = (int)Math.Floor(topLeft.Y),
-                Right = (int)Math.Ceiling(bottomRight.X),
-                Bottom = (int)Math.Ceiling(bottomRight.Y),
-            };
-            return new PreviewAnchor(rect, bar, _monitor, _edge);
+            return new PreviewAnchor(ScreenRect(button), bar, _monitor, _edge);
         }
         catch (Exception ex)
         {
             Log.Warn("Could not locate a taskbar button: " + ex.Message);
+            return null;
+        }
+    }
+
+    /// <summary>Where a part of this bar is on the screen, in pixels. The part must be in a window.</summary>
+    private static Native.RECT ScreenRect(FrameworkElement part)
+    {
+        var topLeft = part.PointToScreen(new Point(0, 0));
+        var bottomRight = part.PointToScreen(new Point(part.ActualWidth, part.ActualHeight));
+        return new Native.RECT
+        {
+            Left = (int)Math.Floor(topLeft.X),
+            Top = (int)Math.Floor(topLeft.Y),
+            Right = (int)Math.Ceiling(bottomRight.X),
+            Bottom = (int)Math.Ceiling(bottomRight.Y),
+        };
+    }
+
+    /// <summary>
+    /// Where the button of a window is on the screen, if this bar has one for it: Windows draws the window shrinking
+    /// into that place when it is minimized, and growing out of it when it comes back. The place is kept inside the
+    /// row of app buttons, so a button scrolled out of sight counts as being at the end of the row it left by. Until
+    /// a new button has been laid out, the row stands in for it.
+    /// </summary>
+    internal Native.RECT? ButtonPlace(IntPtr window)
+    {
+        try
+        {
+            var app = _apps.Items.FirstOrDefault(b => b.Windows.Any(w => w.Handle == window));
+            if (app == null || PresentationSource.FromVisual(AppScroller) == null) return null;
+            if (AppScroller.ActualWidth <= 0 || AppScroller.ActualHeight <= 0) return null;
+
+            var row = ScreenRect(AppScroller);
+            if (AppList.ItemContainerGenerator.ContainerFromItem(app) is not FrameworkElement button
+                || button.ActualWidth <= 0 || button.ActualHeight <= 0
+                || PresentationSource.FromVisual(button) == null)
+            {
+                return row;
+            }
+
+            var place = ScreenRect(button);
+            int left = Math.Clamp(place.Left, row.Left, row.Right - 1);
+            int top = Math.Clamp(place.Top, row.Top, row.Bottom - 1);
+            return new Native.RECT
+            {
+                Left = left,
+                Top = top,
+                Right = Math.Clamp(place.Right, left + 1, row.Right),
+                Bottom = Math.Clamp(place.Bottom, top + 1, row.Bottom),
+            };
+        }
+        catch (Exception ex)
+        {
+            if (!_buttonPlaceFailed)
+            {
+                _buttonPlaceFailed = true;
+                Log.Warn("Could not locate a window's taskbar button: " + ex.Message);
+            }
             return null;
         }
     }

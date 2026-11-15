@@ -17,6 +17,9 @@ internal sealed class AppCatalog : IDisposable
 
     public ObservableCollection<ShellFile> Apps => _only ?? _folder?.Files ?? _empty;
 
+    /// <summary>False until <see cref="Load"/> has got the list from Windows: <see cref="Apps"/> is a stand-in until then.</summary>
+    public bool Loaded => _only != null || _folder != null;
+
     /// <summary>The whole list as Windows gives it, whatever <see cref="ShowOnly"/> has narrowed it to.</summary>
     internal IReadOnlyList<ShellFile> Everything => (_folder?.Files ?? _empty).ToList();
 
