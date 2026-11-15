@@ -10,10 +10,11 @@ namespace ClearStart;
 /// only answer was the Windows taskbar's: hidden, but still in its place, so every window flew to the bottom of
 /// the screen whichever edge ClearStart's bar was on.
 ///
-/// Windows does not document whose answer counts when several programs give one. This goes by what is known of it:
-/// the question goes to every window registered for the shell's window news, in the order they registered, and
-/// each answer replaces the one before. So ClearStart's has to come after Explorer's, and Explorer registers again
-/// whenever it starts: <see cref="AnswerLast"/> moves ClearStart's window to the end of that line.
+/// Windows does not document whose answer counts when several programs give one. The question goes to every
+/// window registered for the shell's window news, in the order they registered, and each answer replaces the one
+/// before: on a PC where ClearStart had started after Explorer, the question arrived holding Explorer's answer,
+/// and the window flew to ClearStart's. So ClearStart's has to come after Explorer's, and Explorer registers
+/// again whenever it starts: <see cref="AnswerLast"/> moves ClearStart's window to the end of that line.
 /// </summary>
 internal sealed class MinimizeTarget : IDisposable
 {
