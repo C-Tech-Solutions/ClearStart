@@ -962,6 +962,16 @@ internal static partial class SelfTest
                 Say(WinKeyHelper.Hello);
                 if (helper.Watching || taps != 2 || watching != 1 || gone != 1)
                     errors.Add("Windows-key helper: it was listened to after it had been given up");
+
+                // One that Windows gives nothing to watch by is given up, even if it has already said hello.
+                int unseenWatching = 0, unseenGone = 0;
+                using var unseen = new WinKeyHelper(() => { }, () => unseenWatching++, () => unseenGone++);
+                unseen.Listen();
+                Native.SendNotifyMessage(unseen.Window, (uint)WinKeyHelper.Message, new IntPtr(WinKeyHelper.Hello), new IntPtr(WinKeyHelper.Protocol));
+                unseen.Started(null);
+                Native.SendNotifyMessage(unseen.Window, (uint)WinKeyHelper.Message, new IntPtr(WinKeyHelper.Hello), new IntPtr(WinKeyHelper.Protocol));
+                if (unseen.Watching || unseenWatching != 1 || unseenGone != 1)
+                    errors.Add($"Windows-key helper: one that cannot be seen to end left watching {unseen.Watching}, told {unseenWatching} times, gone told {unseenGone} times");
                 report["winKeyHelper"] = new { taps, watching, gone };
             }
             catch (Exception ex)

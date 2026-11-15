@@ -110,13 +110,21 @@ internal sealed class WinKeyHelper : IDisposable
         });
     }
 
-    private void Started(Process? process)
+    /// <summary>
+    /// The helper is used only if ClearStart can see it end. One that stopped unseen would leave the key with
+    /// nobody, and the Windows Start menu would open again.
+    /// </summary>
+    internal void Started(Process? process)
     {
-        if (_ended || process == null)
+        if (_ended)
         {
-            // Told to stop before it had started: it finds the stop event set, or gone, and ends. Or Windows gave
-            // nothing to watch it by: then it can still say that it is watching, but not be seen to end.
+            // Told to stop before it had started: it finds the stop event set, or gone, and ends.
             process?.Dispose();
+            return;
+        }
+        if (process == null)
+        {
+            End("Windows gave nothing to watch it by");
             return;
         }
         _process = process;
@@ -128,7 +136,7 @@ internal sealed class WinKeyHelper : IDisposable
         }
         catch (Exception ex)
         {
-            Log.Warn("The Windows-key helper cannot be watched for its end: " + ex.Message);
+            End("it cannot be watched for its end: " + ex.Message);
         }
     }
 
