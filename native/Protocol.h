@@ -19,6 +19,11 @@ static_assert(offsetof(SharedState, heartbeat) == 16);
 static_assert(sizeof(SharedState) == 40);
 constexpr DWORD StartupTimeout = 30000;
 constexpr DWORD HangTimeout = 15000;
+// How long a ClearStart that has been asked to stop gets before it is ended: a stuck or failed one, and one closing
+// normally. A normal Exit shows the Windows taskbar again on every monitor before it closes, which can take several
+// seconds on its own.
+constexpr DWORD StopTimeout = 5000;
+constexpr DWORD ExitTimeout = 30000;
 constexpr wchar_t TokenVariable[] = L"CLEARSTART_EARLY_TOKEN";
 constexpr wchar_t LoaderVariable[] = L"CLEARSTART_EARLY_OWNER";
 
@@ -45,10 +50,10 @@ inline std::wstring ObjectName(const std::wstring& token, const wchar_t* suffix)
 }
 
 // Only the process handles opened for this launch are ever stopped. No process-name killing.
-inline void StopApp(HANDLE app) {
+inline void StopApp(HANDLE app, DWORD wait) {
     if (!app || WaitForSingleObject(app, 0) != WAIT_TIMEOUT) return;
     // The per-launch Release event asks this app to stop. Never signal a different copy's global exit event.
-    if (WaitForSingleObject(app, 5000) == WAIT_TIMEOUT) {
+    if (WaitForSingleObject(app, wait) == WAIT_TIMEOUT) {
         TerminateProcess(app, ERROR_PROCESS_ABORTED);
         WaitForSingleObject(app, 5000);
     }
@@ -77,7 +82,8 @@ inline BOOL CALLBACK ShowNativeBar(HWND window, LPARAM parameter) {
 inline void Restore(SharedState* state, HANDLE release, HANDLE app) {
     if (state) InterlockedExchange(&state->enabled, 0);
     if (release) SetEvent(release);
-    StopApp(app);
+    // No failure on record: ClearStart released suppression itself, because it is closing.
+    StopApp(app, state && !state->failed ? ExitTimeout : StopTimeout);
     EnumWindows(ShowNativeBar, reinterpret_cast<LPARAM>(state));
     if (FindWindowW(L"Shell_TrayWnd", nullptr))
         SendNotifyMessageW(HWND_BROADCAST, RegisterWindowMessageW(L"TaskbarCreated"), 0, 0);

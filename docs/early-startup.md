@@ -52,8 +52,9 @@ time are excluded. A slow or overloaded UI can therefore deliberately fall back 
 
 App exit/crash, a startup failure, a heartbeat timeout, or loader death turns off suppression and
 releases a deferred desktop-ready signal. ClearStart stops hiding the native bars when it sees
-the release. The monitor allows its own ClearStart child five seconds to exit, then terminates
-that exact process if stuck. It restores the saved auto-hide setting and shows the Windows bars.
+the release. The monitor allows its own ClearStart child five seconds to exit after a failure,
+or 30 seconds when it is closing normally, then terminates that exact process if stuck. It
+restores the saved auto-hide setting and shows the Windows bars.
 If the guarded Explorer has exited, the loader starts plain Explorer once. It never injects into
 an already running Explorer or hunts for processes by name. A later ordinary Explorer restart
 uses the out-of-process guard and may flash; reinjection into a running desktop is not attempted.
@@ -78,11 +79,12 @@ Explorer.
 
 Startup failures, crashes and watchdog recovery detected by the loader remove its own shell entry
 so the next sign-in uses Windows normally. They also put the taskbar's edges back as they were
-before the loader starts plain Explorer. Normal Exit keeps the entry for the next sign-in, but an
-Exit that takes longer than the five seconds above is stopped like a stuck one and turns early
-startup off too; showing the Windows taskbar on several monitors can take that long. Setup waits for
-a copy the loader stopped, and an update turns early startup back on. The DLL stays loaded, inert,
-until Explorer exits; restarting ClearStart in the same session uses the ordinary hiding guard.
+before the loader starts plain Explorer. Normal Exit keeps the entry for the next sign-in. It gets
+the longer time because showing the Windows taskbar on several monitors can take several seconds;
+the loader in 0.4.0 and earlier allowed only five and turned early startup off when that ran out.
+Setup still waits for a copy such a loader stopped, and an update turns early startup back on. The
+DLL stays loaded, inert, until Explorer exits; restarting ClearStart in the same session uses the
+ordinary hiding guard.
 Crash/hang and missing-file recovery have not been tested yet. If the loader itself cannot start at all
 (for example its executable was deleted), its recovery code cannot run: use the manual route below.
 
