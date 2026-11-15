@@ -33,9 +33,11 @@ its failure recovery still needs desktop testing.
 > Windows taskbar and hides nothing, and **live mode**, where ClearStart takes the Windows
 > taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
-Version 0.6.0 minimizes a window into [its button](docs/taskbar.md#app-buttons) on ClearStart's
-bar and opens it back out of it, whichever edge the bar is on. Before, windows went to the bottom
-of the screen, where the hidden Windows taskbar is.
+Version 0.7.0 has the start menu ready before its first click and brings a bar's pinned icons in
+as one smooth wave. It can also let the Windows key open ClearStart's menu
+[over apps that run as administrator](docs/start-menu.md#the-windows-key-over-apps-running-as-administrator),
+through a box in Setup. A minimized window goes into [its button](docs/taskbar.md#app-buttons) on
+ClearStart's bar and opens back out of it, whichever edge the bar is on.
 [Early startup](docs/early-startup.md) is in the installer, ticked by default with Start with
 Windows, so ClearStart starts before Explorer and the Windows taskbar is not drawn at sign-in; it
 stays on when ClearStart takes a few seconds to close. Without it, ClearStart still cannot
