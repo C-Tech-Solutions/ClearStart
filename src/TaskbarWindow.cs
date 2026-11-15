@@ -76,6 +76,9 @@ internal sealed class TaskbarWindow : AppBarWindow
     /// <summary>Looks again at which windows belong on this bar, after another display gained or lost its bar.</summary>
     public void RefreshApps() => _view.RefreshApps();
 
+    /// <summary>Where the button of a window is on the screen, if this bar has one for it.</summary>
+    public Native.RECT? ButtonPlace(IntPtr window) => _view.ButtonPlace(window);
+
     /// <summary>
     /// Takes the handle Windows gave the bar's monitor when it woke from sleep: the same monitor in the same place,
     /// under a new handle. The bar stays open and where it is.

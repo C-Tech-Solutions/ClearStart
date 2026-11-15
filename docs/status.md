@@ -66,6 +66,10 @@ one by clicking it on a real desktop:
 - switching the output device and spatial sound from the volume menu;
 - the weather's location search against the live service;
 - hiding and showing a bar from the right-click menu;
+- windows minimizing towards their button on ClearStart's bar instead of the hidden Windows
+  taskbar. The self-test checks the place ClearStart answers with. The animation can only be seen
+  on a desktop, and it depends on Windows using ClearStart's answer and not Explorer's: Windows
+  does not document which one counts, and ClearStart goes by the last one registered;
 - choosing which pinned apps a bar shows, from the menus and from the chips on the Taskbar page;
 - opening Windows' settings and tools from the start menu's search, and adding one to the
   places from its right-click menu;
