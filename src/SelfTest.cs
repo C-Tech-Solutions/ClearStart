@@ -916,6 +916,59 @@ internal static partial class SelfTest
 
             await CheckUpdatesAsync(host, directory, report, errors);
 
+            // The Windows-key helper: where it is looked for, and what it may say. The helper itself is not
+            // started: Windows runs it only signed and from Program Files.
+            try
+            {
+                const string programFiles = @"C:\Program Files";
+                string inProgramFiles = Path.Combine(programFiles, "ClearStart", WinKeyHelper.FileName);
+                string userFolder = @"C:\Users\someone\AppData\Local\Programs\ClearStart\";
+                string besideUser = Path.Combine(userFolder, WinKeyHelper.FileName);
+                string otherFolder = @"C:\Program Files\Somewhere else\";
+                string besideOther = Path.Combine(otherFolder, WinKeyHelper.FileName);
+                string x86Folder = @"C:\Program Files (x86)\ClearStart\";
+                string besideX86 = Path.Combine(x86Folder, WinKeyHelper.FileName);
+
+                if (WinKeyHelper.Find(userFolder, programFiles, p => p == besideUser) != null)
+                    errors.Add("Windows-key helper: one in the user's own folder was taken, where Windows gives it no UI Access");
+                if (WinKeyHelper.Find(userFolder, programFiles, p => p == besideUser || p == inProgramFiles) != inProgramFiles)
+                    errors.Add("Windows-key helper: the one in Program Files was not found");
+                if (WinKeyHelper.Find(otherFolder, programFiles, p => p == besideOther || p == inProgramFiles) != besideOther)
+                    errors.Add("Windows-key helper: with ClearStart under Program Files, the one beside it was not taken");
+                if (WinKeyHelper.Find(x86Folder, programFiles + @"\", p => p == besideX86) != null)
+                    errors.Add("Windows-key helper: one outside Program Files was taken");
+                if (WinKeyHelper.Find(userFolder, programFiles, _ => false) != null)
+                    errors.Add("Windows-key helper: one was found where there is none");
+
+                int taps = 0, watching = 0, gone = 0;
+                using var helper = new WinKeyHelper(() => taps++, () => watching++, () => gone++);
+                helper.Listen();
+                // Sent to a window of this thread, each one has been handled by the time the call returns.
+                void Say(int what, int protocol = WinKeyHelper.Protocol) =>
+                    Native.SendNotifyMessage(helper.Window, (uint)WinKeyHelper.Message, new IntPtr(what), new IntPtr(protocol));
+
+                Say(WinKeyHelper.Tap);
+                if (taps != 0) errors.Add("Windows-key helper: a tap counted before it had said that it is watching");
+                Say(WinKeyHelper.Hello);
+                Say(WinKeyHelper.Hello);
+                if (!helper.Watching || watching != 1) errors.Add($"Windows-key helper: after its hello, watching is {helper.Watching}, told {watching} times");
+                Say(WinKeyHelper.Tap);
+                Say(WinKeyHelper.Tap);
+                if (taps != 2) errors.Add($"Windows-key helper: two taps counted as {taps}");
+                Say(WinKeyHelper.Tap, WinKeyHelper.Protocol + 1);
+                if (helper.Watching || gone != 1 || taps != 2)
+                    errors.Add($"Windows-key helper: a message of another version left watching {helper.Watching}, gone told {gone} times, {taps} taps");
+                Say(WinKeyHelper.Tap);
+                Say(WinKeyHelper.Hello);
+                if (helper.Watching || taps != 2 || watching != 1 || gone != 1)
+                    errors.Add("Windows-key helper: it was listened to after it had been given up");
+                report["winKeyHelper"] = new { taps, watching, gone };
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Windows-key helper: " + ex);
+            }
+
             // Start menu
             try
             {

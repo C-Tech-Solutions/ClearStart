@@ -78,6 +78,9 @@ internal sealed class ShellHost : IDisposable
     // A change from the settings window that needs the bars reopened, once the changes stop coming.
     private bool _rebuildPending;
     private WinKeyHook? _winKey;
+    private WinKeyHelper? _winKeyHelper;
+    // The helper did not start, or it stopped: the Windows key is this ClearStart's own hook's until it ends.
+    private bool _winKeyHelperGone;
     private FileLog? _shellLog;
     private string _screenSignature = "";
     private int _rebuildRetries;
@@ -581,10 +584,23 @@ internal sealed class ShellHost : IDisposable
         _previews = null;
     }
 
+    /// <summary>
+    /// The Windows key is watched by ClearStart's own hook, or, where there is one, by the helper that Windows also
+    /// calls over apps running as administrator (<see cref="WinKeyHelper"/>). The own hook comes first and stays
+    /// until the helper says that it is watching; it comes back if the helper stops.
+    /// </summary>
     private void UpdateWinKeyHook()
     {
         bool want = Mode == HostMode.Live && Settings.Current.StartMenu.TakeOverWinKey;
-        if (want && _winKey == null)
+        if (!want)
+        {
+            if (_winKey == null && _winKeyHelper == null) return;
+            StopWinKey();
+            Log.Info("Win key hook removed");
+            return;
+        }
+
+        if (_winKey == null && _winKeyHelper is not { Watching: true })
         {
             _winKey = new WinKeyHook(() => _dispatcher.InvokeAsync(() => ToggleStartMenu(IntPtr.Zero)));
             if (_winKey.Start())
@@ -592,12 +608,49 @@ internal sealed class ShellHost : IDisposable
                 Log.Info("Win key hook installed");
             }
         }
-        else if (!want && _winKey != null)
+        if (_winKeyHelper != null || _winKeyHelperGone || WinKeyHelper.Find() is not { } path) return;
+
+        WinKeyHelper? helper = null;
+        helper = new WinKeyHelper(
+            onTap: () => ToggleStartMenu(IntPtr.Zero),
+            onWatching: () =>
+            {
+                if (_winKeyHelper != helper) return;
+                _winKey?.Dispose();
+                _winKey = null;
+                Log.Info("The Windows key is now watched by " + WinKeyHelper.FileName + ", over apps running as administrator too");
+            },
+            onGone: () =>
+            {
+                if (_winKeyHelper != helper) return;
+                _winKeyHelper = null;
+                _winKeyHelperGone = true;
+                // Not from inside one of its own messages.
+                _dispatcher.BeginInvoke(() => helper?.Dispose());
+                if (!_disposed) UpdateWinKeyHook();
+            });
+        _winKeyHelper = helper;
+        try
         {
-            _winKey.Dispose();
-            _winKey = null;
-            Log.Info("Win key hook removed");
+            helper.Start(path);
+            Log.Info("Starting " + path + " to watch the Windows key");
         }
+        catch (Exception ex)
+        {
+            Log.Warn("The Windows-key helper is not used: " + ex.Message);
+            _winKeyHelper = null;
+            _winKeyHelperGone = true;
+            helper.Dispose();
+        }
+    }
+
+    private void StopWinKey()
+    {
+        // The helper first: Dispose waits a moment for its hook to be gone.
+        _winKeyHelper?.Dispose();
+        _winKeyHelper = null;
+        _winKey?.Dispose();
+        _winKey = null;
     }
 
     // ------------------------------------------------------------------ taskbars and screens
@@ -1526,7 +1579,7 @@ internal sealed class ShellHost : IDisposable
             // down for the next sign-in, and has them checked then; it does not start Explorer again.
             Step("write the Windows taskbar's edges back", () => TaskbarEdge.PutBack(sessionEnding: true));
         }
-        Step("remove the Win key hook", () => { _winKey?.Dispose(); _winKey = null; });
+        Step("remove the Win key hook", StopWinKey);
         Step("stop watching displays", () =>
         {
             _screenTimer.Stop();

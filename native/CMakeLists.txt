@@ -20,7 +20,15 @@ add_library(ClearStart.ExplorerGuard SHARED ExplorerGuard.cpp ExplorerGuard.def)
 # Checks the loader's taskbar-edge step on test values (TaskbarEdge.h). Not staged or shipped.
 add_executable(ClearStart.TaskbarEdgeCheck TaskbarEdgeCheck.cpp)
 target_link_libraries(ClearStart.TaskbarEdgeCheck PRIVATE shell32 advapi32 ole32)
-foreach(target detours ClearStart.Loader ClearStart.ExplorerGuard ClearStart.TaskbarEdgeCheck)
+# Holds ClearStart's Windows-key hook with UI Access (WinKey.cpp). Its own manifest asks for that, so the linker's
+# stays out; and it takes its libraries from System32 only.
+add_executable(ClearStart.WinKey WIN32 WinKey.cpp WinKey.manifest)
+target_link_libraries(ClearStart.WinKey PRIVATE user32 shell32 advapi32)
+target_link_options(ClearStart.WinKey PRIVATE /MANIFESTUAC:NO /DEPENDENTLOADFLAG:0x800 /DYNAMICBASE /NXCOMPAT /guard:cf /WX)
+# Checks the helper's rules on made-up key presses (WinKey.h). Not staged or shipped.
+add_executable(ClearStart.WinKeyCheck WinKeyCheck.cpp)
+foreach(target detours ClearStart.Loader ClearStart.ExplorerGuard ClearStart.TaskbarEdgeCheck ClearStart.WinKey
+    ClearStart.WinKeyCheck)
   set_property(TARGET ${target} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   target_compile_features(${target} PRIVATE cxx_std_17)
   target_compile_definitions(${target} PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00)

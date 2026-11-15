@@ -33,6 +33,9 @@ what has not, and what is missing.
 - **The bars wait for a newly started Explorer.** At sign-in, ClearStart gives Explorer three
   seconds before its own tray starts beside it; one that is crowded sooner stops snapping windows
   with Win+arrow. That adds up to three seconds before the bars are on screen.
+- **Over an app running as administrator, the Windows key opens the Windows Start menu.** Some
+  games run that way. Windows does not let ClearStart see the key there. A helper for it is
+  written but [has not been run](#what-has-not-been-run).
 
 ## What has not been run
 
@@ -52,6 +55,12 @@ See [the isolated test plan](early-startup.md#validation-before-enabling-on-a-re
 offered the release, downloaded it, checked its checksum and signature, ran Setup, and started
 again as 0.4.0. Early startup was off on that PC, so an update that closes ClearStart while the
 early-startup loader runs it has not been tried yet.
+
+**The Windows key over apps running as administrator.** `ClearStart.WinKey.exe`, the helper for
+it, is not in 0.5.0. It has been built, and the self-test covers ClearStart's side of it, but the
+helper itself has never been run: Windows starts it only signed and from a folder under Program
+Files, and Setup does not put it there. See
+[the start menu](start-menu.md#the-windows-key-over-apps-running-as-administrator).
 
 **Other setups.** Other versions of Windows and display scaling above 100% have not been tried.
 

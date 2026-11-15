@@ -22,9 +22,10 @@ out but not for handing to anyone.
 The Azure Artifact Signing metadata JSON. Defaults to the CLEARSTART_SIGNING_METADATA variable.
 
 .PARAMETER NativeDir
-The folder native\build.ps1 stages the early-startup loader and guard in (artifacts\early-startup).
-They go into the installer, signed with the rest when -Sign is given, and Setup then offers early
-startup as an option. Without it the installer has no early startup.
+The folder native\build.ps1 stages the early-startup loader and guard and the Windows-key helper in
+(artifacts\early-startup). They go into the installer, signed with the rest when -Sign is given, and
+Setup then offers early startup as an option. Without it the installer has no early startup and no
+helper.
 
 .EXAMPLE
 installer\build-installer.ps1
@@ -104,8 +105,8 @@ if ($Sign) {
 
 $native = @()
 if ($NativeDir) {
-    $native = @('ClearStart.Loader.exe', 'ClearStart.ExplorerGuard.dll', 'Detours-LICENSE.txt' | ForEach-Object {
-        Find-File "The early-startup file $_" @(Join-Path $NativeDir $_) })
+    $native = @('ClearStart.Loader.exe', 'ClearStart.ExplorerGuard.dll', 'ClearStart.WinKey.exe',
+        'Detours-LICENSE.txt' | ForEach-Object { Find-File "The native file $_" @(Join-Path $NativeDir $_) })
 }
 
 $version = ([xml](Get-Content -LiteralPath $project -Raw)).Project.PropertyGroup.Version |
@@ -122,7 +123,7 @@ dotnet publish $project -c Release -r win-x64 --self-contained true -p:PublishSi
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed with exit code $LASTEXITCODE" }
 if ($native) {
     Copy-Item -LiteralPath $native -Destination $publish
-    Write-Host 'Added the early-startup loader and guard.'
+    Write-Host 'Added the early-startup loader and guard, and the Windows-key helper.'
 }
 
 # ---------------------------------------------------------------- 2. sign the app

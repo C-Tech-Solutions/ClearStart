@@ -148,6 +148,13 @@ warnings as errors, and stages its license with the binaries. No build command r
 the loader. Only `ClearStart.exe --early-startup on` changes the next sign-in, and that command must
 not be run on an active user's PC without approval.
 
+The same build makes `ClearStart.WinKey.exe` (`native/WinKey.cpp`), the helper that watches the
+Windows key [over apps running as administrator](start-menu.md#the-windows-key-over-apps-running-as-administrator).
+Its manifest asks for UI Access, so Windows starts it only signed and from a folder under Program
+Files; an unsigned build cannot be started at all. When a key press is a tap is decided in
+`native/WinKey.h`, which `ClearStart.WinKeyCheck.exe` checks on made-up key presses. That check is
+built with the rest and not shipped.
+
 The guard uses user32 API hooks and class procedures for Explorer's Unicode taskbar windows. It
 also delays `ShellDesktopSwitchEvent` without blocking Explorer's UI thread. That event and the
 taskbar classes are Windows implementation details: native x64 Windows 11 sign-in compatibility
@@ -368,6 +375,7 @@ one whose files are named differently.
 | `ExplorerTaskbar.cs` | The Windows taskbar's auto-hide setting, and putting the taskbar back |
 | `StartTiming.cs` | How long since ClearStart started and since sign-in, for the log |
 | `WinKeyHook.cs` | The Windows key, in live mode |
+| `WinKeyHelper.cs` | Starts `ClearStart.WinKey.exe`, which watches the Windows key over apps running as administrator, and listens to it |
 | `Audio.cs` | Output devices and spatial sound |
 | `Network.cs` | Whether the connection is wired, Wi-Fi or down |
 | `ShellLink.cs` | Reading shortcut files |

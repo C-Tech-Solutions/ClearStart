@@ -116,11 +116,12 @@ native/build.ps1
 ```
 
 The second command compiles the native targets and publishes a self-contained ReadyToRun app to
-`artifacts/early-startup`, then stages the loader, guard and Detours license beside it. It runs
+`artifacts/early-startup`, then stages the loader, guard and Detours license beside it, with the
+[Windows-key helper](start-menu.md#the-windows-key-over-apps-running-as-administrator). It runs
 none of those binaries and writes no startup settings. These local candidates are unsigned.
 
 To put them in an installer instead, pass that folder to the installer build. With `-Sign`, the
-loader and guard are signed with the rest of the app:
+loader, guard and helper are signed with the rest of the app:
 
 ```powershell
 installer/build-installer.ps1 -Sign -NativeDir artifacts/early-startup

@@ -147,3 +147,25 @@ Also on the Start menu page:
 | Start menu color | The color laid over it |
 
 Changes on this page show the next time the menu opens.
+
+## The Windows key over apps running as administrator
+
+While an app that runs as administrator has the keyboard, as some games do, Windows does not let
+ClearStart see the Windows key, and the Windows Start menu opens instead. `ClearStart.WinKey.exe`
+is a small helper for that. It does nothing but watch the Windows key and tell ClearStart of each
+tap, and Windows lets it see the key over those apps too.
+
+Windows allows that only for a signed program in a folder under Program Files, so ClearStart uses
+the helper only from one of two places:
+
+- beside `ClearStart.exe`, if ClearStart itself is in a folder under Program Files;
+- otherwise `C:\Program Files\ClearStart\ClearStart.WinKey.exe`.
+
+Setup installs ClearStart in your own user folder and does not put the helper in Program Files.
+For now that is done by hand: copy the signed `ClearStart.WinKey.exe` from ClearStart's folder to
+`C:\Program Files\ClearStart\`, which needs administrator rights, and start ClearStart again. The
+log then says that the Windows key is watched by `ClearStart.WinKey.exe`. With no helper there, or
+if it stops, ClearStart watches the key itself, as it always has.
+
+The helper has been built and the rules it follows are checked, but it has not been run yet,
+because Windows starts it only once it is signed.
