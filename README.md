@@ -33,15 +33,15 @@ its failure recovery still needs desktop testing.
 > Windows taskbar and hides nothing, and **live mode**, where ClearStart takes the Windows
 > taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
-Version 0.3.0 starts with Windows from a sign-in task and hides the Windows taskbar earlier. It
-gives a newly started Explorer a moment first, so Win+arrow window snapping keeps working, and
-raises the bars with the start menu over fullscreen apps. A Windows taskbar on the top or a side
-of the screen, where Windows 11 cannot auto-hide it, is moved to the bottom while ClearStart runs
-and put back afterwards. The bars dock again after Explorer restarts or monitors wake from sleep.
-ClearStart still cannot guarantee that the Windows taskbar is never drawn at sign-in; see
-[startup limits](docs/getting-started.md#how-soon-it-takes-over). The separate early-startup
-candidate targets that gap. Pinned icons appear together by default, with an optional
-[animated startup reveal](docs/taskbar.md#app-buttons).
+Version 0.4.0 puts [early startup](docs/early-startup.md) in the installer, ticked by default
+with Start with Windows, so ClearStart starts before Explorer and the Windows taskbar is not drawn
+at sign-in. Without it, ClearStart still cannot guarantee that; see
+[startup limits](docs/getting-started.md#how-soon-it-takes-over). A Windows taskbar on the top or a
+side of the screen, where Windows 11 cannot auto-hide it, is moved to the bottom while ClearStart
+runs and put back afterwards. Where Windows 11 has the taskbar's position in Settings, it moves
+without restarting Explorer. The start menu's search finds Windows settings, Control Panel items
+and tools. Its pinned tiles can be resized, moved, sorted and grouped into folders, and apps can
+be dragged onto them. Its gear opens Windows Settings.
 
 ## Contents
 
