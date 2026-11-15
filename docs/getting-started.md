@@ -118,7 +118,7 @@ installer, `ClearStart-Setup-<version>.exe`, about 55 MB and signed by C-Tech So
 | --- | --- |
 | **Everything in one file** | It carries its own copy of .NET, so the PC needs nothing installed first. |
 | **For you alone** | It installs into `%LOCALAPPDATA%\Programs\ClearStart` unless you choose another folder, adds ClearStart to the Start menu, and asks for no administrator rights. |
-| **Two choices** | Before it installs: start ClearStart when you sign in (off unless you tick it). At the end: start it now (ticked). Both start [live mode](#live-mode). |
+| **Its choices** | Before it installs: start ClearStart when you sign in, and start it before Explorer so the Windows taskbar never shows ([early startup](early-startup.md), experimental). At the end: start it now. All three are ticked; untick any you do not want. They start [live mode](#live-mode). |
 | **Upgrades in place** | A newer installer replaces the old copy, and closes it first if it is running. |
 | **Updates itself** | The installed copy can fetch and install newer versions from GitHub. See [Updates](updates.md). |
 | **Uninstall** | From **Settings → Apps → Installed apps**. It closes ClearStart, puts the Windows taskbar back as it was, and takes away Start with Windows if it starts this copy. If startup cleanup fails, uninstall stops and keeps the program files so you can retry. Your settings stay. |
@@ -230,10 +230,10 @@ auto-hide retained, you may still glimpse the Windows taskbar; this approach doe
 moment after it has gone. The log says how long each step took after sign-in: look for
 `Windows taskbar hidden` and `Taskbars on screen`.
 
-There is also a separately built [experimental early-startup loader](early-startup.md). It starts
-Explorer with a guard already loaded and waits for ClearStart's bars before releasing Explorer's
-desktop-ready signal. It requires explicit opt-in, is not included by the normal installer build,
-and has had a successful sign-in test reported on one PC. It restores the original auto-hide setting on sign-out as well
+There is also an [experimental early-startup loader](early-startup.md), which Setup turns on
+unless you untick its box. It starts Explorer with a guard already loaded and waits for
+ClearStart's bars before releasing Explorer's desktop-ready signal. It has had a successful
+sign-in test reported on one PC. It restores the original auto-hide setting on sign-out as well
 as Exit, and releases suppression if ClearStart fails or stops responding.
 
 ## Where ClearStart keeps things

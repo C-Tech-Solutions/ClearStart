@@ -23,8 +23,8 @@
 ClearStart draws its own taskbar and its own start menu. By default it runs as an ordinary
 program, and closing it brings the Windows taskbar back. An optional, experimental
 [early-startup loader](docs/early-startup.md) loads a guard inside Explorer before its taskbar
-is created. It is built separately, is not in the installer, and is disabled by default. It has
-passed sign-in tests on one PC; its failure recovery still needs desktop testing.
+is created. Setup turns it on unless you untick its box. It has passed sign-in tests on one PC;
+its failure recovery still needs desktop testing.
 
 > [!IMPORTANT]
 > **This is an early preview.** Get the signed installer from the

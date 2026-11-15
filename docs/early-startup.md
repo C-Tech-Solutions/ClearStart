@@ -2,17 +2,23 @@
 
 [Back to the README](../README.md)
 
-This separate candidate targets the Windows taskbar flash at sign-in. It is disabled by default
-and is not part of the normal installer build. It was first tested successfully on one PC on
-November 12, 2026. It targets native x64 Windows 11; ARM64 is refused.
+This option targets the Windows taskbar flash at sign-in. The release installer includes it, and
+Setup turns it on unless you untick its box (see [How it starts](#how-it-starts)). An installer
+built without `installer\build-installer.ps1 -NativeDir` leaves it out (see
+[Build only](#build-only)). It was first tested successfully on one PC on November 12, 2026. It
+targets native x64 Windows 11; ARM64 is refused.
 
 ## How it starts
 
-Explicit opt-in sets the current user's
+Turning it on sets the current user's
 `HKCU\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell` to the fully quoted
 `ClearStart.Loader.exe --shell` command. Existing shell overrides or shell policies are refused.
-It removes this copy's ordinary startup task/Run entry first. Setup, automatic migration and the
-ordinary Start with Windows switch never enable this mode.
+It removes this copy's ordinary startup task/Run entry first. Automatic migration and the ordinary
+Start with Windows switch never enable this mode. Setup enables it when its **Start ClearStart
+before Explorer** box is ticked, which it is unless you untick it; an update, which runs Setup
+silently, only turns it back on when closing ClearStart for the update turned it off (see
+Recovery). Should early startup be refused, Setup's **Start ClearStart when I sign in**
+box, ticked too, leaves the ordinary sign-in task in place.
 
 The loader starts ClearStart suspended, then starts the system Explorer with
 `ClearStart.ExplorerGuard.dll` inserted before Explorer's entry point using Microsoft Detours.
@@ -56,7 +62,10 @@ under early startup, since that restarts Explorer: the taskbar stays on its edge
 the screen stays empty.
 
 Startup failures, crashes and watchdog recovery detected by the loader remove its own shell entry
-so the next sign-in uses Windows normally. Normal Exit keeps the entry for the next sign-in. The DLL stays loaded, inert,
+so the next sign-in uses Windows normally. Normal Exit keeps the entry for the next sign-in, but an
+Exit that takes longer than the five seconds above is stopped like a stuck one and turns early
+startup off too; showing the Windows taskbar on several monitors can take that long. Setup waits for
+a copy the loader stopped, and an update turns early startup back on. The DLL stays loaded, inert,
 until Explorer exits; restarting ClearStart in the same session uses the ordinary hiding guard.
 Crash/hang and missing-file recovery have not been tested yet. If the loader itself cannot start at all
 (for example its executable was deleted), its recovery code cannot run: use the manual route below.
@@ -68,8 +77,9 @@ After approved testing, turn off early startup before moving/deleting its folder
 ```
 
 The app's Start with Windows switch and uninstall also remove this copy's shell entry. Sign out
-after disabling and before replacing/removing the loaded DLL. Do not point the existing updater
-at this experimental folder: in-place native DLL replacement and release packaging are not enabled.
+after disabling and before removing the folder by hand. Setup can replace the loader and guard while
+they are in use: it renames them, puts copies in their place, and deletes the renamed files at a
+later install or uninstall, once nothing has them open. An update replaces them the same way.
 
 If no usable desktop appears, press **Ctrl+Alt+Delete**, open **Task Manager**, choose **Run new task**,
 and run `explorer.exe` to get a Windows desktop. Then run the disable command above. If the ClearStart
@@ -89,8 +99,16 @@ native/build.ps1
 
 The second command compiles the native targets and publishes a self-contained ReadyToRun app to
 `artifacts/early-startup`, then stages the loader, guard and Detours license beside it. It runs
-none of those binaries and writes no startup settings. The ordinary installer and release asset
-names, AppId and application version are unchanged. These local candidates are unsigned.
+none of those binaries and writes no startup settings. These local candidates are unsigned.
+
+To put them in an installer instead, pass that folder to the installer build. With `-Sign`, the
+loader and guard are signed with the rest of the app:
+
+```powershell
+installer/build-installer.ps1 -Sign -NativeDir artifacts/early-startup
+```
+
+The installer's asset name, AppId and application version are unchanged.
 
 ## Validation before enabling on a real PC
 
