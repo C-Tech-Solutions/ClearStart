@@ -22,7 +22,9 @@ internal sealed class MinimizeTarget : IDisposable
 
     /// <summary>
     /// The question among that news (HSHELL_GETMINRECT). It comes with a pointer to the window's handle followed by
-    /// its button's place as four 16-bit numbers: left, top, right, bottom, in screen pixels.
+    /// its button's place as four 16-bit numbers: left, top, right, bottom, in screen pixels. The Windows headers
+    /// show four 32-bit numbers there (SHELLHOOKINFO), but this message carries the place packed into the first two
+    /// of them. ManagedShell, the shell library ClearStart uses, reads and writes it the same way.
     /// </summary>
     internal const int Question = 5;
 

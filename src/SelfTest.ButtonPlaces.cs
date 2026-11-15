@@ -10,8 +10,8 @@ internal static partial class SelfTest
     /// <summary>
     /// Where a window's button is, which Windows asks before it minimizes or restores the window. A bottom bar and
     /// a side bar are put in a window far off-screen and asked for the windows they list; then the question is put
-    /// to ClearStart's answering window the way Windows puts it. That window is not registered with Windows here,
-    /// so no window on the desktop minimizes any differently.
+    /// to ClearStart's answering window the way Windows puts it, for made-up windows. That window is not registered
+    /// with Windows here, so no window on the desktop minimizes any differently.
     /// </summary>
     private static async Task CheckButtonPlacesAsync(ShellHost host, AppBarScreen screen,
         Dictionary<string, object?> report, List<string> errors)
@@ -100,22 +100,6 @@ internal static partial class SelfTest
                     last = places.Count > 0 ? Text(places[^1]) : null,
                     barWindow = Text(window),
                 });
-
-                if (!side && running.Count > 0 && places.Count > 0)
-                {
-                    // The stage is far off-screen, further than the question's 16-bit numbers reach on a scaled
-                    // display: the places are counted from the stage's corner for this.
-                    Native.RECT? Near(IntPtr asked) => view.ButtonPlace(asked) is { } place
-                        ? new Native.RECT
-                        {
-                            Left = place.Left - window.Left,
-                            Top = place.Top - window.Top,
-                            Right = place.Right - window.Left,
-                            Bottom = place.Bottom - window.Top,
-                        }
-                        : null;
-                    CheckQuestion(Near, running[0].First!.Handle, source.Handle, errors);
-                }
             }
             finally
             {
@@ -123,6 +107,13 @@ internal static partial class SelfTest
                 view.Detach();
             }
         }
+
+        // The question does not depend on what is open on the desktop: two made-up windows, one with a button on a
+        // display left of the main one (so its place has numbers below zero) and one without a button.
+        var listed = new IntPtr(0x5101);
+        var listedPlace = new Native.RECT { Left = -1900, Top = 1040, Right = -1856, Bottom = 1080 };
+        CheckQuestion(asked => asked == listed ? listedPlace : null, listed, new IntPtr(0x5102), errors);
+
         report["buttonPlaces"] = found;
     }
 
