@@ -28,6 +28,8 @@ internal static class Program
             if (live)
             {
                 StartTiming.EndStep("WPF start-up", step);
+                // On this thread, and before the wait rather than after it: at sign-in the wait is longer than this.
+                StartupWarmUp.BarLayout();
                 if (!LiveStart.WaitForExplorer()) return 0;
             }
             return app.Run();

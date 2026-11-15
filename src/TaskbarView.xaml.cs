@@ -65,6 +65,18 @@ public partial class TaskbarView : UserControl
     private double? _digitHeight;
     private double? _widestDayName;
 
+    /// <summary>
+    /// Reads the bar's layout file once and throws the result away. The first reading in a run is the slow one, a
+    /// second and a half at a cold sign-in: it loads WPF's controls and their styles and templates. Done while
+    /// ClearStart waits for Explorer (see <see cref="StartupWarmUp.BarLayout"/>), the first bar finds all that loaded.
+    /// On the UI thread only: what it loads belongs to the thread.
+    /// </summary>
+    internal static void WarmUp() => _ = new TaskbarView();
+
+#pragma warning disable CS8618 // Nothing but the layout is made: this view is never shown, and none of its code runs.
+    private TaskbarView() => InitializeComponent();
+#pragma warning restore CS8618
+
     /// <param name="thickness">Height of a top or bottom bar, width of a side bar.</param>
     /// <param name="startButton">Where the Start button goes; null = what the settings say for this monitor.</param>
     /// <param name="iconSize">App icon size (0 = automatic); null = what the settings say.</param>
@@ -231,6 +243,9 @@ public partial class TaskbarView : UserControl
         _clock.Stop();
         _apps.Dispose();
     }
+
+    /// <summary>True while the pinned icons of a first bar are held back or coming in with their animation.</summary>
+    internal bool PinsAppearing => _pinReveal?.Playing == true;
 
     private void AppIcon_Loaded(object sender, RoutedEventArgs e)
     {
