@@ -62,6 +62,7 @@ from.
 | `ClearStart.exe --exit` | Closes the running copy, which puts the Windows taskbar back. |
 | `ClearStart.exe --restore` | Same, and also forces the Windows taskbar back if a copy was ended without cleaning up, with the auto-hide setting it had before ClearStart. |
 | `ClearStart.exe --start-with-windows on` or `off` | Switches Start with Windows for this copy and exits, showing nothing. Setup uses it. `off` leaves another copy's start alone. |
+| `ClearStart.exe --win-key-helper install` or `remove` | Puts the [Windows-key helper](start-menu.md#the-windows-key-over-apps-running-as-administrator) in `C:\Program Files\ClearStart`, or takes it away, and exits, showing nothing. Setup uses it. Without administrator rights it starts itself again with them, which Windows asks about. It ends with 0 when done, 1 when it failed, 3 when that question was answered with No. |
 | `ClearStart.exe --selftest <folder>` | Draws the UI into PNG files in that folder without showing anything, and writes what it checked to `selftest.json`. Saves no settings. |
 | `ClearStart.exe --screenshots <folder>` | Draws the pictures the docs use, with stand-in content. Saves no settings. |
 
@@ -256,11 +257,12 @@ The script finds its tools by itself, or you can point it at them:
 | | |
 | --- | --- |
 | **Where** | `%LOCALAPPDATA%\Programs\ClearStart`, for the one user, with no administrator rights. A shortcut goes in the Start menu. |
+| **The Windows-key helper** | An optional task, not ticked by default, in an installer built with `-NativeDir`. When it is ticked, Setup starts `ClearStart.exe --win-key-helper install` as administrator, which Windows asks the user about, only from its own pages: an update leaves the helper in Program Files as it was. The command (see [`src/WinKeyHelperSetup.cs`](../src/WinKeyHelperSetup.cs)) copies `ClearStart.WinKey.exe` into `C:\Program Files\ClearStart`, checks the copy's signature there against the running ClearStart's, and only then gives it its name. If it fails, Setup says so and goes on. |
 | **Start with Windows** | An optional task, ticked by default. Setup runs `ClearStart.exe --start-with-windows on`, which does what the app's own switch does (see [`src/AutoStart.cs`](../src/AutoStart.cs)): a task in Task Scheduler that starts ClearStart at sign-in, or the Run key if Task Scheduler refuses the task. An update leaves it as it was; a live run moves an older version's Run key entry to the task. |
 | **Early startup** | An optional task, ticked by default, in an installer built with `-NativeDir`. Setup runs `ClearStart.exe --early-startup on` when it is ticked and `--early-startup off` when it is not, only from its own pages: an update leaves it as it was. See [Early startup](early-startup.md). |
 | **Upgrading** | If the installed copy is running, Setup runs it with `--exit` first. |
 | **Updating** | ClearStart's updater runs Setup with `/VERYSILENT`, `/MERGETASKS="!startup"`, so that Start with Windows stays as it was, and `/RESTART=live` or `/RESTART=preview`. At the end Setup starts the installed copy again in that mode, unless a copy is already running. Without `/RESTART` it starts nothing. |
-| **Uninstalling** | Runs `--restore`, then `--start-with-windows off`, then removes the files. Start with Windows goes only if it starts this copy; an older version's Run key entry is checked too. If ClearStart is still running after `--restore`, or startup cleanup fails, it stops before removing anything. A Task Scheduler read failure is an error, not proof the task is absent. The settings and the log stay. |
+| **Uninstalling** | Runs `--restore`, then `--start-with-windows off`, then, if the Windows-key helper is in Program Files, `--win-key-helper remove` as administrator, then removes the files. A helper that could not be taken away is left, and Setup says where. Start with Windows goes only if it starts this copy; an older version's Run key entry is checked too. If ClearStart is still running after `--restore`, or startup cleanup fails, it stops before removing anything. A Task Scheduler read failure is an error, not proof the task is absent. The settings and the log stay. |
 
 `AppId` in `ClearStart.iss` ties every version together, so a new installer upgrades the old one
 in place. Never change it.
@@ -359,6 +361,7 @@ one whose files are named differently.
 | `ColorWheel.cs` | The color wheel |
 | `Weather.cs`, `WeatherFlyout.cs`, `WeatherIcons.cs` | Fetching the forecast, the panel, and the weather pictures |
 | `AutoStart.cs` | Start with Windows |
+| `WinKeyHelperSetup.cs` | Puts the Windows-key helper in Program Files, and takes it away |
 | `Updates.cs` | Checking for, downloading, checking and installing a newer version |
 | `TaskbarView.Updates.cs`, `SettingsView.Updates.cs` | The update button on the bar, and the Updates lines in the settings |
 | `AppIcon.cs` | Draws the app icon |

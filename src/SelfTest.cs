@@ -992,6 +992,57 @@ internal static partial class SelfTest
                 Native.SendNotifyMessage(unseen.Window, (uint)WinKeyHelper.Message, new IntPtr(WinKeyHelper.Hello), new IntPtr(WinKeyHelper.Protocol));
                 if (unseen.Watching || unseenWatching != 1 || unseenGone != 1)
                     errors.Add($"Windows-key helper: one that cannot be seen to end left watching {unseen.Watching}, told {unseenWatching} times, gone told {unseenGone} times");
+
+                // Putting the helper in Program Files and taking it away again, in a folder of this test's own.
+                string setupRoot = Path.Combine(Path.GetTempPath(), "ClearStart-selftest-winkey-" + Guid.NewGuid().ToString("N"));
+                try
+                {
+                    string place = Path.Combine(setupRoot, "Program Files", "ClearStart");
+                    string placed = Path.Combine(place, WinKeyHelper.FileName);
+                    string first = Path.Combine(setupRoot, "first.exe"), second = Path.Combine(setupRoot, "second.exe");
+                    Directory.CreateDirectory(setupRoot);
+                    File.WriteAllText(first, "first");
+                    File.WriteAllText(second, "second");
+
+                    if (WinKeyHelperSetup.Install(first, place, _ => "refused") == null || Directory.Exists(place))
+                        errors.Add("Windows-key helper: one that was refused was put in place, or left its folder behind");
+                    if (WinKeyHelperSetup.Install(first, place, _ => null) != null || !WinKeyHelperSetup.SameFile(first, placed))
+                        errors.Add("Windows-key helper: it was not put in place");
+                    string? judged = null;
+                    if (WinKeyHelperSetup.Install(second, place, copy => { judged = copy; return "refused"; }) == null
+                        || !WinKeyHelperSetup.SameFile(first, placed) || Directory.GetFiles(place).Length != 1)
+                        errors.Add("Windows-key helper: a refused one replaced the helper that was there, or left its copy behind");
+                    if (judged == null || judged == placed || Path.GetDirectoryName(judged) != place)
+                        errors.Add($"Windows-key helper: it was judged as {judged}, not as a copy in the folder it goes into");
+                    if (WinKeyHelperSetup.Install(second, place, _ => null) != null || !WinKeyHelperSetup.SameFile(second, placed))
+                        errors.Add("Windows-key helper: a newer one did not replace the helper that was there");
+                    using (File.Open(placed, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    {
+                        if (WinKeyHelperSetup.Install(first, place, _ => null) == null || Directory.GetFiles(place).Length != 1)
+                            errors.Add("Windows-key helper: one in use was replaced, or the new copy was left behind");
+                    }
+
+                    File.WriteAllText(Path.Combine(place, "other.txt"), "kept");
+                    WinKeyHelperSetup.Remove(place);
+                    if (File.Exists(placed) || !Directory.Exists(place))
+                        errors.Add("Windows-key helper: removing it left it, or took a folder with something else in it");
+                    File.Delete(Path.Combine(place, "other.txt"));
+                    File.WriteAllText(placed, "again");
+                    WinKeyHelperSetup.Remove(place);
+                    if (Directory.Exists(place)) errors.Add("Windows-key helper: removing it left its empty folder");
+                    WinKeyHelperSetup.Remove(place);
+                }
+                finally
+                {
+                    try
+                    {
+                        Directory.Delete(setupRoot, true);
+                    }
+                    catch (Exception)
+                    {
+                        // A folder left in Temp fails no test.
+                    }
+                }
                 report["winKeyHelper"] = new { taps, watching, gone };
             }
             catch (Exception ex)

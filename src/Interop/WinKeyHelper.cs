@@ -48,7 +48,8 @@ internal sealed class WinKeyHelper : IDisposable
 
     /// <summary>
     /// The helper in a place where Windows gives it UI Access, or null. That is beside ClearStart if ClearStart is
-    /// itself under Program Files, and otherwise Program Files\ClearStart, where for now it is put by hand.
+    /// itself under Program Files, and otherwise Program Files\ClearStart, where <see cref="WinKeyHelperSetup"/>
+    /// puts it.
     /// </summary>
     public static string? Find()
     {

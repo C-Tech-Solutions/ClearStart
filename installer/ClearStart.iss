@@ -6,6 +6,7 @@
 ; The installer is for one user and needs no administrator rights. The app goes into
 ; %LOCALAPPDATA%\Programs\ClearStart. The settings and the log stay where the app keeps them
 ; (%APPDATA%\ClearStart and %LOCALAPPDATA%\ClearStart), and uninstalling leaves them there.
+; Only the Windows-key helper's box takes administrator rights, and Windows asks for them then.
 ;
 ; ClearStart's updater (src\Updates.cs) runs this Setup with /VERYSILENT and /RESTART=live or
 ; /RESTART=preview. Setup then closes ClearStart as usual, and starts it again when it is done (see
@@ -22,6 +23,12 @@
 ; then offers early startup (docs\early-startup.md).
 #if FileExists(AddBackslash(PublishDir) + "ClearStart.Loader.exe")
   #define EarlyStartup
+#endif
+
+; The same -NativeDir puts the Windows-key helper in the published app. Setup then offers to put it in
+; Program Files, the only place Windows lets it work from (docs\start-menu.md).
+#if FileExists(AddBackslash(PublishDir) + "ClearStart.WinKey.exe")
+  #define WinKeyHelper
 #endif
 
 #define AppExe "ClearStart.exe"
@@ -77,6 +84,11 @@ Name: "startup"; Description: "Start ClearStart when I sign in, in place of the 
 ; Starts ClearStart's loader in place of Explorer at sign-in, so the Windows taskbar never shows. It
 ; takes the place of the task above, which stays as the way back should early startup be refused.
 Name: "earlystartup"; Description: "Start ClearStart before Explorer, so the Windows taskbar never shows (experimental)"
+#endif
+#ifdef WinKeyHelper
+; Not ticked unless the user ticks it: it is the one choice that takes administrator rights. See
+; InstallWinKeyHelper below.
+Name: "winkey"; Description: "Let the Windows key open ClearStart's menu over apps that run as administrator (experimental; Windows asks for administrator rights)"; Flags: unchecked
 #endif
 
 [Files]
@@ -290,6 +302,58 @@ begin
   end;
 end;
 
+#ifdef WinKeyHelper
+{ The Windows-key helper works only from a folder under Program Files, which takes administrator
+  rights. Setup has none, so it starts ClearStart's own command with them, which Windows asks the user
+  about. Only from Setup's own pages: an update runs silently and must not bring that question up, so
+  the helper that is already there stays. Whatever comes of it, ClearStart is installed: without the
+  helper the Windows key works as it did before. }
+procedure InstallWinKeyHelper;
+var
+  ResultCode: Integer;
+begin
+  if not ShellExec('runas', ExpandConstant('{app}\{#AppExe}'), '--win-key-helper install', '', SW_HIDE,
+                   ewWaitUntilTerminated, ResultCode) then
+    Log('The Windows-key helper was not put in Program Files: ' + SysErrorMessage(ResultCode))
+  else if ResultCode <> 0 then
+  begin
+    Log(Format('The Windows-key helper was not put in Program Files: ClearStart ended with %d.', [ResultCode]));
+    MsgBox('ClearStart could not put its Windows-key helper in Program Files. The Windows key works ' +
+           'as before. ClearStart''s log says what went wrong.', mbInformation, MB_OK);
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if (CurStep = ssPostInstall) and not WizardSilent and WizardIsTaskSelected('winkey') then
+    InstallWinKeyHelper;
+end;
+#endif
+
+{ The Windows-key helper in Program Files, if one is there. Taking it away takes administrator rights
+  again, so Windows asks. Left where it is it does nothing: only a running ClearStart starts it. }
+procedure RemoveWinKeyHelper;
+var
+  Exe, Folder: String;
+  ResultCode: Integer;
+begin
+  Folder := ExpandConstant('{commonpf}\ClearStart');
+  Exe := ExpandConstant('{app}\{#AppExe}');
+  if not FileExists(Folder + '\ClearStart.WinKey.exe') then
+    Exit;
+  if UninstallSilent or not FileExists(Exe) then
+  begin
+    Log('The Windows-key helper is left in ' + Folder + '.');
+    Exit;
+  end;
+  if ShellExec('runas', Exe, '--win-key-helper remove', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
+     (ResultCode = 0) then
+    Exit;
+  Log('The Windows-key helper is still in ' + Folder + '.');
+  MsgBox('ClearStart''s Windows-key helper is still in ' + Folder + '. It does nothing by itself. ' +
+         'To remove it, delete that folder.', mbInformation, MB_OK);
+end;
+
 { The updater asks for ClearStart to come back once Setup is done, in the mode it was running in. This
   runs when Setup ends however it went: after a failed update the old copy is still there, and starting
   it again brings back the taskbar the user had. }
@@ -324,6 +388,7 @@ begin
       begin
         CloseRunningCopy;
         RemoveStartWithWindows;
+        RemoveWinKeyHelper;
       end;
   end;
 end;
