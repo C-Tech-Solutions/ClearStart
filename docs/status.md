@@ -48,12 +48,10 @@ suppression across Windows builds, missing-file recovery, crash/hang recovery, s
 removal remain unverified. Setup turns it on unless its box is unticked; an update never does.
 See [the isolated test plan](early-startup.md#validation-before-enabling-on-a-real-pc).
 
-**Updating.** The updater's parts are covered by the self-test: reading a release, comparing
-versions, the checksum and the signature checks, and refusing a download that fails them. No copy
-has yet updated itself from one release to the next, which needs an installed, signed copy and a
-newer release than the one it runs. So it has never downloaded a real update or run Setup to
-install it and start again, and the update button on the bar has only been seen in the
-self-test's pictures, with a made-up version.
+**Updating.** One installed copy updated itself from 0.3.0 to 0.4.0 on November 14, 2026: it
+offered the release, downloaded it, checked its checksum and signature, ran Setup, and started
+again as 0.4.0. Early startup was off on that PC, so an update that closes ClearStart while the
+early-startup loader runs it has not been tried yet.
 
 **Other setups.** Other versions of Windows and display scaling above 100% have not been tried.
 
