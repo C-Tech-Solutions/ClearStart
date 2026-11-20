@@ -334,10 +334,11 @@ internal sealed partial class SettingsView : UserControl
             Toggle(() => Taskbar.ShowQuickSettingsButton, value => Taskbar.ShowQuickSettingsButton = value, SettingsChange.Bars)));
         page.Children.Add(Row("Cast button", "Opens the Windows Cast panel, the one Windows+K opens",
             Toggle(() => Taskbar.ShowCastButton, value => Taskbar.ShowCastButton = value, SettingsChange.Bars)));
-        // Only while the button is on. Until a choice is made here it shows the clock's, which the button follows.
+        // Only while the button is on. Until a choice is made here it shows the clock's, which the button
+        // follows; a click on either option, the one shown too, makes it the button's own.
         var castPlace = Row("Show the Cast button on", null,
             Choice(() => Taskbar.CastOnEveryBar, value => Taskbar.CastOnAllMonitors = value, SettingsChange.Bars,
-                ("Main taskbar", false), ("Every taskbar", true)));
+                () => Taskbar.CastOnAllMonitors == null, ("Main taskbar", false), ("Every taskbar", true)));
         _loaders.Add(() => castPlace.Visibility = Taskbar.ShowCastButton ? Visibility.Visible : Visibility.Collapsed);
         page.Children.Add(castPlace);
         page.Children.Add(Row("Show seconds on the clock", null,
@@ -1267,6 +1268,13 @@ internal sealed partial class SettingsView : UserControl
 
     /// <summary>A few choices side by side in one track, the chosen one filled.</summary>
     private FrameworkElement Choice<T>(Func<T> get, Action<T> set, SettingsChange what,
+        params (string Text, T Value)[] options) => Choice(get, set, what, null, options);
+
+    /// <summary>
+    /// The same, for a setting that shows another's value until it has one of its own. While
+    /// <paramref name="unset"/> says so, a click on the option already filled stores it too.
+    /// </summary>
+    private FrameworkElement Choice<T>(Func<T> get, Action<T> set, SettingsChange what, Func<bool>? unset,
         params (string Text, T Value)[] options)
     {
         var same = EqualityComparer<T>.Default;
@@ -1277,7 +1285,7 @@ internal sealed partial class SettingsView : UserControl
             var button = new RadioButton { Content = text, Style = StyleOf("ChoicePill") };
             button.Click += (_, _) =>
             {
-                if (!same.Equals(get(), value)) Change(() => set(value), what);
+                if (!same.Equals(get(), value) || unset?.Invoke() == true) Change(() => set(value), what);
             };
             panel.Children.Add(button);
             buttons.Add((button, value));
