@@ -512,6 +512,8 @@ internal static partial class SelfTest
                     var trial = Settings.Current.Taskbar;
                     bool trayBefore = trial.TrayOnAllMonitors;
                     bool clockBefore = trial.ClockOnAllMonitors;
+                    bool castBefore = trial.ShowCastButton;
+                    bool? castPlaceBefore = trial.CastOnAllMonitors;
                     try
                     {
                         var found = new List<object>();
@@ -540,11 +542,53 @@ internal static partial class SelfTest
                             await DrawBarAsync(host, second, File($"second-bar-{name}.png"), AppBarEdge.Bottom, flat, 1600, null, 800, null, null, sampleTray);
                         }
                         report["trayOnSecondBar"] = found;
+
+                        // The Cast button: on every bar, or on the main one only. With no choice of its own it
+                        // goes where the clock goes, as it did before it had one.
+                        var castFound = new List<object>();
+                        var castCases = new (bool Shown, bool? Place, bool Clock, string Name)[]
+                        {
+                            (true, null, true, "with-the-clock-everywhere"), (true, null, false, "with-the-clock-main-only"),
+                            (true, false, true, "main-only"), (true, true, false, "everywhere"), (false, true, true, "off"),
+                        };
+                        trial.TrayOnAllMonitors = true;
+                        foreach (var (shown, place, clock, name) in castCases)
+                        {
+                            trial.ShowCastButton = shown;
+                            trial.CastOnAllMonitors = place;
+                            trial.ClockOnAllMonitors = clock;
+
+                            var onSecond = new TaskbarView(host, second, AppBarEdge.Bottom, flat);
+                            bool secondHas = onSecond.HasCastButton;
+                            onSecond.Detach();
+                            var onMain = new TaskbarView(host, primary, AppBarEdge.Bottom, flat);
+                            bool mainHas = onMain.HasCastButton;
+                            onMain.Detach();
+
+                            if (secondHas != (shown && (place ?? clock))) errors.Add($"Cast button ({name}): on the second bar: {secondHas}");
+                            if (mainHas != shown) errors.Add($"Cast button ({name}): on the main bar: {mainHas}");
+                            castFound.Add(new { name, shown, onEveryBar = place, clockOnEveryBar = clock, mainBar = mainHas, secondBar = secondHas });
+                            if (name == "main-only")
+                            {
+                                // The choice reads back from the file; a file without one leaves it to the clock.
+                                var back = Settings.Parse(Settings.Write(Settings.Current)).Taskbar;
+                                var old = Settings.Parse("""{"taskbar":{"showCastButton":true,"clockOnAllMonitors":false}}""").Taskbar;
+                                if (back.CastOnAllMonitors != false || old.CastOnAllMonitors != null || old.CastOnEveryBar)
+                                {
+                                    errors.Add("Cast button: the choice of bars did not read back from the settings file");
+                                }
+                                await DrawBarAsync(host, primary, File("cast-main-only-main-bar.png"), AppBarEdge.Bottom, flat, 1600, null, 800, null, null, sampleTray);
+                                await DrawBarAsync(host, second, File("cast-main-only-second-bar.png"), AppBarEdge.Bottom, flat, 1600, null, 800, null, null, sampleTray);
+                            }
+                        }
+                        report["castButtonOnBars"] = castFound;
                     }
                     finally
                     {
                         trial.TrayOnAllMonitors = trayBefore;
                         trial.ClockOnAllMonitors = clockBefore;
+                        trial.ShowCastButton = castBefore;
+                        trial.CastOnAllMonitors = castPlaceBefore;
                     }
                 }
 

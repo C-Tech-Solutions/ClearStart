@@ -33,10 +33,19 @@ internal static class Launcher
                     lpIDList = pidl,
                     nShow = 1, // SW_SHOWNORMAL
                 };
-                if (Native.ShellExecuteEx(ref info)) return true;
+                if (Native.ShellExecuteEx(ref info))
+                {
+                    Log.Info($"Asked Windows to open '{item.DisplayName}'");
+                    return true;
+                }
 
                 int error = Marshal.GetLastWin32Error();
-                if (error == ERROR_CANCELLED) return false; // the elevation prompt was declined
+                if (error == ERROR_CANCELLED)
+                {
+                    // The elevation prompt was declined, or Windows calls the launch cancelled for its own reasons.
+                    Log.Info($"Opening '{item.DisplayName}' was cancelled");
+                    return false;
+                }
                 Log.Warn($"Shell launch of '{item.DisplayName}' failed (error {error}); trying its path");
             }
 
@@ -58,6 +67,7 @@ internal static class Launcher
             {
                 ShellHelper.ShowRunDialog("Run",
                     "Type the name of a program, folder, document, or Internet resource, and Windows will open it for you.");
+                Log.Info("Asked Windows for the Run dialog");
                 return true;
             }
 
@@ -68,10 +78,15 @@ internal static class Launcher
             };
             if (elevated) start.Verb = "runas";
             Process.Start(start)?.Dispose();
+            // Windows took the request. Without this line the log could not tell a click that never got here
+            // from one Windows accepted and then showed nothing for.
+            Log.Info($"Asked Windows to open '{target}'");
             return true;
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == ERROR_CANCELLED)
         {
+            // An administrator prompt answered No ends here, and so does anything else Windows calls cancelled.
+            Log.Info($"Opening '{target}' was cancelled");
             return false;
         }
         catch (Exception ex)
