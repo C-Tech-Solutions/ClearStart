@@ -146,7 +146,9 @@ public partial class TaskbarView : UserControl
             ? Visibility.Visible : Visibility.Collapsed;
         ClockButton.Visibility = _showClock ? Visibility.Visible : Visibility.Collapsed;
         QuickButton.Visibility = _showClock && settings.ShowQuickSettingsButton ? Visibility.Visible : Visibility.Collapsed;
-        CastButton.Visibility = _showClock && settings.ShowCastButton ? Visibility.Visible : Visibility.Collapsed;
+        // The Cast button has a choice of its own: every bar, or the main one only.
+        bool showCast = settings.ShowCastButton && (_main || settings.CastOnEveryBar) && !_cramped;
+        CastButton.Visibility = showCast ? Visibility.Visible : Visibility.Collapsed;
         if (_showTrayIcons && host.Shell.NotificationArea is { } tray)
         {
             // Only the icons kept on the bar; the arrow beside them opens the rest. The tray starts after
@@ -222,6 +224,9 @@ public partial class TaskbarView : UserControl
 
     /// <summary>Whether this bar has the tray icons, and whether it has the clock: for the self-test's report.</summary>
     internal (bool TrayIcons, bool Clock) TrayParts => (_showTrayIcons, _showClock);
+
+    /// <summary>Whether this bar has the Cast button: for the self-test's report.</summary>
+    internal bool HasCastButton => CastButton.Visibility == Visibility.Visible;
 
     /// <summary>Puts a made-up weather report on the bar so the self-test can draw it.</summary>
     internal void ShowSampleWeather(WeatherReport report)

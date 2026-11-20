@@ -251,6 +251,17 @@ public sealed class TaskbarSettings
     /// <summary>Button that opens the Windows Cast panel, the one Win+K opens. Off until switched on.</summary>
     public bool ShowCastButton { get; set; }
 
+    /// <summary>
+    /// The Cast button on every bar, or only on the main one. Left out, it goes where the clock goes, which is
+    /// where it was before it had a choice of its own.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? CastOnAllMonitors { get; set; }
+
+    /// <summary>Whether the Cast button is on every bar: its own choice, or the clock's while it has none.</summary>
+    [JsonIgnore]
+    public bool CastOnEveryBar => CastOnAllMonitors ?? ClockOnAllMonitors;
+
     public bool ShowSeconds { get; set; }
 
     /// <summary>Pinned launchers, in order. null = follow the Windows "pinned to taskbar" folder.</summary>

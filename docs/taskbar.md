@@ -215,7 +215,8 @@ A screen with waves. A click opens Windows' Cast panel, the one Windows+K opens:
 display or a TV to show the screen on, or disconnect from one.
 
 It is off at first. Switch it on under **Settings → Taskbar → Cast button**, and it sits between
-the tray icons and the network glyph, on every bar that has the clock.
+the tray icons and the network glyph. **Show the Cast button on**, the line below it, puts it on
+every bar or on the main one only. Until you choose, it is on every bar that has the clock.
 
 ## The clock
 

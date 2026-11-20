@@ -334,6 +334,12 @@ internal sealed partial class SettingsView : UserControl
             Toggle(() => Taskbar.ShowQuickSettingsButton, value => Taskbar.ShowQuickSettingsButton = value, SettingsChange.Bars)));
         page.Children.Add(Row("Cast button", "Opens the Windows Cast panel, the one Windows+K opens",
             Toggle(() => Taskbar.ShowCastButton, value => Taskbar.ShowCastButton = value, SettingsChange.Bars)));
+        // Only while the button is on. Until a choice is made here it shows the clock's, which the button follows.
+        var castPlace = Row("Show the Cast button on", null,
+            Choice(() => Taskbar.CastOnEveryBar, value => Taskbar.CastOnAllMonitors = value, SettingsChange.Bars,
+                ("Main taskbar", false), ("Every taskbar", true)));
+        _loaders.Add(() => castPlace.Visibility = Taskbar.ShowCastButton ? Visibility.Visible : Visibility.Collapsed);
+        page.Children.Add(castPlace);
         page.Children.Add(Row("Show seconds on the clock", null,
             Toggle(() => Taskbar.ShowSeconds, value => Taskbar.ShowSeconds = value, SettingsChange.Bars)));
         page.Children.Add(Hint("Changes in the first and last groups reopen the taskbars, which takes a moment. " +
