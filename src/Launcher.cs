@@ -33,7 +33,11 @@ internal static class Launcher
                     lpIDList = pidl,
                     nShow = 1, // SW_SHOWNORMAL
                 };
-                if (Native.ShellExecuteEx(ref info)) return true;
+                if (Native.ShellExecuteEx(ref info))
+                {
+                    Log.Info($"Asked Windows to open '{item.DisplayName}'");
+                    return true;
+                }
 
                 int error = Marshal.GetLastWin32Error();
                 if (error == ERROR_CANCELLED) return false; // the elevation prompt was declined
@@ -68,6 +72,9 @@ internal static class Launcher
             };
             if (elevated) start.Verb = "runas";
             Process.Start(start)?.Dispose();
+            // Windows took the request. Without this line the log could not tell a click that never got here
+            // from one Windows accepted and then showed nothing for.
+            Log.Info($"Asked Windows to open '{target}'");
             return true;
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == ERROR_CANCELLED)
