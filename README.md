@@ -44,8 +44,10 @@ through a box in Setup. A minimized window goes into [its button](docs/taskbar.m
 ClearStart's bar and opens back out of it, whichever edge the bar is on.
 [Early startup](docs/early-startup.md) is in the installer, ticked by default with Start with
 Windows, so ClearStart starts before Explorer and the Windows taskbar is not drawn at sign-in; it
-stays on when ClearStart takes a few seconds to close. Without it, ClearStart still cannot
-guarantee that; see
+stays on when ClearStart takes a few seconds to close. From 0.9.0 a running ClearStart also
+[turns it back on](docs/early-startup.md#recovery) when an Explorer restart turns it off, unless
+the loader started that ClearStart; no Explorer restart has been run with that yet. Without
+early startup, ClearStart still cannot guarantee that the Windows taskbar is not drawn; see
 [startup limits](docs/getting-started.md#how-soon-it-takes-over). A Windows taskbar on the top or a
 side of the screen, where Windows 11 cannot auto-hide it, is moved to the bottom while ClearStart
 runs and put back afterwards. Where Windows 11 has the taskbar's position in Settings, it moves

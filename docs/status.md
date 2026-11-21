@@ -39,12 +39,13 @@ what has not, and what is missing.
   games run that way. Windows does not let ClearStart see the key there. A helper for it
   [has worked on one PC](#what-has-not-been-run), but Setup does not install it yet.
 - **Explorer starting again can turn early startup off.** On one PC on November 21, 2026,
-  Explorer was restarted by hand in the middle of a session, and early startup was found
-  turned off afterwards, with nothing left to start ClearStart at the next sign-in. Nothing on
-  screen said so. A change that [puts it back](early-startup.md#recovery) is in the code but has
-  not been run on a real desktop, and it does not cover a ClearStart that the loader itself
-  started. Until then, run `ClearStart.exe --early-startup on` again after Explorer has
-  restarted, or run Setup again.
+  with 0.8.0, Explorer was restarted by hand in the middle of a session, and early startup was
+  found turned off afterwards, with nothing left to start ClearStart at the next sign-in.
+  Nothing on screen said so. From 0.9.0 a running ClearStart
+  [puts it back](early-startup.md#recovery) and says so in the log, but that has not been run
+  on a real desktop, and it does not cover a ClearStart that the loader itself started. If
+  early startup is off after Explorer has restarted, run `ClearStart.exe --early-startup on`
+  again, or run Setup again.
 
 ## What has not been run
 
