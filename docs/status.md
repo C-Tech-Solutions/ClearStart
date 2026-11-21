@@ -110,10 +110,12 @@ one by clicking it on a real desktop:
 
 These are in the code, and build, but have not been run on a real desktop yet:
 
-- **A bar minimized again and again:** the log takes six lines a minute for each bar, however
-  often the bar comes back. The self-test checks that on a window of its own; no real bar has
-  been minimized that often. A bar coming back has also not been tried during an Explorer
-  restart, while a display is added or removed, or under a full-screen app.
+- **A bar minimized again and again:** the bar comes back every time, and the log takes at most
+  six lines a minute for each bar; the next minute's first line comes with a count of what was
+  left out. The self-test minimizes a window of its own nine times in a row and checks that it
+  comes back each time. It does not count the log's lines: its log was read by hand, and had
+  six. No real bar has been minimized that often. A bar coming back has also not been tried
+  during an Explorer restart, while a display is added or removed, or under a full-screen app.
 - **The Cast button on the main bar only:** the choice under **Show the Cast button on** is
   drawn and checked by the self-test, on two bars. It has not been clicked on a real desktop yet.
 - **The log's lines for what ClearStart opens:** written when Windows accepts a launch, opens
