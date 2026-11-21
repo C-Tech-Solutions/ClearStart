@@ -15,6 +15,7 @@ internal sealed class TaskbarWindow : AppBarWindow
     private static readonly int TaskbarCreatedMessage = (int)Native.RegisterWindowMessage("TaskbarCreated");
 
     private readonly ShellHost _host;
+    private readonly StayOnScreen _stayOnScreen;
     private TaskbarView _view;
     private bool _sideBar;
     private double _size;
@@ -28,6 +29,9 @@ internal sealed class TaskbarWindow : AppBarWindow
         _host = host;
         _sideBar = edge is AppBarEdge.Left or AppBarEdge.Right;
         _size = size;
+        _stayOnScreen = new StayOnScreen(Dispatcher,
+            () => $"Taskbar on {TaskbarSettings.MonitorKey(Device)} ({AppBarEdge.ToString().ToLowerInvariant()} edge)",
+            () => AllowClose || IsClosing);
         Title = "ClearStart";
         AllowsTransparency = true;
         Background = Brushes.Transparent;
@@ -144,6 +148,9 @@ internal sealed class TaskbarWindow : AppBarWindow
     protected override IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (msg == TaskbarCreatedMessage) _host.OnTaskbarCreated();
+        // A bar is never minimized on purpose. While another program has it minimized, the docking code in the base
+        // class is kept away from it; it sees the bar again when the bar is back.
+        if (_stayOnScreen.Filter(hwnd, msg, wParam, ref handled)) return IntPtr.Zero;
         return base.WndProc(hwnd, msg, wParam, lParam, ref handled);
     }
 
