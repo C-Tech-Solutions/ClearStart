@@ -153,6 +153,17 @@ internal static partial class SelfTest
                 errors.Add("Staying on screen: " + ex);
             }
 
+            // Early startup's record, and when its entry is put back: on a file of the self-test's own and made-up
+            // registry values. Neither the registry nor the real record is read or changed.
+            try
+            {
+                report["earlyStartupStaysOn"] = CheckEarlyStartupRecord(directory, errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Early startup staying on: " + ex);
+            }
+
             // Start with Windows: read only. The switch is never thrown here.
             try
             {
