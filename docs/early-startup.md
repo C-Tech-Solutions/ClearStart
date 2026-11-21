@@ -95,8 +95,8 @@ update had started earlier in that session in place of the loader's copy, kept r
 turning early startup on takes the ordinary startup entry away, nothing would have started
 ClearStart at the next sign-in. A crash has not been seen to do the same, but Windows starts the
 shell again the same way after one.
-A running ClearStart now puts the entry back once the new Explorer has settled, with the same
-checks as turning early startup on, and writes a line in the log. It goes by a small record,
+From 0.9.0, a running ClearStart puts the entry back once the new Explorer has settled, with the
+same checks as turning early startup on, and writes a line in the log. It goes by a small record,
 `early-startup-on.txt` in `%LOCALAPPDATA%\ClearStart`, which turning early startup on writes.
 Turning it off removes the record, and so does turning on the ordinary Start with Windows: an
 entry that has gone while the record is still there was not turned off by you. So turn early

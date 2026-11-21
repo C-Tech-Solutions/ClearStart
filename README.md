@@ -33,17 +33,21 @@ its failure recovery still needs desktop testing.
 > Windows taskbar and hides nothing, and **live mode**, where ClearStart takes the Windows
 > taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
-Version 0.8.0 lets the [Cast button](docs/taskbar.md#cast) sit on the main taskbar only or on
-every taskbar, and [the log](docs/getting-started.md#where-clearstart-keeps-things) now has a line
-for everything ClearStart asks Windows to open. The start menu is ready before its first click,
+Version 0.9.0 keeps the bars on screen: a bar that another program minimizes
+[comes straight back](docs/taskbar.md), and the app in front keeps the keyboard. The
+[Cast button](docs/taskbar.md#cast) can sit on the main taskbar only or on every taskbar, and
+[the log](docs/getting-started.md#where-clearstart-keeps-things) has a line for everything
+ClearStart asks Windows to open. The start menu is ready before its first click,
 and the Windows key can open it
 [over apps that run as administrator](docs/start-menu.md#the-windows-key-over-apps-running-as-administrator),
 through a box in Setup. A minimized window goes into [its button](docs/taskbar.md#app-buttons) on
 ClearStart's bar and opens back out of it, whichever edge the bar is on.
 [Early startup](docs/early-startup.md) is in the installer, ticked by default with Start with
 Windows, so ClearStart starts before Explorer and the Windows taskbar is not drawn at sign-in; it
-stays on when ClearStart takes a few seconds to close. Without it, ClearStart still cannot
-guarantee that; see
+stays on when ClearStart takes a few seconds to close. From 0.9.0 a running ClearStart also
+[turns it back on](docs/early-startup.md#recovery) when an Explorer restart turns it off, unless
+the loader started that ClearStart; no Explorer restart has been run with that yet. Without
+early startup, ClearStart still cannot guarantee that the Windows taskbar is not drawn; see
 [startup limits](docs/getting-started.md#how-soon-it-takes-over). A Windows taskbar on the top or a
 side of the screen, where Windows 11 cannot auto-hide it, is moved to the bottom while ClearStart
 runs and put back afterwards. Where Windows 11 has the taskbar's position in Settings, it moves
