@@ -231,6 +231,8 @@ internal sealed class ShellHost : IDisposable
             TaskbarGuard.Start();
             TaskbarEdge.BeforeRestart = BeforeExplorerRestart;
             TaskbarEdge.AfterMove = AfterTaskbarMove;
+            // What is put back later is early startup as it is now. It waits for the startup lock, so off this thread.
+            ThreadPool.QueueUserWorkItem(_ => EarlyStartup.NoteAtStart());
             // Which edge each Windows taskbar is docked to. A hidden taskbar still has its place on the screen.
             long step = StartTiming.BeginStep();
             FindWindowsTaskbars();
@@ -411,6 +413,9 @@ internal sealed class ShellHost : IDisposable
         _trayTimer.Stop();
         _trayHeld = false;
         TaskbarGuard.KeepInFront = false;
+        // Windows starting Explorer again can turn early startup off behind ClearStart's back (see EarlyStartup). Off
+        // this thread: turning it back on asks Task Scheduler, which can take a moment.
+        ThreadPool.QueueUserWorkItem(_ => EarlyStartup.PutBackIfDropped());
         if (!_trayStarted)
         {
             StartTray();

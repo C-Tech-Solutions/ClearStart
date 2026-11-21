@@ -105,6 +105,9 @@ internal static class AutoStart
             WriteRunEntry(program);
             Log.Info("Start with Windows: on, by the Run key (Task Scheduler would not take the task)");
         }
+        // Ordinary startup is the user's choice now: an early-startup entry that went missing earlier is not put back
+        // over it.
+        EarlyStartup.ForgetRecord();
     }
 
     /// <summary>

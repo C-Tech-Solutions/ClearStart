@@ -38,6 +38,13 @@ what has not, and what is missing.
 - **Over an app running as administrator, the Windows key opens the Windows Start menu.** Some
   games run that way. Windows does not let ClearStart see the key there. A helper for it
   [has worked on one PC](#what-has-not-been-run), but Setup does not install it yet.
+- **Explorer starting again can turn early startup off.** On one PC on November 21, 2026,
+  Explorer was restarted by hand in the middle of a session, and early startup was found
+  turned off afterwards, with nothing left to start ClearStart at the next sign-in. Nothing on
+  screen said so. A change that [puts it back](early-startup.md#recovery) is in the code but has
+  not been run on a real desktop, and it does not cover a ClearStart that the loader itself
+  started. Until then, run `ClearStart.exe --early-startup on` again after Explorer has
+  restarted, or run Setup again.
 
 ## What has not been run
 
@@ -124,6 +131,11 @@ These are in the code, and build, but have not been run on a real desktop yet:
 - **A slow Exit under early startup** gets 30 seconds to close before the loader stops it. The
   loader in 0.4.0 allowed five, which showing the Windows taskbar again on four monitors could
   take, and then turned early startup off.
+- **Early startup staying on when Explorer starts again:** a running ClearStart that finds its
+  early-startup entry gone once Explorer has settled turns early startup back on and says so in
+  the log. The self-test checks when it does that, on made-up values, and its record of early
+  startup being on, on a file of its own. No Explorer restart has been run with it, and a
+  ClearStart the loader started is left out (see [Recovery](early-startup.md#recovery)).
 - **Resizing a bar** changes only that bar while the mouse is down, and docks it once when it is
   let go. 0.2.0's resizing was choppy.
 - **Moving a bar** keeps it open, instead of closing it and opening a new one. In 0.2.0 the
