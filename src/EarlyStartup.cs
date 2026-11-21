@@ -100,17 +100,19 @@ internal static class EarlyStartup
 
     public static void Disable()
     {
+        // The record goes first, and a failure stops here: with the entry gone and the record left, a running ClearStart
+        // would turn early startup back on the next time Explorer starts again.
+        Forget(RecordFile, Command);
         using var key = Registry.CurrentUser.OpenSubKey(ShellKey, writable: true);
         if (string.Equals(key?.GetValue("Shell") as string, Command, StringComparison.OrdinalIgnoreCase))
             key!.DeleteValue("Shell", throwOnMissingValue: false);
-        ForgetRecord();
         Log.Info("Early startup disabled for this copy. Windows will start its normal shell next time.");
     }
 
     /// <summary>
-    /// Early startup is no longer what the user asked of this copy: it was turned off, or ordinary startup was turned
-    /// on in its place. An entry that goes missing, or went missing before, is then not put back. Called under the
-    /// startup lock.
+    /// Ordinary startup has been turned on for this copy, so early startup is no longer what the user asked of it: an
+    /// entry that went missing before is not put back over it. Only a warning if the record cannot be removed, since
+    /// ordinary startup is in place by then. Called under the startup lock.
     /// </summary>
     public static void ForgetRecord()
     {
@@ -197,7 +199,8 @@ internal static class EarlyStartup
         }
         catch (Exception ex)
         {
-            Log.Warn("Could not check the record that early startup is on: " + ex.Message);
+            Log.Warn("Could not check the record that early startup is on, so ClearStart does not turn it back on in " +
+                "this session if Explorer starting again turns it off: " + ex.Message);
         }
     }
 
