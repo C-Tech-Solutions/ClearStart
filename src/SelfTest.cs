@@ -143,6 +143,16 @@ internal static partial class SelfTest
                 errors.Add("Taskbar edges: " + ex);
             }
 
+            // A window that must stay on screen, as the bars do: tried on a window of the self-test's own.
+            try
+            {
+                report["stayOnScreen"] = await CheckStayOnScreenAsync(errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Staying on screen: " + ex);
+            }
+
             // Start with Windows: read only. The switch is never thrown here.
             try
             {

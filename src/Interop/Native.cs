@@ -305,6 +305,10 @@ internal static class Native
     [DllImport("user32.dll")]
     internal static extern bool IsWindowVisible(IntPtr hwnd);
 
+    /// <summary>True while the window is minimized.</summary>
+    [DllImport("user32.dll")]
+    internal static extern bool IsIconic(IntPtr hwnd);
+
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
     private static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
 

@@ -13,6 +13,10 @@ From left to right: **Start**, the **search button**, the **app buttons**, the *
 [Cast](#cast) button can join them. While a newer version of ClearStart is out, a download button
 with a blue dot sits on the main bar next to the weather; see [Updates](updates.md).
 
+A bar cannot be minimized. When another program minimizes every window on the desktop, the bars come
+straight back, and [the log](getting-started.md#where-clearstart-keeps-things) gets a line for each. A
+program that keeps doing it gets the bars back every time, and the log a few lines a minute.
+
 - [The bar's right-click menu](#the-bars-right-click-menu)
 - [Moving and resizing](#moving-and-resizing)
 - [The Start button](#the-start-button)
