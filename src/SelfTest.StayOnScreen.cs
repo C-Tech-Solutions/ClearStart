@@ -51,7 +51,18 @@ internal static partial class SelfTest
             if (!minimized) errors.Add("Staying on screen: the self-test's window would not minimize, so nothing was tried");
             else if (!cameBack) errors.Add("Staying on screen: a minimized window did not come back");
             else if (!samePlace) errors.Add("Staying on screen: a minimized window came back in another place");
-            return new { refused, minimized, cameBack, samePlace };
+
+            // Minimized again and again, more often than the log takes lines for: it comes back every time all the same.
+            int again = 0;
+            for (int round = 0; round < StayOnScreen.LinesAMinute + 3; round++)
+            {
+                Native.ShowWindow(hwnd, 7 /* SW_SHOWMINNOACTIVE */);
+                for (int waited = 0; Native.IsIconic(hwnd) && waited < 2000; waited += 50) await Task.Delay(50);
+                if (!Native.IsIconic(hwnd)) again++;
+            }
+            bool everyTime = again == StayOnScreen.LinesAMinute + 3;
+            if (cameBack && !everyTime) errors.Add($"Staying on screen: minimized again and again, a window came back only {again} time(s)");
+            return new { refused, minimized, cameBack, samePlace, everyTime };
         }
         finally
         {
