@@ -231,8 +231,8 @@ internal sealed class ShellHost : IDisposable
             TaskbarGuard.Start();
             TaskbarEdge.BeforeRestart = BeforeExplorerRestart;
             TaskbarEdge.AfterMove = AfterTaskbarMove;
-            // Before Explorer can settle beside this copy: what is put back later is early startup as it is now.
-            EarlyStartup.NoteAtStart();
+            // What is put back later is early startup as it is now. It waits for the startup lock, so off this thread.
+            ThreadPool.QueueUserWorkItem(_ => EarlyStartup.NoteAtStart());
             // Which edge each Windows taskbar is docked to. A hidden taskbar still has its place on the screen.
             long step = StartTiming.BeginStep();
             FindWindowsTaskbars();

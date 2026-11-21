@@ -18,8 +18,8 @@ internal static class EarlyStartup
     public static bool IsEnabled => string.Equals(ReadShell(), Command, StringComparison.OrdinalIgnoreCase);
 
     // This copy's shell command, written down while early startup is on for it. Turning early startup off takes the
-    // record away with the entry. An entry that goes while the record stays was not turned off by the user: the loader
-    // removed it (see PutBackIfDropped).
+    // record away with the entry, and so does turning ordinary startup on. An entry that goes while the record stays
+    // was not turned off by the user: the loader removed it (see PutBackIfDropped).
     private static string RecordFile => Path.Combine(Log.DataDirectory, "early-startup-on.txt");
     // True once the record has been brought in line with the registry, as this copy's shell started (see NoteAtStart).
     private static volatile bool _noted;
@@ -103,6 +103,17 @@ internal static class EarlyStartup
         using var key = Registry.CurrentUser.OpenSubKey(ShellKey, writable: true);
         if (string.Equals(key?.GetValue("Shell") as string, Command, StringComparison.OrdinalIgnoreCase))
             key!.DeleteValue("Shell", throwOnMissingValue: false);
+        ForgetRecord();
+        Log.Info("Early startup disabled for this copy. Windows will start its normal shell next time.");
+    }
+
+    /// <summary>
+    /// Early startup is no longer what the user asked of this copy: it was turned off, or ordinary startup was turned
+    /// on in its place. An entry that goes missing, or went missing before, is then not put back. Called under the
+    /// startup lock.
+    /// </summary>
+    public static void ForgetRecord()
+    {
         try
         {
             Forget(RecordFile, Command);
@@ -112,14 +123,14 @@ internal static class EarlyStartup
             Log.Warn("Could not remove the record that early startup is on, so a running ClearStart may turn it back on " +
                 "when Explorer starts again: " + ex.Message);
         }
-        Log.Info("Early startup disabled for this copy. Windows will start its normal shell next time.");
     }
 
     // ------------------------------------------------------------------ staying on
 
-    // Windows starts the user's shell command again when Explorer has closed unexpectedly, which is the loader's with
-    // early startup on. Seen with 0.8.0: within a second of that, the entry was gone, in a session where ClearStart had
-    // not been started by the loader and stayed up. The loader removes its entry when it takes a start for a failed one.
+    // Windows starts the user's shell command again when Explorer has been ended or has crashed, which is the loader's
+    // with early startup on. Seen with 0.8.0, after Explorer was restarted by hand: within a second the entry was gone,
+    // in a session where ClearStart had not been started by the loader and stayed up. The loader removes its entry when
+    // it takes a start for a failed one.
     // Nothing then starts ClearStart at the next sign-in: turning early startup on took the ordinary startup entry
     // away. A ClearStart that is up and running beside the new Explorer puts the entry back.
 
@@ -160,23 +171,29 @@ internal static class EarlyStartup
         if (Recorded(file, command)) File.Delete(file);
     }
 
-    /// <summary>As this copy's shell starts in live mode: brings the record in line with the registry.</summary>
+    /// <summary>
+    /// As this copy's shell starts in live mode: brings the record in line with the registry. Under the startup lock,
+    /// as every change to the record is, so not for the window thread. Nothing is put back until this has run.
+    /// </summary>
     public static void NoteAtStart()
     {
         try
         {
-            switch (Next(ReadShell(), Recorded(RecordFile, Command), Command, starting: true, EarlySession.Active))
+            AutoStart.ChangeStartup(() =>
             {
-                case Step.Remember:
-                    Remember(RecordFile, Command);
-                    break;
-                case Step.Forget:
-                    Forget(RecordFile, Command);
-                    Log.Info("Early startup was turned off while ClearStart was not running. It stays off until it is " +
-                        "turned on again, in Setup or with --early-startup on");
-                    break;
-            }
-            _noted = true;
+                switch (Next(ReadShell(), Recorded(RecordFile, Command), Command, starting: true, EarlySession.Active))
+                {
+                    case Step.Remember:
+                        Remember(RecordFile, Command);
+                        break;
+                    case Step.Forget:
+                        Forget(RecordFile, Command);
+                        Log.Info("Early startup was turned off while ClearStart was not running. It stays off until it " +
+                            "is turned on again, in Setup or with --early-startup on");
+                        break;
+                }
+                _noted = true;
+            });
         }
         catch (Exception ex)
         {

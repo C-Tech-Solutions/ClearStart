@@ -88,19 +88,21 @@ ordinary hiding guard.
 Crash/hang and missing-file recovery have not been tested yet. If the loader itself cannot start at all
 (for example its executable was deleted), its recovery code cannot run: use the manual route below.
 
-When Explorer closes unexpectedly, Windows starts the user's shell command again, which with early
-startup on is the loader's. With 0.8.0 that turned early startup off on one PC: Explorer started
-again by itself, the shell entry was gone within the second, and ClearStart, which an update had
-started earlier in that session in place of the loader's copy, kept running. Since turning early
-startup on takes the ordinary startup entry away, nothing would have started ClearStart at the
-next sign-in.
+When Explorer is ended or crashes, Windows starts the user's shell command again, which with
+early startup on is the loader's. With 0.8.0 that turned early startup off on one PC: Explorer
+was restarted by hand, the shell entry was gone within the second, and ClearStart, which an
+update had started earlier in that session in place of the loader's copy, kept running. Since
+turning early startup on takes the ordinary startup entry away, nothing would have started
+ClearStart at the next sign-in. A crash has not been seen to do the same, but Windows starts the
+shell again the same way after one.
 A running ClearStart now puts the entry back once the new Explorer has settled, with the same
 checks as turning early startup on, and writes a line in the log. It goes by a small record,
-`early-startup-on.txt` in `%LOCALAPPDATA%\ClearStart`, which turning early startup on writes and
-turning it off removes: an entry that has gone while the record is still there was not turned off
-by you. So turn early startup off with Setup, the switch or the command above, not by deleting the
-registry value while ClearStart runs. ClearStart never puts its entry over another shell value.
-It also leaves the entry off in two cases:
+`early-startup-on.txt` in `%LOCALAPPDATA%\ClearStart`, which turning early startup on writes.
+Turning it off removes the record, and so does turning on the ordinary Start with Windows: an
+entry that has gone while the record is still there was not turned off by you. So turn early
+startup off with Setup, the switch or the command above, not by deleting the registry value while
+ClearStart runs. ClearStart never puts its entry over another shell value. It also leaves the
+entry off in two cases:
 
 - **ClearStart starts and finds the entry gone.** That keeps the loader's answer to a failed
   sign-in. The log says that early startup stays off.
