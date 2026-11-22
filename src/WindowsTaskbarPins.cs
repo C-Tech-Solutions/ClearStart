@@ -12,7 +12,9 @@ internal static class WindowsTaskbarPins
 {
     private const string KeyPath = @"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband";
 
-    // How the shell names an entry in the Apps folder: the folder's class ID, then the app's ID.
+    // The Apps folder, where an app from the Store is pinned. The shell names an app in it by the app's ID alone, or on
+    // some versions with the folder's class ID in front.
+    private static readonly Guid AppsFolder = new("4234D49B-0245-4DF3-B780-3893943456E1");
     private const string AppsFolderName = @"::{4234D49B-0245-4DF3-B780-3893943456E1}\";
 
     private const uint SIGDN_FILESYSPATH = 0x80058000;
@@ -42,7 +44,7 @@ internal static class WindowsTaskbarPins
         var paths = new List<string>();
         foreach (var ids in ItemIdLists(favorites))
         {
-            if (NameOf(ids) is { } name && PinPath(name) is { } path &&
+            if (NameOf(ids) is { } name && PinPath(name, InAppsFolder(ids)) is { } path &&
                 !paths.Contains(path, StringComparer.OrdinalIgnoreCase))
             {
                 paths.Add(path);
@@ -88,15 +90,23 @@ internal static class WindowsTaskbarPins
         return false;
     }
 
+    /// <summary>
+    /// Whether the item ID list starts at the Apps folder: its first item is a root item (0x1F) that holds the folder's
+    /// class ID after its length and two bytes.
+    /// </summary>
+    internal static bool InAppsFolder(ReadOnlySpan<byte> ids) =>
+        ids.Length >= 20 && (ids[0] | ids[1] << 8) >= 20 && ids[2] == 0x1F && new Guid(ids.Slice(4, 16)) == AppsFolder;
+
     /// <summary>What ClearStart keeps for a pin the shell names so: a Store app as shell:AppsFolder\ and its ID.</summary>
-    internal static string? PinPath(string name)
+    internal static string? PinPath(string name, bool inAppsFolder)
     {
         if (name.StartsWith(AppsFolderName, StringComparison.OrdinalIgnoreCase))
         {
-            string id = name[AppsFolderName.Length..];
-            return id.Length > 0 ? AppCatalog.AppsFolderPrefix + id : null;
+            name = name[AppsFolderName.Length..];
+            inAppsFolder = true;
         }
-        return name.Length > 0 ? name : null;
+        if (name.Length == 0) return null;
+        return inAppsFolder ? AppCatalog.AppsFolderPrefix + name : name;
     }
 
     // A shortcut by its path on disk; anything else by the name the shell parses.
