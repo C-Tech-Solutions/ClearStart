@@ -177,7 +177,8 @@ internal sealed class UpdateService : IDisposable
     public void Start()
     {
         if (_disposed || _mode == HostMode.SelfTest || _timer.IsEnabled) return;
-        _startedAt = DateTime.UtcNow;
+        // The start counts as the first tick, so a sleep before the timer has ticked is seen as one too.
+        _startedAt = _lastTick = DateTime.UtcNow;
         _setupFailedFor = LastFailedAttempt();
         _timer.Start();
     }
