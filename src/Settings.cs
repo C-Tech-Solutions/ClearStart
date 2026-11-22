@@ -264,7 +264,7 @@ public sealed class TaskbarSettings
 
     public bool ShowSeconds { get; set; }
 
-    /// <summary>Pinned launchers, in order. null = follow the Windows "pinned to taskbar" folder.</summary>
+    /// <summary>Pinned launchers, in order. null = follow what is pinned to the Windows taskbar, in its order.</summary>
     public List<string>? Pinned { get; set; }
 
     /// <summary>The pinned apps on every bar, or only on the main one. A monitor can say otherwise.</summary>

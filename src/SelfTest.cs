@@ -64,6 +64,16 @@ internal static partial class SelfTest
                 .Count(w => w.Icon != null);
             report["appIconsReadyBeforeBars"] = host.Apps.Apps.Count(a => a.LargeIcon != null);
 
+            // The apps pinned to the Windows taskbar, read and brought over. The pins are put back after.
+            try
+            {
+                report["windowsPins"] = CheckWindowsPins(host, directory, errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Windows pins: " + ex);
+            }
+
             // What each monitor's bar would hold: which edge, and its app buttons with their window counts.
             try
             {
@@ -445,7 +455,7 @@ internal static partial class SelfTest
                 var heights = new Dictionary<SettingsPage, double>
                 {
                     [SettingsPage.Appearance] = 1060,
-                    [SettingsPage.Taskbar] = 1640 + 210 * screens.Count,
+                    [SettingsPage.Taskbar] = 1710 + 210 * screens.Count,
                     [SettingsPage.StartMenu] = 1620,
                     [SettingsPage.Weather] = 860,
                     [SettingsPage.About] = 960,
