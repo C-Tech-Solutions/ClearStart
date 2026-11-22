@@ -376,6 +376,16 @@ internal static partial class SelfTest
                 errors.Add("Start button designs: " + ex);
             }
 
+            // The picture cut to a square, a rounded square or a circle, zoomed and moved in its frame.
+            try
+            {
+                await CheckPictureShapesAsync(directory, report, errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Picture shapes: " + ex);
+            }
+
             // What is written to the settings file must read back the same, and a file edited by hand with
             // parts missing or out of range must still be usable. Throw-away settings: nothing is saved.
             try
@@ -869,9 +879,12 @@ internal static partial class SelfTest
                     var before = (trial.StartButtonStyle, trial.StartButtonScale, trial.StartButtonColor,
                         trial.StartButtonBackground, trial.StartButtonBackgroundColor, trial.StartButtonText,
                         trial.StartButtonPicture);
+                    var pictureBefore = (trial.StartButtonPictureShape, trial.StartButtonPictureZoom,
+                        trial.StartButtonPictureX, trial.StartButtonPictureY);
                     void Design(StartButtonStyle style, int scale = 100, string color = "",
                         StartButtonBackground background = StartButtonBackground.None, string backgroundColor = "",
-                        string word = "Start", string picture = "")
+                        string word = "Start", string picture = "", PictureShape? shape = null, int zoom = 100,
+                        double x = 0.5, double y = 0.5)
                     {
                         trial.StartButtonStyle = style;
                         trial.StartButtonScale = scale;
@@ -880,11 +893,32 @@ internal static partial class SelfTest
                         trial.StartButtonBackgroundColor = backgroundColor;
                         trial.StartButtonText = word;
                         trial.StartButtonPicture = picture;
+                        trial.StartButtonPictureShape = shape;
+                        trial.StartButtonPictureZoom = zoom;
+                        trial.StartButtonPictureX = x;
+                        trial.StartButtonPictureY = y;
                     }
-                    async Task Page(string name)
+                    // The page from the top, or scrolled to its end in a window low enough to hold it on a small screen.
+                    async Task Page(string name, bool end = false)
                     {
-                        var view = new SettingsView(host, SettingsPage.Appearance) { Width = 880, Height = 1120 };
-                        await DrawAsync(view, 880, 1120, File(name));
+                        var view = new SettingsView(host, SettingsPage.Appearance) { Width = 880, Height = end ? 720 : 1120 };
+                        if (!end)
+                        {
+                            await DrawAsync(view, 880, 1120, File(name));
+                            return;
+                        }
+                        var stage = new Stage(view, 880, 720);
+                        try
+                        {
+                            await Task.Delay(300);
+                            view.ScrollForTest(double.PositiveInfinity);
+                            await Task.Delay(200);
+                            stage.Save(File(name));
+                        }
+                        finally
+                        {
+                            stage.Close();
+                        }
                     }
 
                     try
@@ -906,6 +940,12 @@ internal static partial class SelfTest
                         await DrawBarAsync(host, primary, File("start-picture-bar.png"), AppBarEdge.Bottom, 56, 700, StartButtonPlacement.Corner, 700);
                         await DrawBarAsync(host, primary, File("start-picture-side.png"), AppBarEdge.Left, side, 500, StartButtonPlacement.Corner, 700);
                         await Page("settings-appearance-picture.png");
+                        // Cut to a circle, zoomed in on its left part.
+                        Design(StartButtonStyle.Picture, picture: startPicture, shape: PictureShape.Circle, zoom: 160, x: 0.3);
+                        await DrawBarAsync(host, primary, File("start-picture-circle.png"), AppBarEdge.Bottom, flat, 700, StartButtonPlacement.Corner, 700);
+                        await DrawBarAsync(host, primary, File("start-picture-circle-side.png"), AppBarEdge.Left, side, 500, StartButtonPlacement.Corner, 700);
+                        await Page("settings-appearance-picture-circle.png");
+                        await Page("settings-appearance-picture-circle-end.png", end: true);
                         // A picture that is not there: the button must still be something to click.
                         Design(StartButtonStyle.Picture, picture: File("no-such-picture.png"));
                         await DrawBarAsync(host, primary, File("start-picture-missing.png"), AppBarEdge.Bottom, flat, 700, StartButtonPlacement.Corner, 700);
@@ -924,6 +964,8 @@ internal static partial class SelfTest
                         (trial.StartButtonStyle, trial.StartButtonScale, trial.StartButtonColor,
                             trial.StartButtonBackground, trial.StartButtonBackgroundColor, trial.StartButtonText,
                             trial.StartButtonPicture) = before;
+                        (trial.StartButtonPictureShape, trial.StartButtonPictureZoom,
+                            trial.StartButtonPictureX, trial.StartButtonPictureY) = pictureBefore;
                     }
                 }
             }

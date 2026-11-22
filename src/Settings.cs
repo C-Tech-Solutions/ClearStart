@@ -81,6 +81,17 @@ public enum StartButtonBackground
     Rounded,
 }
 
+/// <summary>How a picture on the Start button is cut, as a profile picture is.</summary>
+public enum PictureShape
+{
+    /// <summary>The whole picture, as it is.</summary>
+    Whole,
+    Square,
+    /// <summary>A square with rounded corners.</summary>
+    Rounded,
+    Circle,
+}
+
 /// <summary>Which side of the start menu the column of places is on.</summary>
 public enum PlacesSide
 {
@@ -169,7 +180,7 @@ public sealed class TaskbarSettings
     /// <summary>Its colour, as #RRGGBB. Empty = the colour of the text and glyphs. A picture keeps its own colours.</summary>
     public string StartButtonColor { get; set; } = "";
 
-    /// <summary>A coloured circle or rounded square behind the design. A picture is cut to that shape.</summary>
+    /// <summary>A coloured circle or rounded square behind the design. Not behind a picture, which has a shape of its own.</summary>
     public StartButtonBackground StartButtonBackground { get; set; } = StartButtonBackground.None;
 
     /// <summary>The colour of that shape, as #RRGGBB. Empty = the Windows accent colour.</summary>
@@ -180,6 +191,31 @@ public sealed class TaskbarSettings
 
     /// <summary>The picture file shown by the Picture design: PNG, JPG, BMP, GIF or ICO.</summary>
     public string StartButtonPicture { get; set; } = "";
+
+    /// <summary>
+    /// How the picture is cut. Left out until one is chosen: the picture then takes the background's shape, as it did
+    /// before there was a choice.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PictureShape? StartButtonPictureShape { get; set; }
+
+    /// <summary>How far a cut picture is zoomed in, in percent: 100 shows as much of it as the shape holds. 100 to 400.</summary>
+    public int StartButtonPictureZoom { get; set; } = 100;
+
+    /// <summary>Which part of a cut picture shows: the middle of that part, across the picture from 0 to 1.</summary>
+    public double StartButtonPictureX { get; set; } = 0.5;
+
+    /// <summary>The same, down the picture.</summary>
+    public double StartButtonPictureY { get; set; } = 0.5;
+
+    /// <summary>The shape the picture is cut to: the one chosen, else the background's.</summary>
+    [JsonIgnore]
+    public PictureShape PictureShapeInUse => StartButtonPictureShape ?? StartButtonBackground switch
+    {
+        StartButtonBackground.Circle => PictureShape.Circle,
+        StartButtonBackground.Rounded => PictureShape.Rounded,
+        _ => PictureShape.Whole,
+    };
 
     public const int MaxStartButtonText = 16;
 
@@ -325,6 +361,12 @@ public sealed class TaskbarSettings
 
     /// <summary>Brings the Start button's size from the settings file into range: 60 to 160 percent, 100 if it is missing.</summary>
     public static int ValidStartButtonScale(int percent) => percent <= 0 ? 100 : Math.Clamp(percent, 60, 160);
+
+    /// <summary>Brings a cut picture's zoom from the settings file into range: 100 to 400 percent.</summary>
+    public static int ValidPictureZoom(int percent) => Math.Clamp(percent, 100, 400);
+
+    /// <summary>Brings a point on the picture into range: 0 to 1, the middle if it is not a number.</summary>
+    public static double ValidPicturePoint(double at) => double.IsFinite(at) ? Math.Clamp(at, 0, 1) : 0.5;
 
     /// <summary>The Start button's word: trimmed, and no longer than fits a button.</summary>
     public static string ValidStartButtonText(string? text)
@@ -748,6 +790,9 @@ public sealed class Settings
         settings.Taskbar.StartButtonColor ??= "";
         settings.Taskbar.StartButtonBackgroundColor ??= "";
         settings.Taskbar.StartButtonPicture ??= "";
+        settings.Taskbar.StartButtonPictureZoom = TaskbarSettings.ValidPictureZoom(settings.Taskbar.StartButtonPictureZoom);
+        settings.Taskbar.StartButtonPictureX = TaskbarSettings.ValidPicturePoint(settings.Taskbar.StartButtonPictureX);
+        settings.Taskbar.StartButtonPictureY = TaskbarSettings.ValidPicturePoint(settings.Taskbar.StartButtonPictureY);
         settings.Taskbar.StartButtonText = TaskbarSettings.ValidStartButtonText(settings.Taskbar.StartButtonText);
         settings.Taskbar.PinnedTrayIcons ??= new List<string>();
         settings.Taskbar.PinnedTrayIcons.RemoveAll(string.IsNullOrWhiteSpace);

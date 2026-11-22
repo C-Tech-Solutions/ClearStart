@@ -51,7 +51,7 @@ Fifteen designs, the same on every bar:
 - **Thirteen shapes:** squares, dots, nine dots, diamond, ring, disc, hexagon, lines, home, star,
   sparkle, bolt, heart.
 - **A word of your own**, up to 16 characters. It shrinks to fit a narrow bar.
-- **A picture of your own:** a PNG, JPG, GIF, BMP or ICO file.
+- **A picture of your own:** a PNG, JPG, GIF, BMP or ICO file, whole or cut to a shape.
 
 A small preview next to the designs shows the button as it will be on the bar. Under the designs:
 
@@ -60,6 +60,17 @@ A small preview next to the designs shows the button as it will be on the bar. U
 | Size | Its size next to the app icons, 60% to 160% |
 | Color | The text color until another is chosen. A picture keeps its own colors |
 | Background | A filled circle or rounded square behind the design, in the Windows accent color until another is chosen |
+
+A picture has a shape of its own instead of a background, as a profile picture does:
+
+| Setting | What it does |
+| --- | --- |
+| Shape | The whole picture, or cut to a square, a rounded square or a circle |
+| Fit | Drag the picture in the frame to choose the part of it that shows |
+| Zoom | 100% shows as much of the picture as the shape holds; up to 400% shows less of it, larger |
+
+**Reset** next to the zoom shows as much as fits again, from the middle. A cut picture's see-through
+parts show the bar through them.
 
 If the picture file cannot be shown, the page says so and the bars show the squares.
 
