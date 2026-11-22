@@ -76,12 +76,17 @@ internal sealed class PinnedItem : IStartTile, INotifyPropertyChanged
                 targetFile = ShellLink.TargetOf(Path);
 
                 // The built-in File Explorer pin points at a shell location, not at a file.
+                string explorer = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
                 if (targetFile == null && System.IO.Path.GetFileNameWithoutExtension(Path)
                         .Equals("File Explorer", StringComparison.OrdinalIgnoreCase))
                 {
-                    targetFile = System.IO.Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
+                    targetFile = explorer;
                 }
+
+                // The app list knows File Explorer by its app ID, so a pin of it from there is the same app.
+                if (string.Equals(targetFile, explorer, StringComparison.OrdinalIgnoreCase))
+                    keys.Add(AppKey.ForAppId(FileExplorerAppId));
             }
             else
             {
@@ -103,6 +108,9 @@ internal sealed class PinnedItem : IStartTile, INotifyPropertyChanged
     }
 
     private sealed record Resolution(string? TargetFile, string[] AppKeys);
+
+    /// <summary>File Explorer's app ID in the app list.</summary>
+    internal const string FileExplorerAppId = "Microsoft.Windows.Explorer";
 }
 
 /// <summary>A folder of pinned apps in the start menu. It always holds at least one: an empty folder goes.</summary>

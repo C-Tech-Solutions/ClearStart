@@ -69,6 +69,40 @@ internal static partial class SelfTest
             Expect("not a list at all", new byte[] { 1, 2, 3 });
         }
 
+        // File Explorer pinned from the app list, and Windows' own shortcut to it: one app, so it does not come over.
+        string? explorerLink = new[]
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "File Explorer.lnk"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "System Tools", "File Explorer.lnk"),
+            Path.Combine(folder, "File Explorer.lnk"),
+        }.FirstOrDefault(File.Exists);
+        var settings = Settings.Current.Taskbar;
+        var pinnedBefore = settings.Pinned?.ToList();
+        try
+        {
+            settings.Pinned = new List<string> { AppCatalog.AppsFolderPrefix + PinnedItem.FileExplorerAppId };
+            host.Pins.Reload();
+            if (explorerLink == null || host.Pins.Taskbar.Count != 1)
+            {
+                found["fileExplorerBroughtOver"] = explorerLink == null ? "skipped: no File Explorer shortcut" : "skipped: no File Explorer app";
+            }
+            else
+            {
+                string copy = Path.Combine(directory, "windows-pins", "explorer", "File Explorer.lnk");
+                Directory.CreateDirectory(Path.GetDirectoryName(copy)!);
+                File.Copy(explorerLink, copy, overwrite: true);
+                int explorerAdded = host.Pins.BringOver(new[] { copy });
+                found["fileExplorerBroughtOver"] = explorerAdded;
+                if (explorerAdded != 0)
+                    errors.Add("Windows pins: File Explorer pinned from the app list came over again from Windows' shortcut to it");
+            }
+        }
+        finally
+        {
+            settings.Pinned = pinnedBefore;
+            host.Pins.Reload();
+        }
+
         // Brought over to pins of ClearStart's own: two apps from the list pinned already, and a shortcut. Windows
         // has one of those apps, the same shortcut in another folder, and the same program under a name of its own,
         // as a web app is; three apps more, and one that is not there.
