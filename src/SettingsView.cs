@@ -171,6 +171,9 @@ internal sealed partial class SettingsView : UserControl
         _nav[page].IsChecked = true;
     }
 
+    /// <summary>For the self-test: the page scrolled this far down, to draw the part that is out of sight.</summary>
+    internal void ScrollForTest(double offset) => _pageHost.ScrollToVerticalOffset(offset);
+
     /// <summary>Brings every control in line with the settings as they are now.</summary>
     public void LoadValues()
     {

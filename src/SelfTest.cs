@@ -898,10 +898,27 @@ internal static partial class SelfTest
                         trial.StartButtonPictureX = x;
                         trial.StartButtonPictureY = y;
                     }
-                    async Task Page(string name)
+                    // The page from the top, or scrolled to its end in a window low enough to hold it on a small screen.
+                    async Task Page(string name, bool end = false)
                     {
-                        var view = new SettingsView(host, SettingsPage.Appearance) { Width = 880, Height = 1120 };
-                        await DrawAsync(view, 880, 1120, File(name));
+                        var view = new SettingsView(host, SettingsPage.Appearance) { Width = 880, Height = end ? 720 : 1120 };
+                        if (!end)
+                        {
+                            await DrawAsync(view, 880, 1120, File(name));
+                            return;
+                        }
+                        var stage = new Stage(view, 880, 720);
+                        try
+                        {
+                            await Task.Delay(300);
+                            view.ScrollForTest(double.PositiveInfinity);
+                            await Task.Delay(200);
+                            stage.Save(File(name));
+                        }
+                        finally
+                        {
+                            stage.Close();
+                        }
                     }
 
                     try
@@ -928,6 +945,7 @@ internal static partial class SelfTest
                         await DrawBarAsync(host, primary, File("start-picture-circle.png"), AppBarEdge.Bottom, flat, 700, StartButtonPlacement.Corner, 700);
                         await DrawBarAsync(host, primary, File("start-picture-circle-side.png"), AppBarEdge.Left, side, 500, StartButtonPlacement.Corner, 700);
                         await Page("settings-appearance-picture-circle.png");
+                        await Page("settings-appearance-picture-circle-end.png", end: true);
                         // A picture that is not there: the button must still be something to click.
                         Design(StartButtonStyle.Picture, picture: File("no-such-picture.png"));
                         await DrawBarAsync(host, primary, File("start-picture-missing.png"), AppBarEdge.Bottom, flat, 700, StartButtonPlacement.Corner, 700);
