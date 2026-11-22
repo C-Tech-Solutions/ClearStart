@@ -75,13 +75,13 @@ internal static partial class SelfTest
         var pinnedBefore = settings.Pinned?.ToList();
         try
         {
-            // A new install has no list of its own: the bar starts with Windows' pins, in their order.
+            // A new install has no list of its own: the bar starts with Windows' pins, in their order. Each of them
+            // is a Store app or a shortcut that is there (checked above), so every one of them loads.
             settings.Pinned = null;
             host.Pins.Reload();
             var loaded = host.Pins.Taskbar.Select(pin => pin.Path).ToList();
             found["newInstallPins"] = loaded.Count;
-            var loadable = listed.Where(path => loaded.Contains(path, StringComparer.OrdinalIgnoreCase));
-            if (listed.Count > 0 && (loaded.Count == 0 || !loaded.SequenceEqual(loadable, StringComparer.OrdinalIgnoreCase)))
+            if (listed.Count > 0 && !loaded.SequenceEqual(listed, StringComparer.OrdinalIgnoreCase))
                 errors.Add($"Windows pins: a new install's bar has {loaded.Count} of Windows' {listed.Count} pins, or not in their order");
 
             object SameAppBroughtOver(string appId, string? link, string what, string into)
