@@ -13,8 +13,8 @@ checks, what it sends, how it makes sure a download is genuine, and how to turn 
 
 ## Checking
 
-A couple of minutes after ClearStart starts, and then about once a day, it asks GitHub for the latest
-release of ClearStart. That is one request to GitHub's public API:
+A couple of minutes after ClearStart starts or the PC wakes from sleep, and then every four hours, it
+asks GitHub for the latest release of ClearStart. That is one request to GitHub's public API:
 
 ```
 https://api.github.com/repos/C-Tech-Solutions/ClearStart/releases/latest
@@ -22,8 +22,8 @@ https://api.github.com/repos/C-Tech-Solutions/ClearStart/releases/latest
 
 It carries ClearStart's version (`ClearStart/<version>`) as its user agent and nothing else: no
 account, no token, and nothing about you or the PC. Like any website, GitHub sees the address the
-request comes from. If GitHub cannot be reached, ClearStart tries again an hour later; the settings
-page and the log say so, and nothing pops up.
+request comes from. If GitHub cannot be reached, ClearStart tries again a quarter of an hour later;
+the settings page and the log say so, and nothing pops up.
 
 Only a finished release is offered: never a draft or a pre-release, and never the version you
 already have or an older one.

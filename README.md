@@ -262,8 +262,9 @@ ClearStart has no account and no telemetry. It fetches two things:
   the place name you type is sent once to look it up, and after that only the place's coordinates,
   rounded to about half a mile, and the units. Windows' location service is not used. Turning the
   weather off stops the requests.
-- **Whether there is a newer version**, from GitHub, about once a day. The request carries
-  ClearStart's version and nothing about you or the PC. Updates are only installed when you click
+- **Whether there is a newer version**, from GitHub, a couple of minutes after ClearStart starts or
+  the PC wakes, and then every four hours. The request carries ClearStart's version and nothing
+  about you or the PC. Updates are only installed when you click
   **Install**, or when you have turned on installing them automatically. Turning the check off in
   the settings stops the requests. See [Updates](docs/updates.md).
 
