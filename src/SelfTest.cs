@@ -966,6 +966,16 @@ internal static partial class SelfTest
                 errors.Add("Button places: " + ex);
             }
 
+            // Pinned apps dragged along a bar to new places.
+            try
+            {
+                await CheckPinDragAsync(host, screens.FirstOrDefault(s => s.Primary) ?? screens.First(), directory, report, errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Pin drag: " + ex);
+            }
+
             // Every open window should have handed over an icon by now.
             try
             {

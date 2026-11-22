@@ -72,6 +72,7 @@ Two things a preview does not show, because they need ClearStart to be the only 
 | Search files, settings and the web | Click the magnifier next to Start. It opens Windows Search |
 | Move a bar | Right-click an empty part of it, then **Move this taskbar** |
 | Resize a bar | Drag the edge that faces the desktop |
+| Rearrange the pinned apps | Drag one along the bar |
 | Take a bar off a monitor | Right-click it, then **Hide this taskbar** |
 | Open the settings | Right-click a bar, then **Settings**, or right-click the gear in the start menu |
 | Set up the weather | Click **Set location** on the bar |

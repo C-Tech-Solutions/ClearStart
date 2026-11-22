@@ -160,6 +160,9 @@ button per app switched off, every window gets a button of its own.
 
 ## Pinned apps, bar by bar
 
+Drag a pinned app along the bar to move it. The other pinned apps slide aside to show where it
+will land, and it settles there when you let go. The new order is the same on every bar.
+
 The pinned apps can be on every bar or on the main bar only (**Settings → Taskbar → Pinned
 apps**), and each bar can go its own way: all of them, none, or a chosen few.
 
@@ -176,7 +179,7 @@ Good to know:
 - An app pinned from a bar is put on that bar.
 - Switching between every bar and the main bar resets the bars that were set to all or none, and
   leaves alone a bar with a chosen few.
-- Until you pin or unpin something in ClearStart, it follows what is pinned in Windows.
+- Until you pin, unpin or move something in ClearStart, it follows what is pinned in Windows.
 
 ## Monitors without a bar
 

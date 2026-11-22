@@ -381,6 +381,24 @@ internal sealed class PinStore
 
     public void PinToTaskbar(string path) => Add(Taskbar, path);
 
+    /// <summary>
+    /// Moves a taskbar pin to just before or just after another one, the way a drag along a bar puts it. Like pinning,
+    /// the first move makes the list ClearStart's own. False when nothing moved.
+    /// </summary>
+    public bool MoveOnTaskbar(PinnedItem pin, PinnedItem beside, bool after)
+    {
+        int from = Taskbar.IndexOf(pin);
+        int at = Taskbar.IndexOf(beside);
+        if (from < 0 || at < 0 || ReferenceEquals(pin, beside)) return false;
+        int to = after ? at + 1 : at;
+        // Counted as the list is before the move: taking the pin out first shifts everything after it back by one.
+        if (to > from) to--;
+        if (to == from) return false;
+        Taskbar.Move(from, to);
+        Persist(Taskbar);
+        return true;
+    }
+
     public void UnpinFromTaskbar(string path) => Remove(Taskbar, path);
 
     private static string WindowsPinFolder(string leaf) => Path.Combine(

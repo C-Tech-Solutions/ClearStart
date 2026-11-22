@@ -238,6 +238,7 @@ public partial class TaskbarView : UserControl
     /// <summary>Called when the bar closes, so nothing long-lived keeps this view alive.</summary>
     internal void Detach()
     {
+        EndPinDrag(drop: false);
         _pinReveal?.Dispose();
         _host.Network.Changed -= RefreshNetwork;
         _host.Weather.Changed -= RefreshWeather;
@@ -481,6 +482,10 @@ public partial class TaskbarView : UserControl
         .Where(line => line.Item1.Visibility == Visibility.Visible).Select(line => line.Item2));
 
     private double Along(double horizontal, double vertical) => _vertical ? vertical : horizontal;
+
+    private double Along(Point point) => _vertical ? point.Y : point.X;
+
+    private double Along(Vector offset) => _vertical ? offset.Y : offset.X;
 
     private void Layout_SizeChanged(object sender, SizeChangedEventArgs e)
     {
@@ -739,6 +744,8 @@ public partial class TaskbarView : UserControl
         {
             // Remember which window was in front before this click took the focus away from it.
             _pressedWindow = app.Windows.FirstOrDefault(w => w.State == ApplicationWindow.WindowState.Active);
+            // A pinned app's button may be dragged instead: see TaskbarView.PinDrag.cs.
+            PressPin((FrameworkElement)sender, app, e);
         }
         else if (e.ChangedButton == MouseButton.Middle)
         {
