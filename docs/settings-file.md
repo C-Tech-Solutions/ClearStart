@@ -69,7 +69,7 @@ Keys are written here with a dot: `taskbar.edge` is the `edge` key inside the `t
 | `taskbar.showLabels` | `false` | Window titles next to the icons |
 | `taskbar.tasksOnOwnMonitorOnly` | `true` | Each bar shows only the windows on its own monitor |
 | `taskbar.iconSize` | `0` | App icon size on every bar, 16 to 48. `0` is automatic. A size too big for a bar is shrunk to fit |
-| `taskbar.pinned` | `null` | Pinned launchers. `null` follows what is pinned in Windows |
+| `taskbar.pinned` | `null` | Pinned launchers, in their order on the bar. `null` follows what is pinned in Windows |
 | `taskbar.pinsOnAllMonitors` | `true` | The pinned apps on every bar, or only the main one. A monitor's own `pins` wins over this |
 
 **Tray and clock**

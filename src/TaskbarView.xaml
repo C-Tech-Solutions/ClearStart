@@ -13,7 +13,8 @@
                     MinWidth="{DynamicResource ButtonMinWidth}" MinHeight="{DynamicResource ButtonMinHeight}"
                     HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                     ToolTip="{Binding Title}" AutomationProperties.Name="{Binding Title}"
-                    PreviewMouseDown="App_PreviewMouseDown"
+                    PreviewMouseDown="App_PreviewMouseDown" PreviewMouseMove="App_PreviewMouseMove"
+                    PreviewMouseLeftButtonUp="App_PreviewMouseLeftButtonUp" LostMouseCapture="App_LostMouseCapture"
                     MouseEnter="App_MouseEnter" MouseLeave="App_MouseLeave"
                     Click="App_Click" MouseRightButtonUp="App_RightClick">
                 <Grid>

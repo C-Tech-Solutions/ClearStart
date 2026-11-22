@@ -227,6 +227,12 @@ internal sealed class TaskbarApps : IDisposable
     public void Refresh() => Queue();
 
     /// <summary>
+    /// Brings the buttons up to date at once, rather than when the change gets its turn: a pin dropped in a new place
+    /// is laid out there before the bar is drawn again, so it can settle into it.
+    /// </summary>
+    public void UpdateNow() => Reconcile();
+
+    /// <summary>
     /// The monitor came back under a new handle, as monitors do when they wake from sleep: lists the windows that are
     /// on it under that one. A list of every monitor's windows stays as it is.
     /// </summary>
