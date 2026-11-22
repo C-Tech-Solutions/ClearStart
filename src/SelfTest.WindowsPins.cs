@@ -69,33 +69,62 @@ internal static partial class SelfTest
             Expect("not a list at all", new byte[] { 1, 2, 3 });
         }
 
-        // File Explorer pinned from the app list, and Windows' own shortcut to it: one app, so it does not come over.
-        string? explorerLink = new[]
-        {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "File Explorer.lnk"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "System Tools", "File Explorer.lnk"),
-            Path.Combine(folder, "File Explorer.lnk"),
-        }.FirstOrDefault(File.Exists);
+        // Lists of ClearStart's own, put back after: none at all, as on a new install; and an app pinned from the app
+        // list, with a shortcut to it then brought over. That is the same app, so it does not come over again.
         var settings = Settings.Current.Taskbar;
         var pinnedBefore = settings.Pinned?.ToList();
         try
         {
-            settings.Pinned = new List<string> { AppCatalog.AppsFolderPrefix + PinnedItem.FileExplorerAppId };
+            // A new install has no list of its own: the bar starts with Windows' pins, in their order.
+            settings.Pinned = null;
             host.Pins.Reload();
-            if (explorerLink == null || host.Pins.Taskbar.Count != 1)
+            var loaded = host.Pins.Taskbar.Select(pin => pin.Path).ToList();
+            found["newInstallPins"] = loaded.Count;
+            var loadable = listed.Where(path => loaded.Contains(path, StringComparer.OrdinalIgnoreCase));
+            if (listed.Count > 0 && (loaded.Count == 0 || !loaded.SequenceEqual(loadable, StringComparer.OrdinalIgnoreCase)))
+                errors.Add($"Windows pins: a new install's bar has {loaded.Count} of Windows' {listed.Count} pins, or not in their order");
+
+            object SameAppBroughtOver(string appId, string? link, string what, string into)
             {
-                found["fileExplorerBroughtOver"] = explorerLink == null ? "skipped: no File Explorer shortcut" : "skipped: no File Explorer app";
-            }
-            else
-            {
-                string copy = Path.Combine(directory, "windows-pins", "explorer", "File Explorer.lnk");
+                if (link == null) return $"skipped: no shortcut to {what}";
+                settings.Pinned = new List<string> { AppCatalog.AppsFolderPrefix + appId };
+                host.Pins.Reload();
+                if (host.Pins.Taskbar.Count != 1) return $"skipped: {what} is not in the app list";
+                string copy = Path.Combine(directory, "windows-pins", into, Path.GetFileName(link));
                 Directory.CreateDirectory(Path.GetDirectoryName(copy)!);
-                File.Copy(explorerLink, copy, overwrite: true);
-                int explorerAdded = host.Pins.BringOver(new[] { copy });
-                found["fileExplorerBroughtOver"] = explorerAdded;
-                if (explorerAdded != 0)
-                    errors.Add("Windows pins: File Explorer pinned from the app list came over again from Windows' shortcut to it");
+                File.Copy(link, copy, overwrite: true);
+                int added = host.Pins.BringOver(new[] { copy });
+                if (added != 0) errors.Add($"Windows pins: {what} pinned from the app list came over again from a shortcut to it");
+                return added;
             }
+
+            // File Explorer: its shortcut gives no app ID.
+            string programs = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+            string? explorerLink = new[]
+            {
+                Path.Combine(programs, "File Explorer.lnk"),
+                Path.Combine(programs, "System Tools", "File Explorer.lnk"),
+                Path.Combine(folder, "File Explorer.lnk"),
+            }.FirstOrDefault(File.Exists);
+            found["fileExplorerBroughtOver"] = SameAppBroughtOver(PinnedItem.FileExplorerAppId, explorerLink, "File Explorer", "explorer");
+
+            // A desktop app that gives itself an app ID, as many do: the app list knows it by that ID, not its program.
+            var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var app in host.Apps.Apps)
+            {
+                if (!string.IsNullOrEmpty(app.Path) && !string.IsNullOrEmpty(app.DisplayName)) names.TryAdd(app.Path, app.DisplayName);
+            }
+            var named = new[] { programs, Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms) }
+                .Where(Directory.Exists)
+                .SelectMany(dir => Directory.EnumerateFiles(dir, "*.lnk", SearchOption.AllDirectories))
+                .Select(link => (Link: link, Id: ShellLink.AppIdOf(link)))
+                .FirstOrDefault(entry => entry.Id != null && AppCatalog.FileOf(entry.Id) == null
+                    && !entry.Id.Equals(PinnedItem.FileExplorerAppId, StringComparison.OrdinalIgnoreCase)
+                    && names.TryGetValue(entry.Id, out var name)
+                    && string.Equals(name, Path.GetFileNameWithoutExtension(entry.Link), StringComparison.CurrentCultureIgnoreCase));
+            found["appIdShortcutBroughtOver"] = named.Id == null
+                ? "skipped: no shortcut with the app ID of an app in the list"
+                : SameAppBroughtOver(named.Id, named.Link, "an app with an app ID", "app-id");
         }
         finally
         {

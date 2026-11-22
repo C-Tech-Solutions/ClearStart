@@ -84,9 +84,12 @@ internal sealed class PinnedItem : IStartTile, INotifyPropertyChanged
                     targetFile = explorer;
                 }
 
-                // The app list knows File Explorer by its app ID, so a pin of it from there is the same app.
-                if (string.Equals(targetFile, explorer, StringComparison.OrdinalIgnoreCase))
-                    keys.Add(AppKey.ForAppId(FileExplorerAppId));
+                // The app list knows an app that gives itself an app ID by that ID, so a pin of it from there is the
+                // same app. File Explorer's shortcut gives none, so it gets the ID the app list has for File Explorer.
+                string? appId = ShellLink.AppIdOf(Path);
+                if (appId == null && string.Equals(targetFile, explorer, StringComparison.OrdinalIgnoreCase))
+                    appId = FileExplorerAppId;
+                if (appId != null) keys.Add(AppKey.ForAppId(appId));
             }
             else
             {
