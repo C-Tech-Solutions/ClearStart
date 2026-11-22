@@ -739,6 +739,45 @@ internal sealed partial class SettingsView : UserControl
             pictureLine);
         page.Children.Add(pictureRow);
 
+        // A picture has a shape of its own, as a profile picture has, and the part of it that shows can be chosen.
+        var shapeRow = Row("Shape", "Cut the picture to a square, a rounded square or a circle",
+            Choice(() => Taskbar.PictureShapeInUse, value => Taskbar.StartButtonPictureShape = value, SettingsChange.Look,
+                () => Taskbar.StartButtonPictureShape == null,
+                ("Whole picture", PictureShape.Whole), ("Square", PictureShape.Square),
+                ("Rounded square", PictureShape.Rounded), ("Circle", PictureShape.Circle)));
+        page.Children.Add(shapeRow);
+
+        var framer = new PictureFramer();
+        framer.Moved += (x, y) => Change(() =>
+        {
+            Taskbar.StartButtonPictureX = x;
+            Taskbar.StartButtonPictureY = y;
+        }, SettingsChange.Look);
+        _loaders.Add(() => framer.Show(StartGlyph.Picture(Taskbar.StartButtonPicture), Taskbar.PictureShapeInUse,
+            Taskbar.StartButtonPictureZoom, Taskbar.StartButtonPictureX, Taskbar.StartButtonPictureY));
+        var fitRow = Row("Fit", "Drag the picture to choose the part of it that shows", framer);
+        page.Children.Add(fitRow);
+
+        var refit = Button("Reset", () => Change(() =>
+        {
+            Taskbar.StartButtonPictureZoom = 100;
+            Taskbar.StartButtonPictureX = 0.5;
+            Taskbar.StartButtonPictureY = 0.5;
+        }, SettingsChange.Look));
+        refit.Margin = new Thickness(10, 0, 0, 0);
+        refit.ToolTip = "Show as much of the picture as the shape holds, from its middle";
+        _loaders.Add(() => refit.IsEnabled = Taskbar.StartButtonPictureZoom != 100
+            || Taskbar.StartButtonPictureX != 0.5 || Taskbar.StartButtonPictureY != 0.5);
+        var zoomLine = new StackPanel { Orientation = Orientation.Horizontal };
+        zoomLine.Children.Add(SliderWith(100, 400, 10,
+            () => Taskbar.StartButtonPictureZoom,
+            value => Taskbar.StartButtonPictureZoom = TaskbarSettings.ValidPictureZoom((int)Math.Round(value)),
+            value => $"{value:0}%",
+            SettingsChange.Look));
+        zoomLine.Children.Add(refit);
+        var zoomRow = Row("Zoom", "Zoom in to show less of the picture, larger", zoomLine);
+        page.Children.Add(zoomRow);
+
         page.Children.Add(Row("Size", "Next to the app icons: 100% is a little smaller than they are",
             SliderWith(60, 160, 5,
                 () => Taskbar.StartButtonScale,
@@ -760,10 +799,11 @@ internal sealed partial class SettingsView : UserControl
         var colorRow = Row("Color", "The same as the taskbar's text until another is chosen", colorLine);
         page.Children.Add(colorRow);
 
-        page.Children.Add(Row("Background", "A filled shape behind the design",
+        var backgroundRow = Row("Background", "A filled shape behind the design",
             Choice(() => Taskbar.StartButtonBackground, value => Taskbar.StartButtonBackground = value, SettingsChange.Look,
                 ("None", StartButtonBackground.None), ("Circle", StartButtonBackground.Circle),
-                ("Rounded square", StartButtonBackground.Rounded))));
+                ("Rounded square", StartButtonBackground.Rounded)));
+        page.Children.Add(backgroundRow);
 
         var plateRow = Row("Background color", "The Windows accent color until another is chosen",
             ColorPicker(
@@ -785,11 +825,16 @@ internal sealed partial class SettingsView : UserControl
 
             wordRow.Visibility = style == StartButtonStyle.Text ? Visibility.Visible : Visibility.Collapsed;
             pictureRow.Visibility = style == StartButtonStyle.Picture ? Visibility.Visible : Visibility.Collapsed;
-            // A picture has its own colors.
+            // A picture has its own colors, and a shape of its own instead of a background.
             colorRow.Visibility = pictureShown ? Visibility.Collapsed : Visibility.Visible;
-            plateRow.Visibility = Taskbar.StartButtonBackground == StartButtonBackground.None
-                ? Visibility.Collapsed
-                : Visibility.Visible;
+            backgroundRow.Visibility = pictureShown ? Visibility.Collapsed : Visibility.Visible;
+            plateRow.Visibility = !pictureShown && Taskbar.StartButtonBackground != StartButtonBackground.None
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            shapeRow.Visibility = pictureShown ? Visibility.Visible : Visibility.Collapsed;
+            bool cut = pictureShown && Taskbar.PictureShapeInUse != PictureShape.Whole;
+            fitRow.Visibility = cut ? Visibility.Visible : Visibility.Collapsed;
+            zoomRow.Visibility = cut ? Visibility.Visible : Visibility.Collapsed;
 
             if (style == StartButtonStyle.Picture)
             {

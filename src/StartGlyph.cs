@@ -7,8 +7,8 @@ using System.Windows.Media.Imaging;
 namespace ClearStart;
 
 /// <summary>
-/// Draws the face of the Start button: one of the built-in shapes, a word, or the user's own picture,
-/// with or without a coloured shape behind it. The shapes are plain geometry in a 24 x 24 box, so they
+/// Draws the face of the Start button: one of the built-in shapes or a word, with or without a coloured shape behind
+/// it, or the user's own picture, whole or cut to a shape. The shapes are plain geometry in a 24 x 24 box, so they
 /// stay sharp at any size.
 /// </summary>
 internal static class StartGlyph
@@ -54,26 +54,15 @@ internal static class StartGlyph
         // Without a picture to show, the Picture design falls back to the usual squares.
         ImageSource? picture = style == StartButtonStyle.Picture ? Picture(settings.StartButtonPicture) : null;
         if (style == StartButtonStyle.Picture && picture == null) style = StartButtonStyle.Squares;
+        if (style == StartButtonStyle.Picture) return PictureFace(settings, picture!, size, limit, maxWidth);
 
         if (settings.StartButtonBackground == StartButtonBackground.None)
         {
-            return style switch
-            {
-                StartButtonStyle.Text => Word(text, size, brush, maxWidth),
-                StartButtonStyle.Picture => new Image
-                {
-                    Source = picture,
-                    Height = size,
-                    MaxWidth = Math.Min(size * 3, maxWidth),
-                    Stretch = Stretch.Uniform,
-                    SnapsToDevicePixels = true,
-                },
-                _ => Shape(style, size, brush),
-            };
+            return style == StartButtonStyle.Text ? Word(text, size, brush, maxWidth) : Shape(style, size, brush);
         }
 
         // On a background the whole thing is a little larger than the bare design, and the design sits inside it.
-        double side = Math.Max(size, Math.Min(Math.Round(size * 1.35), limit));
+        double side = SideOnBackground(size, limit);
         var corners = new CornerRadius(settings.StartButtonBackground == StartButtonBackground.Circle
             ? side / 2
             : Math.Max(3, Math.Round(side * 0.24)));
@@ -94,19 +83,82 @@ internal static class StartGlyph
                 plate.Padding = new Thickness(Math.Round(side * 0.34), 0, Math.Round(side * 0.34), 0);
                 plate.Child = Word(text, side * 0.82, brush, maxWidth - side * 0.68);
                 break;
-            case StartButtonStyle.Picture:
-                // The picture fills the shape and is cut to it.
-                plate.Width = side;
-                var fill = new ImageBrush(picture) { Stretch = Stretch.UniformToFill };
-                RenderOptions.SetBitmapScalingMode(fill, BitmapScalingMode.HighQuality);
-                plate.Child = new Border { CornerRadius = corners, Background = fill };
-                break;
             default:
                 plate.Width = side;
                 plate.Child = Shape(style, Math.Round(side * 0.56), brush);
                 break;
         }
         return plate;
+    }
+
+    private static double SideOnBackground(double size, double limit) => Math.Max(size, Math.Min(Math.Round(size * 1.35), limit));
+
+    /// <summary>
+    /// The user's picture: whole, as high as the design, or cut to a square, a rounded square or a circle as large as
+    /// a background would be. A cut picture shows the part of itself the settings choose.
+    /// </summary>
+    private static FrameworkElement PictureFace(TaskbarSettings settings, ImageSource picture, double size, double limit,
+        double maxWidth)
+    {
+        var shape = settings.PictureShapeInUse;
+        if (shape == PictureShape.Whole)
+        {
+            return new Image
+            {
+                Source = picture,
+                Height = size,
+                MaxWidth = Math.Min(size * 3, maxWidth),
+                Stretch = Stretch.Uniform,
+                SnapsToDevicePixels = true,
+            };
+        }
+
+        double side = SideOnBackground(size, limit);
+        return new Border
+        {
+            Width = side,
+            Height = side,
+            CornerRadius = new CornerRadius(CornerOf(shape, side)),
+            Background = Cut(picture, settings.StartButtonPictureZoom, settings.StartButtonPictureX, settings.StartButtonPictureY),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            SnapsToDevicePixels = true,
+        };
+    }
+
+    /// <summary>How round the corners of a shape this big are: none for a square, half its side for a circle.</summary>
+    public static double CornerOf(PictureShape shape, double side) => shape switch
+    {
+        PictureShape.Circle => side / 2,
+        PictureShape.Rounded => Math.Max(3, Math.Round(side * 0.24)),
+        _ => 0,
+    };
+
+    /// <summary>A brush that fills a square with the part of the picture <see cref="CropOf"/> chooses.</summary>
+    public static ImageBrush Cut(ImageSource picture, int zoom, double x, double y)
+    {
+        var brush = new ImageBrush(picture)
+        {
+            Viewbox = CropOf(picture.Width, picture.Height, zoom, x, y),
+            ViewboxUnits = BrushMappingMode.RelativeToBoundingBox,
+            Stretch = Stretch.Fill,
+        };
+        RenderOptions.SetBitmapScalingMode(brush, BitmapScalingMode.HighQuality);
+        return brush;
+    }
+
+    /// <summary>
+    /// The part of a picture this wide and high that fills a square shape, in fractions of the picture: the largest
+    /// square the picture holds, made smaller by the zoom, around the point (x, y), moved in as far as it must be to
+    /// stay on the picture. At 100% around the middle it is what the picture filling the shape shows.
+    /// </summary>
+    public static Rect CropOf(double width, double height, int zoom, double x, double y)
+    {
+        if (!(width > 0 && height > 0)) return new Rect(0, 0, 1, 1);
+        double side = Math.Min(width, height) * 100 / TaskbarSettings.ValidPictureZoom(zoom);
+        double middleX = Math.Clamp(TaskbarSettings.ValidPicturePoint(x) * width, side / 2, width - side / 2);
+        double middleY = Math.Clamp(TaskbarSettings.ValidPicturePoint(y) * height, side / 2, height - side / 2);
+        return new Rect((middleX - side / 2) / width, (middleY - side / 2) / height, side / width, side / height);
     }
 
     /// <summary>The colour of the shape behind the design: the chosen one, else the Windows accent colour.</summary>
@@ -246,7 +298,7 @@ internal static class StartGlyph
 
     /// <summary>
     /// The picture in a file, or null when there is none to show. Read once and kept until the file changes;
-    /// the file itself is not kept open. A large photo is kept at a size that suits a button.
+    /// the file itself is not kept open. A large photo is kept at a size that suits a button, with room to zoom in.
     /// </summary>
     public static ImageSource? Picture(string? file)
     {
@@ -274,7 +326,7 @@ internal static class StartGlyph
                 picture = decoder.Frames.OrderByDescending(frame => frame.PixelWidth).First();
             }
 
-            const int most = 256;
+            const int most = 512;
             int longest = Math.Max(picture.PixelWidth, picture.PixelHeight);
             if (longest > most)
             {

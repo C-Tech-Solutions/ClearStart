@@ -48,10 +48,13 @@ Keys are written here with a dot: `taskbar.edge` is the `edge` key inside the `t
 | `taskbar.startButtonStyle` | `squares` | Its design: `squares`, `dots`, `nineDots`, `diamond`, `ring`, `disc`, `hexagon`, `lines`, `home`, `star`, `sparkle`, `bolt`, `heart`, `text` or `picture` |
 | `taskbar.startButtonScale` | `100` | Its size as a percentage of the usual one, 60 to 160 |
 | `taskbar.startButtonColor` | empty | Its color, as `#RRGGBB`. Empty follows `taskbar.foreground`. A picture keeps its own colors |
-| `taskbar.startButtonBackground` | `none` | A filled shape behind it: `none`, `circle` or `rounded` |
+| `taskbar.startButtonBackground` | `none` | A filled shape behind it: `none`, `circle` or `rounded`. Not behind a picture |
 | `taskbar.startButtonBackgroundColor` | empty | That shape's color, as `#RRGGBB`. Empty is the Windows accent color |
 | `taskbar.startButtonText` | `Start` | The word the `text` design shows, up to 16 characters |
 | `taskbar.startButtonPicture` | empty | The file the `picture` design shows. If it cannot be shown, the bars show `squares` |
+| `taskbar.startButtonPictureShape` | left out | How the picture is cut: `whole`, `square`, `rounded` or `circle`. Left out, it takes the shape `startButtonBackground` names |
+| `taskbar.startButtonPictureZoom` | `100` | How far a cut picture is zoomed in, 100 to 400 percent |
+| `taskbar.startButtonPictureX`, `taskbar.startButtonPictureY` | `0.5` | The middle of the part of a cut picture that shows, across and down it, from 0 to 1 |
 
 **Search button**
 
