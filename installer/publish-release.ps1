@@ -164,4 +164,4 @@ if ($problems.Count -gt 0) { throw "The release is up, but the updater will not 
 
 Write-Host ''
 Write-Host "Published $($latest.html_url)" -ForegroundColor Green
-Write-Host 'Copies of ClearStart that check for updates will offer it within a day.'
+Write-Host 'Copies of ClearStart that check for updates will offer it within a few hours.'

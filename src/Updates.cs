@@ -37,12 +37,12 @@ internal enum UpdateState
 internal sealed class UpdateException(string message) : Exception(message);
 
 /// <summary>
-/// Keeps ClearStart up to date from its releases on GitHub. A little after the start, and then once a day,
-/// it asks GitHub's public API for the latest release. Nothing is sent but that request: no account, no
-/// token and nothing about the PC. When there is a newer version, the bar shows a button for it and the
-/// General settings page says so. Installing downloads that version's Setup and its checksum, and runs
-/// Setup only if both the checksum and the publisher's signature are right. Only the copy that Setup
-/// installed updates itself.
+/// Keeps ClearStart up to date from its releases on GitHub. A little after the start or after the PC wakes,
+/// and then every four hours, it asks GitHub's public API for the latest release. Nothing is sent but that
+/// request: no account, no token and nothing about the PC. When there is a newer version, the bar shows a
+/// button for it and the General settings page says so. Installing downloads that version's Setup and its
+/// checksum, and runs Setup only if both the checksum and the publisher's signature are right. Only the copy
+/// that Setup installed updates itself.
 /// </summary>
 internal sealed class UpdateService : IDisposable
 {
@@ -64,8 +64,10 @@ internal sealed class UpdateService : IDisposable
     private const long MaxChecksumBytes = 4096;
 
     private static readonly TimeSpan FirstCheckDelay = TimeSpan.FromMinutes(2);
-    private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(24);
-    private static readonly TimeSpan RetryInterval = TimeSpan.FromHours(1);
+    private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(4);
+    private static readonly TimeSpan RetryInterval = TimeSpan.FromMinutes(15);
+    // The timer ticks once a minute while the PC is on, so a gap this long between ticks means it was asleep.
+    private static readonly TimeSpan SleepGap = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan IdleBeforeInstall = TimeSpan.FromMinutes(10);
 
     private static readonly Regex TagPattern = new(@"^v(\d{1,6})\.(\d{1,6})\.(\d{1,6})$", RegexOptions.CultureInvariant);
@@ -81,7 +83,9 @@ internal sealed class UpdateService : IDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly Lazy<bool> _canInstall;
     private bool? _sampleCanInstall;
+    // When ClearStart started, or the PC last woke from sleep or hibernation.
     private DateTime _startedAt;
+    private DateTime _lastTick;
     private DateTime _lastCheck = DateTime.MinValue;
     private bool _checkFailed;
     private bool _cleanedUp;
@@ -165,7 +169,7 @@ internal sealed class UpdateService : IDisposable
                 return "ClearStart is up to date. Last checked " + at;
             }
             return Settings.Current.Updates.CheckAutomatically
-                ? "ClearStart checks for a new version a few minutes after it starts, and then once a day"
+                ? "ClearStart checks for a new version after it starts or the PC wakes, and every four hours"
                 : "Automatic checks are off";
         }
     }
@@ -173,7 +177,8 @@ internal sealed class UpdateService : IDisposable
     public void Start()
     {
         if (_disposed || _mode == HostMode.SelfTest || _timer.IsEnabled) return;
-        _startedAt = DateTime.UtcNow;
+        // The start counts as the first tick, so a sleep before the timer has ticked is seen as one too.
+        _startedAt = _lastTick = DateTime.UtcNow;
         _setupFailedFor = LastFailedAttempt();
         _timer.Start();
     }
@@ -255,7 +260,14 @@ internal sealed class UpdateService : IDisposable
     {
         if (!Allowed) return;
         var now = DateTime.UtcNow;
-        // Nothing during the start: ClearStart has enough to do then.
+        // Waking counts as a start: a check is due once the network has had the same time to come back.
+        if (Slept(_lastTick, now))
+        {
+            _startedAt = now;
+            if (Settings.Current.Updates.CheckAutomatically) Log.Info("The PC woke up; checking for updates in a couple of minutes");
+        }
+        _lastTick = now;
+        // Nothing during the start: ClearStart has enough to do then, and the network may not be up yet.
         if (now - _startedAt < FirstCheckDelay) return;
 
         if (!_cleanedUp)
@@ -274,9 +286,18 @@ internal sealed class UpdateService : IDisposable
         }
 
         if (!settings.CheckAutomatically || State is not (UpdateState.Idle or UpdateState.Ready)) return;
-        var wait = _checkFailed ? RetryInterval : CheckInterval;
-        if (now - _lastCheck >= wait) _ = CheckAsync(manual: false);
+        if (CheckDue(now, _startedAt, _lastCheck, _checkFailed)) _ = CheckAsync(manual: false);
     }
+
+    /// <summary>
+    /// Whether an automatic check is due: when there has been none since ClearStart started or the PC last woke
+    /// (<paramref name="awake"/>), and otherwise every four hours, or a quarter of an hour after one failed.
+    /// </summary>
+    internal static bool CheckDue(DateTime now, DateTime awake, DateTime lastCheck, bool failed) =>
+        lastCheck < awake || now - lastCheck >= (failed ? RetryInterval : CheckInterval);
+
+    /// <summary>True when the once-a-minute timer has not ticked for a long while: the PC was asleep or hibernating.</summary>
+    internal static bool Slept(DateTime lastTick, DateTime now) => lastTick != default && now - lastTick >= SleepGap;
 
     private async Task CheckAsync(bool manual)
     {

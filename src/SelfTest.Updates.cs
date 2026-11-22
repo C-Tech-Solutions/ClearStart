@@ -138,6 +138,34 @@ internal static partial class SelfTest
             errors.Add("Updates (versions): " + ex);
         }
 
+        // When the automatic checks run: a couple of minutes after the start or a wake, then every four hours.
+        try
+        {
+            var now = new DateTime(2026, 11, 22, 12, 0, 0, DateTimeKind.Utc);
+            var awake = now.AddMinutes(-3);
+            var longAgo = now.AddDays(-1);
+            var schedule = new (string What, bool Due, bool Expected)[]
+            {
+                ("no check yet since the start", UpdateService.CheckDue(now, awake, DateTime.MinValue, false), true),
+                ("an hour after a check", UpdateService.CheckDue(now, longAgo, now.AddHours(-1), false), false),
+                ("four hours after a check", UpdateService.CheckDue(now, longAgo, now.AddHours(-4), false), true),
+                ("five minutes after a failed check", UpdateService.CheckDue(now, longAgo, now.AddMinutes(-5), true), false),
+                ("a quarter of an hour after a failed check", UpdateService.CheckDue(now, longAgo, now.AddMinutes(-15), true), true),
+                ("no check yet since the PC woke", UpdateService.CheckDue(now, awake, now.AddHours(-1), false), true),
+                ("the timer's first tick", UpdateService.Slept(default, now), false),
+                ("a tick a minute after the last", UpdateService.Slept(now.AddMinutes(-1), now), false),
+                ("a tick an hour after the last", UpdateService.Slept(now.AddHours(-1), now), true),
+            };
+            foreach (var (what, due, expected) in schedule)
+            {
+                if (due != expected) errors.Add($"Updates: the check schedule gives the wrong answer for {what}");
+            }
+        }
+        catch (Exception ex)
+        {
+            errors.Add("Updates (schedule): " + ex);
+        }
+
         // Checksum files.
         try
         {

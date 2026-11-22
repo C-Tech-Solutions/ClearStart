@@ -580,7 +580,7 @@ public sealed class WeatherSettings
 /// <summary>New versions from ClearStart's releases on GitHub: see docs/updates.md.</summary>
 public sealed class UpdateSettings
 {
-    /// <summary>Ask GitHub a few minutes after the start, and then once a day, whether there is a newer version.</summary>
+    /// <summary>Ask GitHub after the start or a wake, and then every four hours, whether there is a newer version.</summary>
     public bool CheckAutomatically { get; set; } = true;
 
     /// <summary>Download a newer version when one is found, and install it while the PC is not in use.</summary>

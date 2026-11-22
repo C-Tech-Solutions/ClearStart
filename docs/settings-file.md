@@ -122,7 +122,7 @@ Keys are written here with a dot: `taskbar.edge` is the `edge` key inside the `t
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `updates.checkAutomatically` | `true` | Ask GitHub about once a day whether a newer version is out. With `false`, nothing is sent unless you click **Check now** |
+| `updates.checkAutomatically` | `true` | Ask GitHub after ClearStart starts or the PC wakes, and every four hours, whether a newer version is out. With `false`, nothing is sent unless you click **Check now** |
 | `updates.installAutomatically` | `false` | Download a newer version as soon as an automatic check finds it, and install it once the PC has not been used for ten minutes. With `checkAutomatically` off, it downloads nothing |
 
 What is sent, and how a download is checked before it runs, is in [Updates](updates.md).

@@ -63,7 +63,7 @@ internal sealed partial class SettingsView
         card.Unloaded += (_, _) => updates.Changed -= Show;
 
         page.Children.Add(Row("Check for updates automatically",
-            "Asks GitHub about once a day whether a newer version is out. Nothing about you or this PC is sent.",
+            "Asks GitHub after ClearStart starts or the PC wakes, and every four hours, whether a newer version is out. Nothing about you or this PC is sent.",
             Toggle(() => Settings.Current.Updates.CheckAutomatically,
                 value => Settings.Current.Updates.CheckAutomatically = value, SettingsChange.Updates)));
         page.Children.Add(Row("Install updates automatically",
