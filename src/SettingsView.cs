@@ -252,6 +252,24 @@ internal sealed partial class SettingsView : UserControl
         page.Children.Add(Row("Pinned apps", "On the main taskbar only, or on every one. Each monitor can differ, below",
             Choice(() => Taskbar.PinsOnAllMonitors, _host.SetPinsOnAllBars, SettingsChange.None,
                 ("Main taskbar", false), ("Every taskbar", true))));
+        // Pins what is on the Windows taskbar and not here yet, and says how many it pinned. The pin list saves itself.
+        var broughtOver = Small("");
+        broughtOver.Margin = new Thickness(0, 0, 12, 0);
+        broughtOver.VerticalAlignment = VerticalAlignment.Center;
+        var bringOver = new StackPanel { Orientation = Orientation.Horizontal };
+        bringOver.Children.Add(broughtOver);
+        bringOver.Children.Add(Button("Bring them over", () => Change(() =>
+        {
+            int added = _host.Pins.BringOverWindowsPins();
+            broughtOver.Text = added switch
+            {
+                0 => "Nothing new to bring over",
+                1 => "1 app brought over",
+                _ => $"{added} apps brought over",
+            };
+        }, SettingsChange.None)));
+        page.Children.Add(Row("Apps pinned in Windows", "Pins the apps on the Windows taskbar that are not pinned here yet, after the others",
+            bringOver));
         // Also the host's: the button appears or goes on every bar without reopening them.
         page.Children.Add(Row("Search button", "Next to Start on every taskbar",
             Toggle(() => Taskbar.ShowSearchButton, _host.SetSearchButton, SettingsChange.None)));

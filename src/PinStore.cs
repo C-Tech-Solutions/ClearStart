@@ -76,12 +76,20 @@ internal sealed class PinnedItem : IStartTile, INotifyPropertyChanged
                 targetFile = ShellLink.TargetOf(Path);
 
                 // The built-in File Explorer pin points at a shell location, not at a file.
+                string explorer = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
                 if (targetFile == null && System.IO.Path.GetFileNameWithoutExtension(Path)
                         .Equals("File Explorer", StringComparison.OrdinalIgnoreCase))
                 {
-                    targetFile = System.IO.Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
+                    targetFile = explorer;
                 }
+
+                // The app list knows an app that gives itself an app ID by that ID, so a pin of it from there is the
+                // same app. File Explorer's shortcut gives none, so it gets the ID the app list has for File Explorer.
+                string? appId = ShellLink.AppIdOf(Path);
+                if (appId == null && string.Equals(targetFile, explorer, StringComparison.OrdinalIgnoreCase))
+                    appId = FileExplorerAppId;
+                if (appId != null) keys.Add(AppKey.ForAppId(appId));
             }
             else
             {
@@ -103,6 +111,9 @@ internal sealed class PinnedItem : IStartTile, INotifyPropertyChanged
     }
 
     private sealed record Resolution(string? TargetFile, string[] AppKeys);
+
+    /// <summary>File Explorer's app ID in the app list.</summary>
+    internal const string FileExplorerAppId = "Microsoft.Windows.Explorer";
 }
 
 /// <summary>A folder of pinned apps in the start menu. It always holds at least one: an empty folder goes.</summary>
@@ -206,8 +217,8 @@ internal sealed class PinStore
         else _ = Start;
     }
 
-    /// <summary>What the taskbar pins are: the settings' own list, or else what is pinned in Windows.</summary>
-    internal static List<string> TaskbarPinPaths(List<string>? pinned) => pinned ?? ReadWindowsPins("TaskBar");
+    /// <summary>What the taskbar pins are: the settings' own list, or else what is pinned to the Windows taskbar.</summary>
+    internal static List<string> TaskbarPinPaths(List<string>? pinned) => pinned ?? ReadWindowsTaskbarPins();
 
     /// <summary>
     /// Reads each pin's shortcut on a worker thread, to find which app it starts, so the bars being built next do not
@@ -421,6 +432,51 @@ internal sealed class PinStore
             return new List<string>();
         }
     }
+
+    /// <summary>
+    /// The apps pinned to the Windows taskbar, in its order and with the Store apps among them; or, when Windows' list
+    /// cannot be read, the shortcuts in its pinned folder, by name.
+    /// </summary>
+    private static List<string> ReadWindowsTaskbarPins()
+    {
+        var pins = WindowsTaskbarPins.Read();
+        return pins.Count > 0 ? pins : ReadWindowsPins("TaskBar");
+    }
+
+    /// <summary>
+    /// Pins each app on the Windows taskbar that is not pinned here yet, after the others and in Windows' order.
+    /// Returns how many it pinned.
+    /// </summary>
+    public int BringOverWindowsPins() => BringOver(ReadWindowsTaskbarPins());
+
+    /// <summary>
+    /// Pins these to the taskbar after the others, leaving out each one that is there already: by the same path, or as
+    /// the same program under the same name, as Windows' own shortcut to an app pinned here from the app list is. Web
+    /// apps share one program, but each has a name of its own, so each still comes over.
+    /// </summary>
+    internal int BringOver(IEnumerable<string> paths)
+    {
+        int added = 0;
+        foreach (string path in paths)
+        {
+            if (string.IsNullOrWhiteSpace(path) || Contains(Taskbar, path)) continue;
+            var pin = Create(path, taskbar: true);
+            if (pin == null) continue;
+            if (Taskbar.Any(other => SameApp(other, pin)))
+            {
+                pin.Item.Dispose();
+                continue;
+            }
+            Taskbar.Add(pin);
+            added++;
+        }
+        if (added > 0) Persist(Taskbar);
+        return added;
+    }
+
+    private static bool SameApp(PinnedItem one, PinnedItem other) =>
+        string.Equals(one.Name, other.Name, StringComparison.CurrentCultureIgnoreCase) &&
+        one.AppKeys.Intersect(other.AppKeys, StringComparer.OrdinalIgnoreCase).Any();
 
     /// <summary>
     /// The start menu's tiles from the settings. Every pin is in the plain list, a folder's pins together where the

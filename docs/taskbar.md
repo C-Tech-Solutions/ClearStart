@@ -24,6 +24,7 @@ program that keeps doing it gets the bars back every time, and the log a few lin
 - [App buttons](#app-buttons)
 - [Pinned apps, bar by bar](#pinned-apps-bar-by-bar)
 - [Monitors without a bar](#monitors-without-a-bar)
+- [Pins from the Windows taskbar](#pins-from-the-windows-taskbar)
 - [Tray icons](#tray-icons)
 - [Cast](#cast)
 - [The clock](#the-clock)
@@ -189,6 +190,17 @@ instead.
 The main bar is the main display's. If that one is hidden, it is the first monitor that still has
 a bar, which then also carries the tray icons, clock and weather when those are not on every bar.
 One monitor always keeps its bar, so there is a way back to the settings.
+
+## Pins from the Windows taskbar
+
+ClearStart starts with the apps pinned to the Windows taskbar, in the same order, apps from the
+Microsoft Store among them. It keeps following them until you change the pins in ClearStart. From
+then on the list is ClearStart's own.
+
+To bring over apps pinned in Windows after that, click **Bring them over** beside **Apps pinned in
+Windows** on the Taskbar page of the settings. It pins each one that is not pinned in ClearStart
+yet, after the others. An app that is already there under the same name is left out, so nothing
+comes over twice.
 
 ## Tray icons
 

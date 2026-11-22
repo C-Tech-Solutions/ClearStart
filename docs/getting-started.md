@@ -33,6 +33,9 @@ Download `ClearStart-Setup-<version>.exe` from the
 Its last page has **Start ClearStart now** ticked. That starts [live mode](#live-mode), in the
 Windows taskbar's place. To look around in a preview first, untick it.
 
+The apps pinned to your Windows taskbar come over to ClearStart's bar, in the same order. See
+[pins from the Windows taskbar](taskbar.md#pins-from-the-windows-taskbar).
+
 The program is then at the place below, unless you chose another folder in Setup:
 
 ```
