@@ -1,30 +1,27 @@
-using System.Windows;
-using System.Windows.Interop;
-
 namespace ClearStart;
 
 // A window made see-through and solid again, as the Windows taskbar is while ClearStart keeps it hidden. Tried on a
 // window of the self-test's own, far off-screen and never the active one. The Windows taskbar is not touched.
+// It is a plain window, as the taskbar's is: a WPF window turns the layered style down unless it was made with it.
 internal static partial class SelfTest
 {
     private static object CheckSeeThrough(List<string> errors)
     {
-        var window = new Window
+        var window = new System.Windows.Forms.NativeWindow();
+        window.CreateHandle(new System.Windows.Forms.CreateParams
         {
-            Title = "ClearStart self-test",
-            Left = -30000,
-            Top = -30000,
+            Caption = "ClearStart self-test",
+            Style = unchecked((int)0x80000000), // WS_POPUP
+            ExStyle = Native.WS_EX_TOOLWINDOW | Native.WS_EX_NOACTIVATE,
+            X = -30000,
+            Y = -30000,
             Width = 300,
             Height = 40,
-            WindowStyle = WindowStyle.None,
-            ResizeMode = ResizeMode.NoResize,
-            ShowInTaskbar = false,
-            ShowActivated = false,
-        };
-        window.Show();
+        });
         try
         {
-            IntPtr hwnd = new WindowInteropHelper(window).Handle;
+            IntPtr hwnd = window.Handle;
+            Native.ShowWindow(hwnd, 4 /* SW_SHOWNOACTIVATE */);
             bool solidAtFirst = !Native.IsLayered(hwnd) && !Native.IsSeeThrough(hwnd);
             if (!solidAtFirst) errors.Add("See-through window: the self-test's window was not an ordinary one, so nothing was tried");
 
@@ -54,7 +51,7 @@ internal static partial class SelfTest
         }
         finally
         {
-            window.Close();
+            window.DestroyHandle();
         }
     }
 }
