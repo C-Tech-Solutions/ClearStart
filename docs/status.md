@@ -135,8 +135,8 @@ These are in the code, and build, but have not been run on a real desktop yet:
   from before. Tried by hand before that, a see-through Windows taskbar drew nothing while it was
   shown: its strip of the screen was the same, dot for dot, as with the taskbar hidden. A monitor
   waking, more than one monitor, Explorer showing its taskbar by itself, Explorer starting again,
-  and Windows 10 have not been run with it. The self-test makes a window of its own see-through
-  and solid again.
+  `--restore` after a copy that was ended without cleaning up, and Windows 10 have not been run
+  with it. The self-test makes a window of its own see-through and solid again.
 - **Dragging pinned apps along the bar:** the self-test drags them on a bar of its own, off
   screen, on a bottom bar and a side bar, on a bar that leaves a pin out, past either end, and
   with the drag broken off partway. Nobody has dragged a pin with a real mouse on a running

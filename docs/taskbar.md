@@ -76,7 +76,8 @@ not guaranteed. Hides finish before shutdown restores the Windows taskbar, so a 
 arrive after that restoration, and the taskbar is made solid again before it is shown.
 
 A copy that was ended without the chance to clean up leaves the Windows taskbar hidden and
-see-through. If Windows then shows it, it takes clicks but draws nothing.
+see-through. If Windows then shows it, it draws nothing, and clicks go through it to whatever is
+behind.
 [`--restore`](../README.md#getting-the-windows-taskbar-back) puts that right, and so does starting
 ClearStart and closing it. Beside [early startup](early-startup.md)'s guard, which stops the
 taskbar being shown at all, the taskbar stays solid.
