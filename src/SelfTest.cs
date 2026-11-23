@@ -163,6 +163,17 @@ internal static partial class SelfTest
                 errors.Add("Staying on screen: " + ex);
             }
 
+            // A see-through window, as the Windows taskbar is kept while it is hidden: tried on a window of the
+            // self-test's own. The Windows taskbar is not touched.
+            try
+            {
+                report["seeThrough"] = CheckSeeThrough(errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("See-through window: " + ex);
+            }
+
             // Early startup's record, and when its entry is put back: on a file of the self-test's own and made-up
             // registry values. Neither the registry nor the real record is read or changed.
             try

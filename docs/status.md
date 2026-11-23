@@ -32,6 +32,15 @@ what has not, and what is missing.
   On one restart with Start with Windows, ClearStart's program waited about ten seconds before it
   began, while Windows' virus scanner started, and the Windows taskbar showed a few times before
   the bars took over. Signing out and in again did not do this.
+- **After an update, the Windows taskbar can show for a moment when the monitors wake.** Early
+  startup stops the Windows taskbar being shown at all, but only for the ClearStart its loader
+  started at sign-in. An update closes that copy and starts another, and so does closing ClearStart
+  and starting it again; Explorer starting again ends it too. From then until the next sign-in,
+  ClearStart hides the Windows taskbar only after Windows has shown it. On one PC with four
+  monitors and 0.10.0 it flashed when the monitors woke, days after the last sign-in. Signing out
+  and in brings the protection back. The code now also keeps the hidden taskbar see-through, so
+  that it draws nothing in that moment; that has
+  [not been run at a real wake](#in-0100-not-run-yet).
 - **The bars wait for a newly started Explorer.** At sign-in, ClearStart gives Explorer three
   seconds before its own tray starts beside it; one that is crowded sooner stops snapping windows
   with Win+arrow. That adds up to three seconds before the bars are on screen.
@@ -119,6 +128,15 @@ one by clicking it on a real desktop:
 
 These are in the code, and build, but have not been run on a real desktop yet:
 
+- **A see-through Windows taskbar while it is hidden:** run on the laptop, on one screen, with
+  early startup's loader not in charge. The hidden Windows taskbar was see-through. Another
+  program showed it six times; ClearStart hid it again each time, and it was see-through every
+  time. Closing ClearStart gave back a solid taskbar, and its strip of the screen matched the one
+  from before. Tried by hand before that, a see-through Windows taskbar drew nothing while it was
+  shown: its strip of the screen was the same, dot for dot, as with the taskbar hidden. A monitor
+  waking, more than one monitor, Explorer showing its taskbar by itself, Explorer starting again,
+  `--restore` after a copy that was ended without cleaning up, and Windows 10 have not been run
+  with it. The self-test makes a window of its own see-through and solid again.
 - **Dragging pinned apps along the bar:** the self-test drags them on a bar of its own, off
   screen, on a bottom bar and a side bar, on a bar that leaves a pin out, past either end, and
   with the drag broken off partway. Nobody has dragged a pin with a real mouse on a running

@@ -10,7 +10,14 @@ namespace ClearStart;
 /// anything the reports missed.
 ///
 /// In ordinary startup mode the report comes after the window was shown, so Explorer may draw it for a frame.
-/// The optional early-startup guard also prevents shows inside Explorer, before these reports are sent.
+/// For that reason a hidden taskbar is kept see-through as well: shown again, it draws nothing in the moment before
+/// it is hidden again. A taskbar window is made see-through the first time it is hidden or looked at once its
+/// Explorer has settled, so one that Explorer has only just made can still be seen once. Putting the taskbar back
+/// makes it solid first (see <see cref="ExplorerTaskbar.Restore"/>).
+///
+/// The optional early-startup guard also prevents shows inside Explorer, before these reports are sent. Beside it
+/// the taskbar stays solid: its loader shows the taskbar by itself when ClearStart fails, and would show one that
+/// draws nothing.
 /// </summary>
 internal static class TaskbarGuard
 {
@@ -22,6 +29,10 @@ internal static class TaskbarGuard
     private const uint WM_QUIT = 0x0012;
     private const uint WM_TIMER = 0x0113;
     private const uint SweepMilliseconds = 2000;
+    // A wake or a change of monitors shows the taskbars several times within seconds. The log gets one line for
+    // them once they have stopped for this long, or after the longer time if they do not stop.
+    private static readonly TimeSpan CameBackQuiet = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan CameBackLongest = TimeSpan.FromMinutes(1);
 
     private static readonly string[] TaskbarClasses = { "Shell_TrayWnd", "Shell_SecondaryTrayWnd" };
     private static readonly uint OwnProcessId = (uint)Environment.ProcessId;
@@ -42,8 +53,13 @@ internal static class TaskbarGuard
     // Whether Explorer's taskbars were all on the bottom edge at the last look; null before the first one.
     private static bool? _onBottom;
     private static int _hiddenAgain;
+    // How many of those times the taskbar was solid, so that it could be seen.
+    private static int _seenInAll;
     private static bool _firstHideLogged;
     private static DateTime _lastMissLogged = DateTime.MinValue;
+    // Times the taskbar came back since the last line about it in the log: see-through, and solid.
+    private static int _cameBackUnseen, _cameBackSeen;
+    private static DateTime _firstCameBack, _lastCameBack;
 
     /// <summary>Hides the Windows taskbar now (if it is up yet) and keeps it hidden until <see cref="Stop"/>.</summary>
     public static void Start()
@@ -88,7 +104,8 @@ internal static class TaskbarGuard
         lock (HideGate) { } // Any hide that passed its stopped check must finish before Restore shows the bar.
         Native.PostThreadMessage(_threadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
         if (thread != Thread.CurrentThread) thread.Join(TimeSpan.FromSeconds(2));
-        Log.Info($"Stopped keeping the Windows taskbar hidden; it was hidden {_hiddenAgain} time(s) as it came back");
+        Log.Info($"Stopped keeping the Windows taskbar hidden; it was hidden {_hiddenAgain} time(s) as it came back" +
+            (EarlySession.Active ? "" : $", {_seenInAll} of them while it was not see-through yet"));
     }
 
     private static void Run(ManualResetEventSlim ready)
@@ -140,12 +157,17 @@ internal static class TaskbarGuard
         try
         {
             if (KindOf(hwnd) is not { } primary) return;
-            Hide(hwnd);
+            bool unseen = Conceal(hwnd, shown: true);
             _hiddenAgain++;
             if (!_firstHideLogged)
             {
                 _firstHideLogged = true;
+                if (!unseen) _seenInAll++;
                 Log.Info($"Windows taskbar hidden as it appeared, {StartTiming.Describe()}");
+            }
+            else
+            {
+                NoteCameBack(unseen);
             }
             if (primary) KeepAutoHidden(hwnd);
         }
@@ -155,7 +177,10 @@ internal static class TaskbarGuard
         }
     }
 
-    /// <summary>Hides every Windows taskbar that is showing. The first sweep runs before anything else loads.</summary>
+    /// <summary>
+    /// Hides every Windows taskbar that is showing, and makes the hidden ones see-through that are not yet. The first
+    /// sweep runs before anything else loads.
+    /// </summary>
     private static void Sweep(bool first)
     {
         int hidden = 0;
@@ -174,9 +199,11 @@ internal static class TaskbarGuard
                     mainIsNew = KeepAutoHidden(hwnd);
                 }
                 if (Native.GetWindowRect(hwnd, out var bar)) bars.Add(bar);
-                if (!Native.IsWindowVisible(hwnd)) continue;
-                Hide(hwnd);
+                bool shown = Native.IsWindowVisible(hwnd);
+                bool unseen = Conceal(hwnd, shown);
+                if (!shown) continue;
                 hidden++;
+                if (!first) NoteCameBack(unseen);
             }
         }
         if (main != IntPtr.Zero) WatchEdge(main, mainIsNew, bars);
@@ -197,6 +224,41 @@ internal static class TaskbarGuard
                 Log.Info($"The Windows taskbar was showing without Windows reporting it ({hidden} bar(s)); hidden again");
             }
         }
+        if (!first) ReportCameBack();
+    }
+
+    /// <summary>Counts one time the taskbar came back after ClearStart had hidden it, for the log.</summary>
+    /// <param name="unseen">It was see-through then, so it drew nothing.</param>
+    private static void NoteCameBack(bool unseen)
+    {
+        // Beside the early-startup loader the taskbar is never see-through, and that guard stops it being shown.
+        if (EarlySession.Active) return;
+        var now = DateTime.UtcNow;
+        if (_cameBackUnseen + _cameBackSeen == 0) _firstCameBack = now;
+        _lastCameBack = now;
+        if (unseen)
+        {
+            _cameBackUnseen++;
+        }
+        else
+        {
+            _cameBackSeen++;
+            _seenInAll++;
+        }
+    }
+
+    /// <summary>Writes one line for the times the taskbar came back, once they have stopped.</summary>
+    private static void ReportCameBack()
+    {
+        int times = _cameBackUnseen + _cameBackSeen;
+        if (times == 0) return;
+        var now = DateTime.UtcNow;
+        if (now - _lastCameBack < CameBackQuiet && now - _firstCameBack < CameBackLongest) return;
+        Log.Info(_cameBackSeen == 0
+            ? $"Windows showed its taskbar {times} time(s); it was see-through each time, and is hidden again"
+            : $"Windows showed its taskbar {times} time(s), {_cameBackSeen} of them while it was not see-through yet; " +
+              "it is hidden again");
+        _cameBackUnseen = _cameBackSeen = 0;
     }
 
     /// <summary>True for Windows' main taskbar, false for one on another monitor, null for any other window.</summary>
@@ -211,19 +273,33 @@ internal static class TaskbarGuard
     }
 
     /// <summary>
-    /// Completes the hide on this background thread before releasing the shutdown gate. Posting an asynchronous
+    /// Hides a taskbar that is shown, and makes it see-through if it is not yet.
+    ///
+    /// Completes both on this background thread before releasing the shutdown gate. Posting an asynchronous
     /// hide could let it arrive after Restore's final show. A busy Explorer can delay this call, but WPF layout
-    /// does not. Putting the bar back restores its topmost position (<see cref="ExplorerTaskbar.Restore"/>).
+    /// does not. Putting the bar back restores its topmost position and makes it solid
+    /// (<see cref="ExplorerTaskbar.Restore"/>).
     /// </summary>
-    private static void Hide(IntPtr hwnd)
+    /// <returns>True if the taskbar was see-through already, so that it drew nothing if it was shown.</returns>
+    private static bool Conceal(IntPtr hwnd, bool shown)
     {
         lock (HideGate)
         {
-            if (_stopped || EarlySession.Released) return;
-            uint flags = Native.SWP_HIDEWINDOW | Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE;
-            // Put behind ClearStart's tray, so the apps hand their icons to that one, unless Explorer is starting.
-            if (_keepInFront) flags |= Native.SWP_NOZORDER;
-            Native.SetWindowPos(hwnd, Native.HWND_BOTTOM, 0, 0, 0, 0, flags);
+            if (_stopped || EarlySession.Released) return false;
+            if (shown)
+            {
+                uint flags = Native.SWP_HIDEWINDOW | Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE;
+                // Put behind ClearStart's tray, so the apps hand their icons to that one, unless Explorer is starting.
+                if (_keepInFront) flags |= Native.SWP_NOZORDER;
+                Native.SetWindowPos(hwnd, Native.HWND_BOTTOM, 0, 0, 0, 0, flags);
+            }
+
+            // The loader shows the taskbar by itself when the ClearStart it started fails; it has to be solid then.
+            if (EarlySession.Active) return false;
+            if (Native.IsSeeThrough(hwnd)) return true;
+            // An Explorer that is still starting is left to make its taskbar undisturbed; the next look finds it.
+            if (ExplorerTaskbar.HasSettled(hwnd)) Native.MakeSeeThrough(hwnd);
+            return false;
         }
     }
 

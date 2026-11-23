@@ -230,7 +230,8 @@ Windows warns before running it, and the copy it installs does not update itself
 ## Getting the Windows taskbar back
 
 Closing ClearStart puts the Windows taskbar back. If a copy was ended without the chance to clean
-up (from Task Manager, say) and the Windows taskbar stays hidden, run:
+up (from Task Manager, say) and the Windows taskbar stays hidden, or is there but draws nothing
+(ClearStart keeps it see-through while it is hidden), run:
 
 ```powershell
 & "$env:LOCALAPPDATA\Programs\ClearStart\ClearStart.exe" --restore

@@ -316,6 +316,15 @@ internal static class Native
     private static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr value);
 
     [DllImport("user32.dll")]
+    private static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint colorKey, byte alpha, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetLayeredWindowAttributes(IntPtr hwnd, out uint colorKey, out byte alpha, out uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern bool RedrawWindow(IntPtr hwnd, IntPtr rect, IntPtr region, uint flags);
+
+    [DllImport("user32.dll")]
     internal static extern bool GetCursorPos(out POINT point);
 
     [DllImport("user32.dll")]
@@ -468,6 +477,56 @@ internal static class Native
         long style = GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64();
         SetWindowLongPtr(hwnd, GWL_EXSTYLE,
             new IntPtr(style | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_LAYERED | WS_EX_TRANSPARENT));
+    }
+
+    private const uint LWA_ALPHA = 0x2;
+
+    /// <summary>True for a layered window: one that Windows draws through a picture of it, at any opacity.</summary>
+    internal static bool IsLayered(IntPtr hwnd) =>
+        (GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64() & WS_EX_LAYERED) != 0;
+
+    /// <summary>
+    /// True while a window draws nothing in the way <see cref="MakeSeeThrough"/> leaves it: layered, with no opacity
+    /// at all. This only reads; nothing is sent to the window.
+    /// </summary>
+    internal static bool IsSeeThrough(IntPtr hwnd) =>
+        IsLayered(hwnd) &&
+        GetLayeredWindowAttributes(hwnd, out _, out byte alpha, out uint flags) &&
+        (flags & LWA_ALPHA) != 0 && alpha == 0;
+
+    /// <summary>
+    /// Makes a window draw nothing at all, shown or hidden. It can be another program's. Shown, it still takes the
+    /// mouse. A window that is layered already is left as it is: its own program or another tool made it so, and
+    /// <see cref="MakeSolid"/> could not tell what to put back.
+    /// </summary>
+    /// <returns>True if the window is see-through after the call.</returns>
+    internal static bool MakeSeeThrough(IntPtr hwnd)
+    {
+        if (IsLayered(hwnd)) return IsSeeThrough(hwnd);
+        long style = GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64();
+        SetWindowLongPtr(hwnd, GWL_EXSTYLE, new IntPtr(style | WS_EX_LAYERED));
+        if (SetLayeredWindowAttributes(hwnd, 0, 0, LWA_ALPHA)) return true;
+        // Left half done, the window would draw nothing either, and MakeSolid would not know it for one to put back.
+        style = GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64();
+        SetWindowLongPtr(hwnd, GWL_EXSTYLE, new IntPtr(style & ~(long)WS_EX_LAYERED));
+        return false;
+    }
+
+    /// <summary>
+    /// Undoes <see cref="MakeSeeThrough"/>, going by how the window is now, so that a later copy of the program can do
+    /// it too. Any other window is left as it is.
+    /// </summary>
+    /// <returns>True if the window was see-through and draws again.</returns>
+    internal static bool MakeSolid(IntPtr hwnd)
+    {
+        if (!IsSeeThrough(hwnd)) return false;
+        SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA);
+        long style = GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64();
+        SetWindowLongPtr(hwnd, GWL_EXSTYLE, new IntPtr(style & ~(long)WS_EX_LAYERED));
+        // A window that was shown all the while has nothing drawn yet.
+        RedrawWindow(hwnd, IntPtr.Zero, IntPtr.Zero,
+            0x0001 /* RDW_INVALIDATE */ | 0x0004 /* RDW_ERASE */ | 0x0080 /* RDW_ALLCHILDREN */ | 0x0400 /* RDW_FRAME */);
+        return !IsSeeThrough(hwnd);
     }
 
     [DllImport("shell32.dll")]
