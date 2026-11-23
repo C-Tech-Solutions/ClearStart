@@ -84,7 +84,11 @@ the longer time because showing the Windows taskbar on several monitors can take
 the loader in 0.4.0 and earlier allowed only five and turned early startup off when that ran out.
 Setup still waits for a copy such a loader stopped, and an update turns early startup back on. The
 DLL stays loaded, inert, until Explorer exits; restarting ClearStart in the same session uses the
-ordinary hiding guard.
+ordinary hiding guard. An update restarts ClearStart, so from an update until the next sign-in
+Windows can show its taskbar for a moment again, when the monitors wake for one. The ordinary
+guard keeps the hidden taskbar [see-through](taskbar.md#moving-and-resizing) to cover that moment.
+The ClearStart the loader started leaves the taskbar solid, because the loader shows it by itself
+when that copy fails.
 Crash/hang and missing-file recovery have not been tested yet. If the loader itself cannot start at all
 (for example its executable was deleted), its recovery code cannot run: use the manual route below.
 

@@ -307,14 +307,24 @@ internal static class ExplorerTaskbar
     /// <summary>
     /// Shows the taskbar windows above other windows, where Windows keeps them, and asks every app to put its
     /// notification icon back in the Windows tray. (Hiding put them at the bottom, which takes that away.)
+    /// A taskbar that was kept see-through while it was hidden (see <see cref="TaskbarGuard"/>) is made solid first.
+    /// That goes by how the window is now, so it also covers a copy of ClearStart that was ended without cleaning up.
     /// </summary>
     private static void ShowBars(List<(IntPtr Hwnd, bool IsPrimary)> bars)
     {
+        int stillSeeThrough = 0;
         foreach (var (hwnd, _) in bars)
         {
+            Native.MakeSolid(hwnd);
+            if (Native.IsSeeThrough(hwnd)) stillSeeThrough++;
             Native.ShowWindow(hwnd, 4 /* SW_SHOWNOACTIVATE */);
             Native.SetWindowPos(hwnd, Native.HWND_TOPMOST, 0, 0, 0, 0,
                 Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE | Native.SWP_SHOWWINDOW);
+        }
+        if (stillSeeThrough > 0)
+        {
+            Log.Warn($"The Windows taskbar is shown but still see-through ({stillSeeThrough} bar(s)); " +
+                "\"ClearStart.exe --restore\" tries again, and Explorer starting again makes a new one");
         }
         AnnounceTaskbar();
     }
