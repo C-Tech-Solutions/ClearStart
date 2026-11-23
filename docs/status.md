@@ -128,12 +128,15 @@ one by clicking it on a real desktop:
 
 These are in the code, and build, but have not been run on a real desktop yet:
 
-- **A see-through Windows taskbar while it is hidden:** tried by hand on the laptop, on one
-  screen. A Windows taskbar made see-through from another program drew nothing while it was shown:
-  its strip of the screen was the same, dot for dot, as with the taskbar hidden. It stayed
-  see-through when it was hidden and shown again, and drew as before once it was made solid again.
-  A monitor waking, more than one monitor, Explorer showing its taskbar by itself, and Windows 10
-  have not been run with it. The self-test makes a window of its own see-through and solid again.
+- **A see-through Windows taskbar while it is hidden:** run on the laptop, on one screen, with
+  early startup's loader not in charge. The hidden Windows taskbar was see-through. Another
+  program showed it six times; ClearStart hid it again each time, and it was see-through every
+  time. Closing ClearStart gave back a solid taskbar, and its strip of the screen matched the one
+  from before. Tried by hand before that, a see-through Windows taskbar drew nothing while it was
+  shown: its strip of the screen was the same, dot for dot, as with the taskbar hidden. A monitor
+  waking, more than one monitor, Explorer showing its taskbar by itself, Explorer starting again,
+  and Windows 10 have not been run with it. The self-test makes a window of its own see-through
+  and solid again.
 - **Dragging pinned apps along the bar:** the self-test drags them on a bar of its own, off
   screen, on a bottom bar and a side bar, on a bar that leaves a pin out, past either end, and
   with the drag broken off partway. Nobody has dragged a pin with a real mouse on a running
