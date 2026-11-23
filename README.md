@@ -33,14 +33,17 @@ its failure recovery still needs desktop testing.
 > Windows taskbar and hides nothing, and **live mode**, where ClearStart takes the Windows
 > taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
-Version 0.10.0 lets you [drag pinned apps](docs/taskbar.md#pinned-apps-bar-by-bar) along the bar
+Version 0.11.0 keeps the Windows taskbar [see-through](docs/taskbar.md#moving-and-resizing) while
+ClearStart hides it, so that it draws nothing if Windows shows it for a moment, as it can when the
+monitors wake after an update. That has been run on one laptop with one screen, not yet at a real
+wake. You can [drag pinned apps](docs/taskbar.md#pinned-apps-bar-by-bar) along the bar
 to put them in a new order, as on the Windows taskbar. A picture on the Start button can be
 [cut to a shape](docs/settings.md#the-start-button): a square, a rounded square or a circle. A new
 install [starts with the apps pinned to the Windows taskbar](docs/taskbar.md#pins-from-the-windows-taskbar),
 in Windows' order and with apps from the Microsoft Store, and **Bring them over** in the settings
 adds them later. ClearStart also [checks for updates](docs/updates.md#checking) a couple of
-minutes after the PC wakes and every four hours, instead of once a day. The self-test checks all
-four, but none has been confirmed by hand on a running ClearStart yet. The bars stay on screen: a
+minutes after the PC wakes and every four hours, instead of once a day. The self-test checks those
+four, but none of them has been confirmed by hand on a running ClearStart yet. The bars stay on screen: a
 bar that another program minimizes [comes straight back](docs/taskbar.md), and the app in front
 keeps the keyboard. The
 [Cast button](docs/taskbar.md#cast) can sit on the main taskbar only or on every taskbar, and
