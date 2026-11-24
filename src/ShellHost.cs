@@ -958,7 +958,8 @@ internal sealed class ShellHost : IDisposable
         if (taskbar.KeepMonitorsByMonitor(screens.Select(s => s.DeviceName)))
         {
             Log.Info("Per-monitor taskbar settings are now kept with each monitor, not with its display number");
-            SaveSettings();
+            // Saved so it is done once, but not over a file that could not be read: those are only the defaults.
+            if (!Settings.ReadFailed) SaveSettings();
         }
         var wanted = ScreensWithBars(screens, taskbar);
         _mainDevice = (wanted.FirstOrDefault(s => s.Primary) ?? wanted.FirstOrDefault())?.DeviceName;

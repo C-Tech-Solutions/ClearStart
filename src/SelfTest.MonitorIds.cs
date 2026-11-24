@@ -123,15 +123,14 @@ internal static partial class SelfTest
             }
             steps.Add("a monitor's own entry wins over its display's");
 
-            // Nothing to move, as with the defaults used when the file could not be read: nothing asks to be saved,
-            // so the file is not written over.
+            // Nothing to move: it is still done now, and asks to be saved so that it is not done again.
             var defaults = new TaskbarSettings();
             MonitorIds.UseForTest(On(a, b, c));
-            if (defaults.KeepMonitorsByMonitor(devices) || !defaults.MonitorsKeptByMonitor)
+            if (!defaults.KeepMonitorsByMonitor(devices) || !defaults.MonitorsKeptByMonitor)
             {
-                errors.Add("Monitor settings: with nothing to move, the settings still asked to be saved");
+                errors.Add("Monitor settings: with nothing to move, the move was not recorded");
             }
-            steps.Add("with nothing to move, nothing is saved");
+            steps.Add("with nothing to move, the move is still recorded");
 
             // An entry kept by number for a monitor not connected at the move is given to no other monitor: not to
             // one that comes in on its number, and not to one whose own entry was tidied away.

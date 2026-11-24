@@ -349,9 +349,8 @@ public sealed class TaskbarSettings
     /// Done once: moves each display's entry, kept by number as older versions kept them, to the monitor on that
     /// display now, and from then on keeps the entries by monitor. It waits while none of the displays given has a
     /// monitor name. An entry for a display not given, or one with no monitor name, stays under its number, and
-    /// so does one whose monitor has an entry already. True when an entry moved, so the settings need saving; with
-    /// nothing to move, the file is left as it is (it may be one that could not be read, and the defaults in use
-    /// must not be written over it).
+    /// so does one whose monitor has an entry already. True when it was done now: the settings then need saving, so
+    /// that it is not done again.
     /// </summary>
     public bool KeepMonitorsByMonitor(IEnumerable<string?> deviceNames)
     {
@@ -359,15 +358,13 @@ public sealed class TaskbarSettings
         var named = deviceNames.Select(device => (Display: MonitorKey(device), Id: MonitorIds.For(device)))
             .Where(display => display.Id != null).ToList();
         if (named.Count == 0) return false;
-        bool moved = false;
         foreach (var (display, id) in named)
         {
             if (Monitors.ContainsKey(id!) || !Monitors.Remove(display, out var entry) || entry == null) continue;
             Monitors[id!] = entry;
-            moved = true;
         }
         MonitorsKeptByMonitor = true;
-        return moved;
+        return true;
     }
 
     public BarEdge EdgeFor(string? deviceName) => ForMonitor(deviceName)?.Edge ?? Edge;
@@ -674,6 +671,12 @@ public sealed class Settings
 
     public static string FilePath => Path.Combine(Directory, "settings.json");
 
+    /// <summary>
+    /// True while the settings in use are defaults because the file could not be read. Nothing should write them
+    /// over the file unless the user changes a setting: fixing the file must still bring the user's settings back.
+    /// </summary>
+    public static bool ReadFailed { get; private set; }
+
     /// <summary>Loads the settings file, creating it with defaults on first run (unless told not to).</summary>
     public static void Load(bool createIfMissing = true)
     {
@@ -690,11 +693,13 @@ public sealed class Settings
                 Current = new Settings();
                 if (createIfMissing) Save();
             }
+            ReadFailed = false;
         }
         catch (Exception ex)
         {
             Log.Error("Could not read settings; using defaults", ex);
             Current = new Settings();
+            ReadFailed = true;
         }
     }
 
@@ -761,6 +766,7 @@ public sealed class Settings
 
             Current = Parse(text);
             _lastText = text;
+            ReadFailed = false;
             Log.Info("Settings reloaded");
             Changed?.Invoke();
         }
