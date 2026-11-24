@@ -41,21 +41,25 @@ internal static partial class SelfTest
         try
         {
             // Settings from before, kept by display number: a bar on the top of the first, none on the second, and
-            // one on the left of the third.
+            // one on the left of the third. Until they are moved, they are read by number.
             var trial = new TaskbarSettings();
             trial.Monitors["DISPLAY1"] = new MonitorSettings { Edge = BarEdge.Top };
             trial.Monitors["DISPLAY2"] = new MonitorSettings { Hidden = true };
             trial.Monitors["DISPLAY3"] = new MonitorSettings { Edge = BarEdge.Left };
-
-            // They go to the monitors on those displays now, and only once.
             MonitorIds.UseForTest(On(a, b, c));
-            if (!trial.AdoptNamedEntries(devices)) errors.Add("Monitor settings: the entries kept by number did not move");
-            if (trial.AdoptNamedEntries(devices)) errors.Add("Monitor settings: the entries moved a second time");
+            if (trial.EdgeFor(@"\\.\DISPLAY1") != BarEdge.Top || !trial.HiddenOn(@"\\.\DISPLAY2"))
+            {
+                errors.Add("Monitor settings: before the move, the entries kept by number were not read by number");
+            }
+
+            // They go to the monitors on those displays now, once.
+            if (!trial.KeepMonitorsByMonitor(devices) || !trial.MonitorsKeptByMonitor) errors.Add("Monitor settings: the entries kept by number did not move");
+            if (trial.KeepMonitorsByMonitor(devices)) errors.Add("Monitor settings: the entries moved a second time");
             if (trial.Monitors.Keys.Any(k => k.StartsWith("DISPLAY", StringComparison.OrdinalIgnoreCase)) || trial.Monitors.Count != 3)
             {
                 errors.Add("Monitor settings: after the move, entries are kept under " + string.Join(", ", trial.Monitors.Keys));
             }
-            steps.Add("entries kept by number move to their monitors");
+            steps.Add("entries kept by number move to their monitors, once");
 
             // Windows numbers them another way: each monitor keeps its own settings.
             void Expect(string what, TaskbarSettings settings)
@@ -68,7 +72,6 @@ internal static partial class SelfTest
             }
             MonitorIds.UseForTest(On(c, a, b));
             Expect("numbered again", trial);
-            if (trial.AdoptNamedEntries(devices)) errors.Add("Monitor settings: numbering the displays again moved entries");
 
             // A choice made now goes with the monitor, and all of it reads back from the settings file.
             trial.EnsureMonitor(@"\\.\DISPLAY2").Size = 50;
@@ -77,15 +80,16 @@ internal static partial class SelfTest
                 errors.Add("Monitor settings: a new choice was not kept with its monitor");
             }
             var back = Settings.Parse(Settings.Write(new Settings { Taskbar = trial })).Taskbar;
+            if (!back.MonitorsKeptByMonitor) errors.Add("Monitor settings: the file did not say the entries are kept by monitor");
             Expect("read back from the file", back);
             if (back.SizeFor(@"\\.\DISPLAY2", sideBar: false) != 50) errors.Add("Monitor settings: a size did not read back from the file");
             steps.Add("numbered again, the settings stay with their monitors");
 
-            // A display Windows names no monitor for keeps its number, and its entry is not moved.
+            // A display Windows names no monitor for keeps its number.
             var plain = new TaskbarSettings();
             plain.Monitors["DISPLAY2"] = new MonitorSettings { Edge = BarEdge.Right };
             MonitorIds.UseForTest(new() { ["DISPLAY1"] = a });
-            if (plain.AdoptNamedEntries(devices) || plain.EdgeFor(@"\\.\DISPLAY2") != BarEdge.Right)
+            if (!plain.KeepMonitorsByMonitor(devices) || plain.EdgeFor(@"\\.\DISPLAY2") != BarEdge.Right)
             {
                 errors.Add("Monitor settings: a display with no monitor name did not keep its entry");
             }
@@ -96,27 +100,60 @@ internal static partial class SelfTest
             }
             steps.Add("a display with no monitor name keeps its number");
 
-            // An entry under a number may be another monitor's, one not connected now: a monitor that has its own
-            // entry already keeps that one, and the numbered one is left for its owner.
+            // No monitor names at all: nothing moves, and the entries stay kept by number until there are names.
+            var unnamed = new TaskbarSettings();
+            unnamed.Monitors["DISPLAY1"] = new MonitorSettings { Edge = BarEdge.Top };
+            MonitorIds.UseForTest(new());
+            if (unnamed.KeepMonitorsByMonitor(devices) || unnamed.MonitorsKeptByMonitor || unnamed.EdgeFor(@"\\.\DISPLAY1") != BarEdge.Top)
+            {
+                errors.Add("Monitor settings: with no monitor names, the entries did not stay kept by number");
+            }
+            steps.Add("with no monitor names, nothing moves");
+
+            // A monitor that has its own entry already keeps it, over its display's.
             var both = new TaskbarSettings();
             both.Monitors[a] = new MonitorSettings { Edge = BarEdge.Bottom };
             both.Monitors["DISPLAY1"] = new MonitorSettings { Edge = BarEdge.Right };
-            if (both.AdoptNamedEntries(devices) || both.EdgeFor(@"\\.\DISPLAY1") != BarEdge.Bottom || !both.Monitors.ContainsKey("DISPLAY1"))
+            MonitorIds.UseForTest(new() { ["DISPLAY1"] = a });
+            if (!both.KeepMonitorsByMonitor(devices) || both.EdgeFor(@"\\.\DISPLAY1") != BarEdge.Bottom)
             {
                 errors.Add("Monitor settings: a monitor's own entry was not kept over the display's");
             }
             steps.Add("a monitor's own entry wins over its display's");
 
-            // Choosing something before the move: the entry kept by number becomes the monitor's, with what it said.
+            // An entry kept by number for a monitor not connected at the move is given to no other monitor: not to
+            // one that comes in on its number, and not to one whose own entry was tidied away.
+            var left = new TaskbarSettings();
+            left.Monitors["DISPLAY1"] = new MonitorSettings { Edge = BarEdge.Right };
+            left.Monitors["DISPLAY2"] = new MonitorSettings { Hidden = true };
+            MonitorIds.UseForTest(new() { ["DISPLAY1"] = a });
+            left.KeepMonitorsByMonitor(new[] { @"\\.\DISPLAY1" });
+            MonitorIds.UseForTest(new() { ["DISPLAY1"] = a, ["DISPLAY2"] = b });
+            if (left.HiddenOn(@"\\.\DISPLAY2") || left.KeepMonitorsByMonitor(devices) || left.HiddenOn(@"\\.\DISPLAY2"))
+            {
+                errors.Add("Monitor settings: a monitor that came in on a number took the entry left under it");
+            }
+            left.EnsureMonitor(@"\\.\DISPLAY1").Edge = null;
+            left.Tidy();
+            MonitorIds.UseForTest(new() { ["DISPLAY1"] = b, ["DISPLAY2"] = a });
+            if (left.HiddenOn(@"\\.\DISPLAY2") || left.EdgeFor(@"\\.\DISPLAY2") != left.Edge)
+            {
+                errors.Add("Monitor settings: a monitor whose own entry was tidied away took the entry left under its number");
+            }
+            steps.Add("an entry left under a number goes to no other monitor");
+
+            // A choice made before the move is kept by number, and moves with the rest.
             var early = new TaskbarSettings();
             early.Monitors["DISPLAY1"] = new MonitorSettings { Edge = BarEdge.Right };
+            MonitorIds.UseForTest(new() { ["DISPLAY1"] = a });
             early.EnsureMonitor(@"\\.\DISPLAY1").Size = 60;
+            early.KeepMonitorsByMonitor(devices);
             if (early.Monitors.ContainsKey("DISPLAY1") || early.Monitors.TryGetValue(a, out var moved) is false ||
                 moved.Edge != BarEdge.Right || moved.Size != 60)
             {
-                errors.Add("Monitor settings: a choice made before the move did not take the display's entry along");
+                errors.Add("Monitor settings: a choice made before the move did not move with its entry");
             }
-            steps.Add("a choice before the move takes the entry along");
+            steps.Add("a choice made before the move moves with its entry");
         }
         finally
         {

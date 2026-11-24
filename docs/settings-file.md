@@ -147,9 +147,12 @@ anything left out follows the general setting. Icon sizes are the same on every 
   is turned off and on again; the monitor's own key stays the same, so its settings stay with it.
   ClearStart's log names the monitor on each display. ClearStart writes each `&` in a key as
   `\u0026`; both read the same.
-- A display Windows gives no such name for is keyed by its number, as `DISPLAY5` is above. Older
-  versions kept every monitor by its number. Those entries move to the monitor on that display the
-  first time ClearStart sees it.
+- A display Windows gives no such name for is keyed by its number, as `DISPLAY5` is above.
+- Older versions kept every monitor by its number. The first time ClearStart finds a monitor name
+  for any display, it moves each display's entry to the monitor on that display then, and sets
+  `taskbar.monitorsKeptByMonitor` to `true` so this happens once. An entry for a monitor that was
+  not connected at that moment stays under its number, and is used only by a display with no
+  monitor name: that monitor starts with the general settings.
 - A monitor moved to another connector or graphics card is taken for a new one, and starts with
   the general settings.
 - `"hidden": true` leaves the monitor without a bar. If every monitor says so, the main display

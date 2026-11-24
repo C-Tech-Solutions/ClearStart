@@ -132,8 +132,9 @@ These are in the code, and build, but have not been run on a real desktop yet:
   Start button, pins and hidden bar are kept with the monitor itself, by its model and the
   connector it is on, not by the display number Windows gives it. Windows can number the displays
   another way after a monitor is turned off and on again, and the settings then went to the wrong
-  monitors. Settings kept by number move to the monitor on that number the first time ClearStart
-  sees it. The self-test numbers made-up monitors again and checks that each keeps its settings,
+  monitors. Settings kept by number move, once, to the monitors on those numbers the first time
+  ClearStart runs with this; a monitor not connected then starts with the general settings. The
+  self-test numbers made-up monitors again and checks that each keeps its settings,
   and that every display on the test PC has a monitor name. Windows has not numbered the displays
   again on a running ClearStart with it yet. A monitor moved to another connector or graphics card
   is taken for a new one.
