@@ -952,7 +952,9 @@ internal sealed class ShellHost : IDisposable
         var screens = AppBarScreen.FromAllScreens();
         var taskbar = Settings.Current.Taskbar;
         // Once: settings kept under a display's number, as older versions kept them, go to the monitor on that
-        // display now, and are kept by monitor from then on.
+        // display now, and are kept by monitor from then on. The monitors are read again first: this cannot be
+        // undone, so it goes by the displays as they are now.
+        if (!taskbar.MonitorsKeptByMonitor) MonitorIds.Refresh();
         if (taskbar.KeepMonitorsByMonitor(screens.Select(s => s.DeviceName)))
         {
             Log.Info("Per-monitor taskbar settings are now kept with each monitor, not with its display number");
