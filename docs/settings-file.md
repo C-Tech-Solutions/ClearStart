@@ -129,19 +129,29 @@ What is sent, and how a download is checked before it runs, is in [Updates](upda
 
 ## Per-monitor settings
 
-`taskbar.monitors` holds what is different on one monitor, keyed by the name Windows gives it.
+`taskbar.monitors` holds what is different on one monitor, keyed by the monitor itself.
 Each of `edge`, `size` (thickness), `startButton`, `hidden`, `pins` and `chosenPins` is optional;
 anything left out follows the general setting. Icon sizes are the same on every bar.
 
 ```json
 "monitors": {
-  "DISPLAY2": { "edge": "top" },
-  "DISPLAY3": { "edge": "left", "size": 64, "startButton": "corner", "pins": "none" },
-  "DISPLAY4": { "pins": "chosen", "chosenPins": [ "C:\\Program Files\\Mozilla Firefox\\firefox.exe" ] },
+  "ABC1234#5&1a2b3c4d&0&UID4352": { "edge": "top" },
+  "DEF5678#5&1a2b3c4d&0&UID4353": { "edge": "left", "size": 64, "startButton": "corner", "pins": "none" },
+  "GHI9012#5&1a2b3c4d&0&UID4354": { "pins": "chosen", "chosenPins": [ "C:\\Program Files\\Mozilla Firefox\\firefox.exe" ] },
   "DISPLAY5": { "hidden": true }
 }
 ```
 
+- A monitor's key is its model and the connector it is on, as Windows names them. Windows numbers
+  the displays `DISPLAY1`, `DISPLAY2` and so on, but can number them another way after a monitor
+  is turned off and on again; the monitor's own key stays the same, so its settings stay with it.
+  ClearStart's log names the monitor on each display. ClearStart writes each `&` in a key as
+  `\u0026`; both read the same.
+- A display Windows gives no such name for is keyed by its number, as `DISPLAY5` is above. Older
+  versions kept every monitor by its number. Those entries move to the monitor on that display the
+  first time ClearStart sees it.
+- A monitor moved to another connector or graphics card is taken for a new one, and starts with
+  the general settings.
 - `"hidden": true` leaves the monitor without a bar. If every monitor says so, the main display
   keeps its bar anyway.
 - `pins` is `all`, `chosen` or `none`.

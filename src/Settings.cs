@@ -225,7 +225,12 @@ public sealed class TaskbarSettings
     /// <summary>One button per app, with all of its windows behind it, instead of one button per window.</summary>
     public bool CombineWindows { get; set; } = true;
 
-    /// <summary>Per-monitor differences, keyed by the monitor's name ("DISPLAY1", "DISPLAY2", ...).</summary>
+    /// <summary>
+    /// Per-monitor differences, keyed by the monitor itself (its model and connector, such as
+    /// "ABC1234#5&amp;1a2b3c4d&amp;0&amp;UID4352"; see MonitorIds), so they stay with it when Windows numbers the
+    /// displays another way. A monitor Windows gives no such name keeps its display's name ("DISPLAY1", ...),
+    /// which is also how every entry was keyed before.
+    /// </summary>
     public Dictionary<string, MonitorSettings> Monitors { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     public Appearance Appearance { get; set; } = Appearance.Clear;
@@ -311,19 +316,49 @@ public sealed class TaskbarSettings
     /// <summary>"\\.\DISPLAY1" as Windows names it becomes "DISPLAY1", which is easier to read and type.</summary>
     public static string MonitorKey(string? deviceName) => (deviceName ?? "").TrimStart('\\', '.');
 
-    public MonitorSettings? ForMonitor(string? deviceName) =>
-        Monitors.TryGetValue(MonitorKey(deviceName), out var monitor) ? monitor : null;
+    /// <summary>
+    /// What the settings say about the monitor on a display: its own entry, or else the display's entry from
+    /// before entries were kept by monitor.
+    /// </summary>
+    public MonitorSettings? ForMonitor(string? deviceName)
+    {
+        if (MonitorIds.For(deviceName) is { } id && Monitors.TryGetValue(id, out var own) && own != null) return own;
+        return Monitors.TryGetValue(MonitorKey(deviceName), out var monitor) ? monitor : null;
+    }
 
-    /// <summary>The entry to write a per-monitor choice into, created on first use.</summary>
+    /// <summary>
+    /// The entry to write a per-monitor choice into, created on first use. The display's entry from before
+    /// entries were kept by monitor becomes the monitor's own.
+    /// </summary>
     public MonitorSettings EnsureMonitor(string? deviceName)
     {
-        string key = MonitorKey(deviceName);
-        if (!Monitors.TryGetValue(key, out var monitor) || monitor == null)
-        {
-            monitor = new MonitorSettings();
-            Monitors[key] = monitor;
-        }
+        string display = MonitorKey(deviceName);
+        string key = MonitorIds.For(deviceName) ?? display;
+        if (Monitors.TryGetValue(key, out var monitor) && monitor != null) return monitor;
+        if (key != display && Monitors.Remove(display, out var named) && named != null) monitor = named;
+        monitor ??= new MonitorSettings();
+        Monitors[key] = monitor;
         return monitor;
+    }
+
+    /// <summary>
+    /// Moves the entries kept under a display's name ("DISPLAY1") to the monitor now on that display, for each
+    /// display given whose monitor has no entry of its own yet. An entry the monitor already has is left alone,
+    /// and so is the display's: it may be another monitor's, from before, that is not connected now. True when
+    /// anything moved.
+    /// </summary>
+    public bool AdoptNamedEntries(IEnumerable<string?> deviceNames)
+    {
+        bool moved = false;
+        foreach (string? device in deviceNames)
+        {
+            string display = MonitorKey(device);
+            if (MonitorIds.For(device) is not { } id || Monitors.ContainsKey(id)) continue;
+            if (!Monitors.Remove(display, out var named)) continue;
+            if (named != null) Monitors[id] = named;
+            moved = true;
+        }
+        return moved;
     }
 
     public BarEdge EdgeFor(string? deviceName) => ForMonitor(deviceName)?.Edge ?? Edge;

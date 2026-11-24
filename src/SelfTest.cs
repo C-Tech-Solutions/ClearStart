@@ -143,6 +143,16 @@ internal static partial class SelfTest
                 errors.Add("Hiding bars: " + ex);
             }
 
+            // Per-monitor settings when Windows numbers the displays another way, on made-up monitors.
+            try
+            {
+                report["monitorIds"] = CheckMonitorIds(errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Monitor settings: " + ex);
+            }
+
             // The Windows taskbar on each edge, on made-up monitors: nothing is read from Windows or changed.
             try
             {

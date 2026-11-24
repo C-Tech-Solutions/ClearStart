@@ -828,12 +828,19 @@ internal sealed class ShellHost : IDisposable
         }
     }
 
+    /// <summary>
+    /// The displays, where they are, and which monitor is on each: a change in any of them means the bars are
+    /// planned again. Which monitor is on which display is read again here, as Windows can number them another
+    /// way whenever they come and go.
+    /// </summary>
     private static string ScreenSignature()
     {
         try
         {
+            MonitorIds.Refresh();
             return string.Join("|", AppBarScreen.FromAllScreens()
-                .Select(s => $"{s.DeviceName}:{s.Bounds.X},{s.Bounds.Y},{s.Bounds.Width},{s.Bounds.Height}:{s.Primary}"));
+                .Select(s => $"{s.DeviceName}:{s.Bounds.X},{s.Bounds.Y},{s.Bounds.Width},{s.Bounds.Height}:{s.Primary}:" +
+                    MonitorIds.For(s.DeviceName)));
         }
         catch (Exception ex)
         {
@@ -942,7 +949,15 @@ internal sealed class ShellHost : IDisposable
     /// <summary>Works out which monitors get a bar and which of those bars is the main one.</summary>
     private List<AppBarScreen> PlanBars()
     {
-        var wanted = ScreensWithBars(AppBarScreen.FromAllScreens(), Settings.Current.Taskbar);
+        var screens = AppBarScreen.FromAllScreens();
+        var taskbar = Settings.Current.Taskbar;
+        // Settings kept under a display's number, as they all were before, go to the monitor on that display now.
+        if (taskbar.AdoptNamedEntries(screens.Select(s => s.DeviceName)))
+        {
+            Log.Info("Per-monitor taskbar settings are now kept with each monitor, not with its display number");
+            SaveSettings();
+        }
+        var wanted = ScreensWithBars(screens, taskbar);
         _mainDevice = (wanted.FirstOrDefault(s => s.Primary) ?? wanted.FirstOrDefault())?.DeviceName;
         _barMonitors.Clear();
         foreach (var screen in wanted) _barMonitors.Add(screen.HMonitor);
