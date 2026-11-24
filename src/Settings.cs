@@ -349,7 +349,9 @@ public sealed class TaskbarSettings
     /// Done once: moves each display's entry, kept by number as older versions kept them, to the monitor on that
     /// display now, and from then on keeps the entries by monitor. It waits while none of the displays given has a
     /// monitor name. An entry for a display not given, or one with no monitor name, stays under its number, and
-    /// so does one whose monitor has an entry already. True when it was done now.
+    /// so does one whose monitor has an entry already. True when an entry moved, so the settings need saving; with
+    /// nothing to move, the file is left as it is (it may be one that could not be read, and the defaults in use
+    /// must not be written over it).
     /// </summary>
     public bool KeepMonitorsByMonitor(IEnumerable<string?> deviceNames)
     {
@@ -357,13 +359,15 @@ public sealed class TaskbarSettings
         var named = deviceNames.Select(device => (Display: MonitorKey(device), Id: MonitorIds.For(device)))
             .Where(display => display.Id != null).ToList();
         if (named.Count == 0) return false;
+        bool moved = false;
         foreach (var (display, id) in named)
         {
             if (Monitors.ContainsKey(id!) || !Monitors.Remove(display, out var entry) || entry == null) continue;
             Monitors[id!] = entry;
+            moved = true;
         }
         MonitorsKeptByMonitor = true;
-        return true;
+        return moved;
     }
 
     public BarEdge EdgeFor(string? deviceName) => ForMonitor(deviceName)?.Edge ?? Edge;

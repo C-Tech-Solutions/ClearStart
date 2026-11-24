@@ -89,7 +89,8 @@ internal static partial class SelfTest
             var plain = new TaskbarSettings();
             plain.Monitors["DISPLAY2"] = new MonitorSettings { Edge = BarEdge.Right };
             MonitorIds.UseForTest(new() { ["DISPLAY1"] = a });
-            if (!plain.KeepMonitorsByMonitor(devices) || plain.EdgeFor(@"\\.\DISPLAY2") != BarEdge.Right)
+            plain.KeepMonitorsByMonitor(devices);
+            if (!plain.MonitorsKeptByMonitor || plain.EdgeFor(@"\\.\DISPLAY2") != BarEdge.Right)
             {
                 errors.Add("Monitor settings: a display with no monitor name did not keep its entry");
             }
@@ -115,11 +116,22 @@ internal static partial class SelfTest
             both.Monitors[a] = new MonitorSettings { Edge = BarEdge.Bottom };
             both.Monitors["DISPLAY1"] = new MonitorSettings { Edge = BarEdge.Right };
             MonitorIds.UseForTest(new() { ["DISPLAY1"] = a });
-            if (!both.KeepMonitorsByMonitor(devices) || both.EdgeFor(@"\\.\DISPLAY1") != BarEdge.Bottom)
+            both.KeepMonitorsByMonitor(devices);
+            if (!both.MonitorsKeptByMonitor || both.EdgeFor(@"\\.\DISPLAY1") != BarEdge.Bottom)
             {
                 errors.Add("Monitor settings: a monitor's own entry was not kept over the display's");
             }
             steps.Add("a monitor's own entry wins over its display's");
+
+            // Nothing to move, as with the defaults used when the file could not be read: nothing asks to be saved,
+            // so the file is not written over.
+            var defaults = new TaskbarSettings();
+            MonitorIds.UseForTest(On(a, b, c));
+            if (defaults.KeepMonitorsByMonitor(devices) || !defaults.MonitorsKeptByMonitor)
+            {
+                errors.Add("Monitor settings: with nothing to move, the settings still asked to be saved");
+            }
+            steps.Add("with nothing to move, nothing is saved");
 
             // An entry kept by number for a monitor not connected at the move is given to no other monitor: not to
             // one that comes in on its number, and not to one whose own entry was tidied away.
