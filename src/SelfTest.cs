@@ -163,6 +163,16 @@ internal static partial class SelfTest
                 errors.Add("Taskbar edges: " + ex);
             }
 
+            // The bars' room on the desktop after the displays change, on made-up bars: nothing is docked.
+            try
+            {
+                report["roomWatch"] = CheckRoomWatch(errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Room watch: " + ex);
+            }
+
             // A window that must stay on screen, as the bars do: tried on a window of the self-test's own.
             try
             {

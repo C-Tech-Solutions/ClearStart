@@ -9,7 +9,7 @@ namespace ClearStart;
 /// One taskbar, docked to one edge of one monitor. Docking, work-area reservation and
 /// full-screen handling come from the base class; this adds the see-through window and our content.
 /// </summary>
-internal sealed class TaskbarWindow : AppBarWindow
+internal sealed class TaskbarWindow : AppBarWindow, IRoomBar
 {
     // Sent to every window when a taskbar starts: by Explorer when it has started again, and by ClearStart itself.
     private static readonly int TaskbarCreatedMessage = (int)Native.RegisterWindowMessage("TaskbarCreated");
@@ -96,18 +96,24 @@ internal sealed class TaskbarWindow : AppBarWindow
         _view.UseMonitor(screen.HMonitor);
     }
 
+    string IRoomBar.Name => TaskbarSettings.MonitorKey(Device);
+
+    // While the user drags the bar's edge it is docked only when they let go, so its room is not looked at then.
+    public bool HasRoom => DeferWorkArea || HasItsRoom();
+
     /// <summary>
     /// Docks the bar again where it is. A monitor that wakes from sleep can come back with all of its area given to
     /// the desktop, so windows go under the bar, and docking the bar at the same place again does not make Windows
     /// work the area out again. When that happened, the bar is docked one pixel thinner for a moment and then at its
-    /// own size: each is a change, so Windows makes room for the bar again. The bar itself does not move.
+    /// own size: each is a change, so Windows makes room for the bar again. The bar itself does not move. Done for
+    /// every bar when the same displays come back, which also docks it at its size for the monitor's scaling now,
+    /// and by <see cref="RoomWatch"/> for a bar without its room, which says in the log how it went.
     /// </summary>
-    /// <returns>True if the bar had lost its room on the desktop and was given it back.</returns>
-    public bool Redock()
+    public void Redock()
     {
-        if (DeferWorkArea) return false;
+        if (DeferWorkArea) return;
         UpdatePosition();
-        if (HasItsRoom() || !Native.GetWindowRect(Handle, out var rect)) return false;
+        if (HasItsRoom() || !Native.GetWindowRect(Handle, out var rect)) return;
 
         switch (AppBarEdge)
         {
@@ -126,9 +132,6 @@ internal sealed class TaskbarWindow : AppBarWindow
         }
         Native.SetAppBarPosition(Handle, (uint)AppBarEdge, rect);
         UpdatePosition();
-        Log.Info($"Taskbar on {TaskbarSettings.MonitorKey(Device)} had lost its room on the desktop; docked it again, " +
-            (HasItsRoom() ? "and it has its room back" : "but it has no room yet"));
-        return true;
     }
 
     /// <summary>
@@ -148,6 +151,8 @@ internal sealed class TaskbarWindow : AppBarWindow
     protected override IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (msg == TaskbarCreatedMessage) _host.OnTaskbarCreated();
+        // Windows changed the area a monitor leaves to the desktop, and a bar may have lost its room with it.
+        if (msg == 0x001A /* WM_SETTINGCHANGE */ && wParam == (IntPtr)0x002F /* SPI_SETWORKAREA */) _host.OnWorkAreaChanged();
         // A bar is never minimized on purpose. While another program has it minimized, the docking code in the base
         // class is kept away from it; it sees the bar again when the bar is back.
         if (_stayOnScreen.Filter(hwnd, msg, wParam, ref handled)) return IntPtr.Zero;
@@ -156,10 +161,11 @@ internal sealed class TaskbarWindow : AppBarWindow
 
     /// <summary>
     /// Whether the desktop leaves the bar's strip to it, so maximized windows stop beside the bar. True when it
-    /// cannot be told.
+    /// cannot be told, as while another program has the bar minimized for a moment.
     /// </summary>
     private bool HasItsRoom()
     {
+        if (Native.IsIconic(Handle)) return true;
         IntPtr monitor = Native.MonitorFromWindow(Handle, 2 /* MONITOR_DEFAULTTONEAREST */);
         if (!Native.GetWindowRect(Handle, out var bar) || !Native.TryGetMonitor(monitor, out _, out var work)) return true;
         return AppBarEdge switch
