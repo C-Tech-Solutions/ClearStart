@@ -63,6 +63,8 @@ internal sealed class ShellHost : IDisposable
     private readonly DispatcherTimer _wakeTimer;
     // A look at Explorer's taskbar after it announced itself (see OnTaskbarCreated).
     private readonly DispatcherTimer _explorerTimer;
+    // Keeps the bars' room on the desktop for a while after each change to the displays (see RoomWatch).
+    private readonly RoomWatch _roomWatch;
     // Explorer's main taskbar window the bars are docked through. Explorer forgets the bars when it starts again.
     private IntPtr _explorerTaskbar;
     // The Explorer that shows the Windows taskbar, watched so that ClearStart's tray steps back the moment it closes.
@@ -171,6 +173,7 @@ internal sealed class ShellHost : IDisposable
             // Through the usual wait, so a monitor that is still waking is not taken for a new layout.
             QueueScreenCheck();
         };
+        _roomWatch = new RoomWatch(() => _bars, _dispatcher);
         _explorerTimer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
         {
             Interval = TimeSpan.FromSeconds(1),
@@ -514,6 +517,7 @@ internal sealed class ShellHost : IDisposable
             {
                 bar.DockAgain();
             }
+            _roomWatch.Watch(lookNow: false);
         }));
     }
 
@@ -782,6 +786,19 @@ internal sealed class ShellHost : IDisposable
     private void OnDisplaySettingsChanged(object? sender, EventArgs e) => _dispatcher.InvokeAsync(QueueScreenCheck);
 
     /// <summary>
+    /// Windows changed the area a monitor leaves to the desktop (a bar saw the announcement). Looked at once the bar
+    /// has answered it: Explorer can be the one announcing, and docking a bar asks Explorer.
+    /// </summary>
+    public void OnWorkAreaChanged()
+    {
+        if (_disposed || !_started) return;
+        _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            if (!_disposed) _roomWatch.WorkAreaChanged();
+        }));
+    }
+
+    /// <summary>
     /// A "taskbar created" announcement reached a bar. Explorer sends it when it has started again, and then knows
     /// nothing of the bars the old Explorer made room for: windows go under them until they are docked again.
     /// ClearStart and its tray send the same announcement, so this only looks, once they stop coming, whether
@@ -808,6 +825,7 @@ internal sealed class ShellHost : IDisposable
             {
                 bar.DockAgain();
             }
+            _roomWatch.Watch(lookNow: false);
             // The new Explorer answers where the windows' buttons are, for its own hidden taskbar: ClearStart's
             // answer goes behind it again.
             _minimizeTarget?.AnswerLast();
@@ -871,10 +889,7 @@ internal sealed class ShellHost : IDisposable
                     _wakeTimer.Stop();
                     _wakeTimer.Start();
                 }
-                foreach (var bar in _bars)
-                {
-                    bar.Redock();
-                }
+                _roomWatch.Watch(lookNow: true);
             }
         }
         catch (Exception ex)
@@ -1175,6 +1190,9 @@ internal sealed class ShellHost : IDisposable
         }
         if (_bars.Count > 0)
         {
+            // New bars are docked as they open, but on monitors that have just come back Windows can still give their
+            // area to the desktop afterwards.
+            _roomWatch.Watch(lookNow: false);
             if (!HasRenderedBars) WatchFirstFrame();
             // A display can wake after the initial build failed. Every successful retry gets this check;
             // EarlySession only signals once, after the queued render work has completed.
@@ -1756,6 +1774,7 @@ internal sealed class ShellHost : IDisposable
         {
             _screenTimer.Stop();
             _wakeTimer.Stop();
+            _roomWatch.Stop();
             _explorerTimer.Stop();
             _trayTimer.Stop();
             _menuAfterSettings?.Stop();

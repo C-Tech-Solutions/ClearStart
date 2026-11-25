@@ -28,6 +28,12 @@ what has not, and what is missing.
 
 ## Known problems in 0.12.0
 
+- **After a monitor is turned off and on, maximized windows can go under the side bars.** On one
+  PC with four monitors, the bars came back, but on the two monitors with a bar on the left or
+  right edge, maximized windows went under the bar instead of stopping beside it. The main
+  monitor, with its bar on the top, was fine. Windows had given those monitors' whole area back
+  to the desktop while Explorer was still setting up its own taskbars there, and ClearStart did
+  not look again afterwards. A fix is in the code, not released or run on a real desktop yet.
 - **After a restart, the Windows taskbar can show for a moment, and the bars can take a while.**
   On one restart with Start with Windows, ClearStart's program waited about ten seconds before it
   began, while Windows' virus scanner started, and the Windows taskbar showed a few times before
@@ -135,8 +141,9 @@ These are in the code, and build, but have not been run on a real desktop yet:
   monitors. Settings kept by number move, once, to the monitors on those numbers the first time
   ClearStart runs with this; a monitor not connected then starts with the general settings. The
   self-test numbers made-up monitors again and checks that each keeps its settings,
-  and that every display on the test PC has a monitor name. Windows has not numbered the displays
-  again on a running ClearStart with it yet. A monitor moved to another connector or graphics card
+  and that every display on the test PC has a monitor name. On one PC with 0.12.0, Windows had
+  numbered the displays again by a sign-in, and each bar came up on its own monitor. Windows has
+  not numbered the displays again on a running ClearStart with it yet. A monitor moved to another connector or graphics card
   is taken for a new one.
 - **A see-through Windows taskbar while it is hidden:** run on the laptop, on one screen, with
   early startup's loader not in charge. The hidden Windows taskbar was see-through. Another
@@ -202,8 +209,14 @@ These are in the code, and build, but have not been run on a real desktop yet:
   windows are before it says so, and it looks again when the taskbar leaves the bottom while it
   runs. This has been checked on test values only: neither the move without a restart nor a
   sign-in through the loader has been run on a real desktop with it yet.
-- **Monitors that wake from sleep:** each bar takes its monitor's new handle, and docks again if
-  the monitor gave its strip back to the desktop.
+- **Bars keep their room on the desktop after the displays change:** after monitors come back,
+  from being turned off or from sleep, and after the bars open again for a new layout, ClearStart
+  looks at each bar every two seconds for half a minute. A bar whose strip the desktop has taken
+  back is docked again each time, and docked anew through Explorer if that has not helped after
+  ten seconds; the log says when a bar had no room and when it got it back. Windows saying that a
+  monitor's area changed starts the watch again. Monitors that wake also give each bar their new
+  handle. The self-test runs the watch on made-up bars; it has not been run with real monitors
+  turned off and on yet.
 - **Startup migration and the startup switch** are serialized, including commands from Setup.
   The switch also recognizes an enabled Run-key fallback when an older task remains.
 - **Uninstall stops if startup cleanup fails,** keeping the app files available for a retry.
