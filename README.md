@@ -33,7 +33,11 @@ its failure recovery still needs desktop testing.
 > Windows taskbar and hides nothing, and **live mode**, where ClearStart takes the Windows
 > taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
-Version 0.11.0 keeps the Windows taskbar [see-through](docs/taskbar.md#moving-and-resizing) while
+Version 0.12.0 keeps each monitor's taskbar settings (edge, size, Start button, pins, a hidden bar)
+[with the monitor itself](docs/settings-file.md#per-monitor-settings), so they stay with it when
+Windows numbers the screens another way, as it can after a monitor is turned off and on again.
+The self-test checks that on made-up monitors; Windows has not numbered the screens again under a
+running ClearStart with it yet. Version 0.11.0 keeps the Windows taskbar [see-through](docs/taskbar.md#moving-and-resizing) while
 ClearStart hides it, so that it draws nothing if Windows shows it for a moment, as it can when the
 monitors wake after an update. That has been run on one laptop with one screen, not yet at a real
 wake. You can [drag pinned apps](docs/taskbar.md#pinned-apps-bar-by-bar) along the bar
