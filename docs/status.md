@@ -128,6 +128,16 @@ one by clicking it on a real desktop:
 
 These are in the code, and build, but have not been run on a real desktop yet:
 
+- **Monitors keep their settings when Windows numbers them again:** each monitor's edge, size,
+  Start button, pins and hidden bar are kept with the monitor itself, by its model and the
+  connector it is on, not by the display number Windows gives it. Windows can number the displays
+  another way after a monitor is turned off and on again, and the settings then went to the wrong
+  monitors. Settings kept by number move, once, to the monitors on those numbers the first time
+  ClearStart runs with this; a monitor not connected then starts with the general settings. The
+  self-test numbers made-up monitors again and checks that each keeps its settings,
+  and that every display on the test PC has a monitor name. Windows has not numbered the displays
+  again on a running ClearStart with it yet. A monitor moved to another connector or graphics card
+  is taken for a new one.
 - **A see-through Windows taskbar while it is hidden:** run on the laptop, on one screen, with
   early startup's loader not in charge. The hidden Windows taskbar was see-through. Another
   program showed it six times; ClearStart hid it again each time, and it was see-through every
@@ -213,7 +223,5 @@ These are in the code, and build, but have not been run on a real desktop yet:
   again.
 - **Web apps group with their browser.** Pinned apps are matched to their windows by program file,
   so apps installed from a browser share the browser's button.
-- **Monitors are told apart by display name,** which Windows can reassign when displays are
-  plugged in again.
 - **Places have built-in icons only.** An entry in the list of places has one of the built-in
   icons, not the icon of the program or folder it opens.

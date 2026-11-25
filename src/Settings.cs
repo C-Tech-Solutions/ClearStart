@@ -225,8 +225,19 @@ public sealed class TaskbarSettings
     /// <summary>One button per app, with all of its windows behind it, instead of one button per window.</summary>
     public bool CombineWindows { get; set; } = true;
 
-    /// <summary>Per-monitor differences, keyed by the monitor's name ("DISPLAY1", "DISPLAY2", ...).</summary>
+    /// <summary>
+    /// Per-monitor differences, keyed by the monitor itself (its model and connector, such as
+    /// "ABC1234#5&amp;1a2b3c4d&amp;0&amp;UID4352"; see MonitorIds), so they stay with it when Windows numbers the
+    /// displays another way. A display Windows gives no such name is keyed by its number ("DISPLAY1", ...), as
+    /// every entry was until <see cref="MonitorsKeptByMonitor"/>.
+    /// </summary>
     public Dictionary<string, MonitorSettings> Monitors { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// True once the entries in <see cref="Monitors"/> are kept by monitor. Older versions kept them by display
+    /// number and left this out: until it is set, they are read that way. See <see cref="KeepMonitorsByMonitor"/>.
+    /// </summary>
+    public bool MonitorsKeptByMonitor { get; set; }
 
     public Appearance Appearance { get; set; } = Appearance.Clear;
 
@@ -311,19 +322,49 @@ public sealed class TaskbarSettings
     /// <summary>"\\.\DISPLAY1" as Windows names it becomes "DISPLAY1", which is easier to read and type.</summary>
     public static string MonitorKey(string? deviceName) => (deviceName ?? "").TrimStart('\\', '.');
 
+    /// <summary>
+    /// The key of a display's entry: the monitor's name once entries are kept by monitor, else the display's
+    /// number.
+    /// </summary>
+    private string KeyFor(string? deviceName) =>
+        (MonitorsKeptByMonitor ? MonitorIds.For(deviceName) : null) ?? MonitorKey(deviceName);
+
+    /// <summary>What the settings say about the monitor on a display.</summary>
     public MonitorSettings? ForMonitor(string? deviceName) =>
-        Monitors.TryGetValue(MonitorKey(deviceName), out var monitor) ? monitor : null;
+        Monitors.TryGetValue(KeyFor(deviceName), out var monitor) ? monitor : null;
 
     /// <summary>The entry to write a per-monitor choice into, created on first use.</summary>
     public MonitorSettings EnsureMonitor(string? deviceName)
     {
-        string key = MonitorKey(deviceName);
+        string key = KeyFor(deviceName);
         if (!Monitors.TryGetValue(key, out var monitor) || monitor == null)
         {
             monitor = new MonitorSettings();
             Monitors[key] = monitor;
         }
         return monitor;
+    }
+
+    /// <summary>
+    /// Done once: moves each display's entry, kept by number as older versions kept them, to the monitor on that
+    /// display now, and from then on keeps the entries by monitor. It waits while none of the displays given has a
+    /// monitor name. An entry for a display not given, or one with no monitor name, stays under its number, and
+    /// so does one whose monitor has an entry already. True when it was done now: the settings then need saving, so
+    /// that it is not done again.
+    /// </summary>
+    public bool KeepMonitorsByMonitor(IEnumerable<string?> deviceNames)
+    {
+        if (MonitorsKeptByMonitor) return false;
+        var named = deviceNames.Select(device => (Display: MonitorKey(device), Id: MonitorIds.For(device)))
+            .Where(display => display.Id != null).ToList();
+        if (named.Count == 0) return false;
+        foreach (var (display, id) in named)
+        {
+            if (Monitors.ContainsKey(id!) || !Monitors.Remove(display, out var entry) || entry == null) continue;
+            Monitors[id!] = entry;
+        }
+        MonitorsKeptByMonitor = true;
+        return true;
     }
 
     public BarEdge EdgeFor(string? deviceName) => ForMonitor(deviceName)?.Edge ?? Edge;
@@ -630,6 +671,12 @@ public sealed class Settings
 
     public static string FilePath => Path.Combine(Directory, "settings.json");
 
+    /// <summary>
+    /// True while the settings in use are defaults because the file could not be read. Nothing should write them
+    /// over the file unless the user changes a setting: fixing the file must still bring the user's settings back.
+    /// </summary>
+    public static bool ReadFailed { get; private set; }
+
     /// <summary>Loads the settings file, creating it with defaults on first run (unless told not to).</summary>
     public static void Load(bool createIfMissing = true)
     {
@@ -646,11 +693,13 @@ public sealed class Settings
                 Current = new Settings();
                 if (createIfMissing) Save();
             }
+            ReadFailed = false;
         }
         catch (Exception ex)
         {
             Log.Error("Could not read settings; using defaults", ex);
             Current = new Settings();
+            ReadFailed = true;
         }
     }
 
@@ -717,6 +766,7 @@ public sealed class Settings
 
             Current = Parse(text);
             _lastText = text;
+            ReadFailed = false;
             Log.Info("Settings reloaded");
             Changed?.Invoke();
         }
