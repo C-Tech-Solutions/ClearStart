@@ -33,7 +33,10 @@ its failure recovery still needs desktop testing.
 > Windows taskbar and hides nothing, and **live mode**, where ClearStart takes the Windows
 > taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
-Version 0.12.0 keeps each monitor's taskbar settings (edge, size, Start button, pins, a hidden bar)
+Version 0.13.0 keeps the bars' room on the desktop after a monitor is turned off and on or wakes:
+for half a minute it docks again any bar whose strip Windows gave back to the desktop, so maximized
+windows stop beside the bars on every monitor. That has not been run with real monitors turned off and
+on yet. Version 0.12.0 keeps each monitor's taskbar settings (edge, size, Start button, pins, a hidden bar)
 [with the monitor itself](docs/settings-file.md#per-monitor-settings), so they stay with it when
 Windows numbers the screens another way, as it can after a monitor is turned off and on again.
 The self-test checks that on made-up monitors; Windows has not numbered the screens again under a
