@@ -105,8 +105,9 @@ internal sealed class TaskbarWindow : AppBarWindow, IRoomBar
     /// Docks the bar again where it is. A monitor that wakes from sleep can come back with all of its area given to
     /// the desktop, so windows go under the bar, and docking the bar at the same place again does not make Windows
     /// work the area out again. When that happened, the bar is docked one pixel thinner for a moment and then at its
-    /// own size: each is a change, so Windows makes room for the bar again. The bar itself does not move.
-    /// <see cref="RoomWatch"/> calls it, and says in the log how it went.
+    /// own size: each is a change, so Windows makes room for the bar again. The bar itself does not move. Done for
+    /// every bar when the same displays come back, which also docks it at its size for the monitor's scaling now,
+    /// and by <see cref="RoomWatch"/> for a bar without its room, which says in the log how it went.
     /// </summary>
     public void Redock()
     {

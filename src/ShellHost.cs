@@ -517,7 +517,7 @@ internal sealed class ShellHost : IDisposable
             {
                 bar.DockAgain();
             }
-            _roomWatch.Watch(lookNow: false);
+            _roomWatch.Watch();
         }));
     }
 
@@ -825,7 +825,7 @@ internal sealed class ShellHost : IDisposable
             {
                 bar.DockAgain();
             }
-            _roomWatch.Watch(lookNow: false);
+            _roomWatch.Watch();
             // The new Explorer answers where the windows' buttons are, for its own hidden taskbar: ClearStart's
             // answer goes behind it again.
             _minimizeTarget?.AnswerLast();
@@ -889,7 +889,13 @@ internal sealed class ShellHost : IDisposable
                     _wakeTimer.Stop();
                     _wakeTimer.Start();
                 }
-                _roomWatch.Watch(lookNow: true);
+                // Every bar is docked again at once, at its size for the monitor's scaling now, which can have changed
+                // with nothing else; then watched while the monitors settle.
+                foreach (var bar in _bars)
+                {
+                    bar.Redock();
+                }
+                _roomWatch.Watch();
             }
         }
         catch (Exception ex)
@@ -1192,7 +1198,7 @@ internal sealed class ShellHost : IDisposable
         {
             // New bars are docked as they open, but on monitors that have just come back Windows can still give their
             // area to the desktop afterwards.
-            _roomWatch.Watch(lookNow: false);
+            _roomWatch.Watch();
             if (!HasRenderedBars) WatchFirstFrame();
             // A display can wake after the initial build failed. Every successful retry gets this check;
             // EarlySession only signals once, after the queued render work has completed.

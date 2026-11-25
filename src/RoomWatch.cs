@@ -66,15 +66,13 @@ internal sealed class RoomWatch
     public bool GaveUp { get; private set; }
 
     /// <summary>
-    /// The displays changed, or the bars were docked anew: watch them for half a minute from now. A watch that is
-    /// already running starts its half minute again.
+    /// The displays changed, or the bars were docked anew: watch them for half a minute from now, the first look
+    /// in two seconds. A watch that is already running starts its half minute again.
     /// </summary>
-    /// <param name="lookNow">Looks once straight away as well, before the first look the timer takes.</param>
-    public void Watch(bool lookNow)
+    public void Watch()
     {
         GaveUp = false;
         Begin();
-        if (lookNow) Look();
     }
 
     /// <summary>

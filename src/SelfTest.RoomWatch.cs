@@ -36,7 +36,8 @@ internal static partial class SelfTest
         var two = new RoomTrialBar("two");
         var bars = new List<IRoomBar> { one, two };
         var watch = new RoomWatch(() => bars, null);
-        watch.Watch(lookNow: true);
+        watch.Watch();
+        watch.Look();
         if (watch.Running || one.Redocks + two.Redocks + one.DocksAgain + two.DocksAgain != 0)
         {
             errors.Add("Room watch: with every bar in its room, a bar was docked or the watch went on");
@@ -46,7 +47,7 @@ internal static partial class SelfTest
         // A bar that wins its room back on the third redock: only that bar is docked, and the watch stops then.
         two.HasRoom = false;
         two.RoomAtRedock = 3;
-        watch.Watch(lookNow: false);
+        watch.Watch();
         for (int look = 0; look < 3; look++) watch.Look();
         if (watch.Running || two.Redocks != 3 || two.DocksAgain != 0 || one.Redocks != 0 || !two.HasRoom)
         {
@@ -58,7 +59,7 @@ internal static partial class SelfTest
         // A bar that redocking does not help: docked anew through Explorer at its fifth look, which wins it back.
         var three = new RoomTrialBar("three") { HasRoom = false, RoomOnDockAgain = true };
         bars = new List<IRoomBar> { one, three };
-        watch.Watch(lookNow: false);
+        watch.Watch();
         for (int look = 0; look < RoomWatch.DockAnewAt; look++) watch.Look();
         if (watch.Running || three.DocksAgain != 1 || three.Redocks != RoomWatch.DockAnewAt - 1)
         {
@@ -70,7 +71,7 @@ internal static partial class SelfTest
         // A bar that never gets its room: tried for the whole watch, then left until the displays change.
         var four = new RoomTrialBar("four") { HasRoom = false };
         bars = new List<IRoomBar> { one, four };
-        watch.Watch(lookNow: false);
+        watch.Watch();
         for (int look = 0; look < RoomWatch.Looks + 3; look++) watch.Look();
         if (watch.Running || !watch.GaveUp || four.Redocks + four.DocksAgain != RoomWatch.Looks || four.DocksAgain != 1)
         {
@@ -83,7 +84,7 @@ internal static partial class SelfTest
         watch.WorkAreaChanged();
         if (watch.Running) errors.Add("Room watch: a change to a monitor's area started a watch after it gave up");
         // ...but the displays changing does.
-        watch.Watch(lookNow: false);
+        watch.Watch();
         if (!watch.Running || watch.GaveUp) errors.Add("Room watch: a change to the displays did not start a watch after it gave up");
         watch.Stop();
         steps.Add("after giving up, only a change to the displays watches again");
@@ -103,7 +104,8 @@ internal static partial class SelfTest
         // A bar that goes away during a watch, closed for a new layout, is no longer looked for.
         var five = new RoomTrialBar("five") { HasRoom = false };
         bars = new List<IRoomBar> { one, five };
-        watch.Watch(lookNow: true);
+        watch.Watch();
+        watch.Look();
         bars = new List<IRoomBar> { one };
         int redocks = five.Redocks;
         watch.Look();
