@@ -67,11 +67,14 @@ internal static partial class SelfTest
         }
 
         // The watch, on a folder of the self-test's own standing in for a Start menu folder: an install's few
-        // changes in a row bring one look. A folder of its own each run, so the shortcuts are new even in a folder
-        // used before, and nothing that was there is deleted.
+        // changes in a row bring one look, and so does an update that rewrites a shortcut in place. A folder of its
+        // own each run, so the shortcuts are new even in a folder used before, and nothing that was there is deleted.
         string folder = Path.Combine(directory, "app-watch-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
+        string installed = Path.Combine(folder, "Installed program.lnk");
+        File.WriteAllText(installed, "");
         int looks = 0;
+        int rewriteLooks;
         bool storeApps;
         using (var watch = new AppWatch(() => looks++, Dispatcher.CurrentDispatcher, [folder], storeApps: true,
             settle: TimeSpan.FromMilliseconds(500)))
@@ -84,6 +87,13 @@ internal static partial class SelfTest
             for (int wait = 0; wait < 40 && looks == 0; wait++) await Task.Delay(100);
             await Task.Delay(1000);
             if (looks != 1) errors.Add($"App list: a new program's shortcuts brought {looks} looks instead of one");
+
+            // An update rewrites the program's shortcut in place: no file added, removed or renamed.
+            int looksBefore = looks;
+            File.WriteAllText(installed, "updated");
+            for (int wait = 0; wait < 40 && looks == looksBefore; wait++) await Task.Delay(100);
+            rewriteLooks = looks - looksBefore;
+            if (rewriteLooks == 0) errors.Add("App list: a shortcut rewritten in place brought no look");
         }
         Directory.Delete(folder, recursive: true);
         if (!storeApps) errors.Add("App list: Store apps installed or removed cannot be watched for");
@@ -95,6 +105,7 @@ internal static partial class SelfTest
             unreadable = unreadable.Count,
             takenOutAndBack = kinds,
             watchLooks = looks,
+            rewriteLooks,
             storeApps,
         };
     }

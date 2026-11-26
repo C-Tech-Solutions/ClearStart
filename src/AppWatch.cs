@@ -5,9 +5,9 @@ namespace ClearStart;
 
 /// <summary>
 /// Says when apps may have been installed or removed, so the app list can be read again. Windows does not say so
-/// for its apps folder, so this watches what changes when apps come and go: desktop programs add and remove their
-/// shortcuts in the Start menu folders, and Store apps are installed, updated and removed through Windows' list of
-/// app packages.
+/// for its apps folder, so this watches what changes when apps come and go: desktop programs add, rewrite and remove
+/// their shortcuts in the Start menu folders, and Store apps are installed, updated and removed through Windows' list
+/// of app packages.
 ///
 /// An install changes several files in a row, so the look waits until nothing has changed for a few seconds. It is
 /// taken once more half a minute later, as Windows can be slow to add a new shortcut to the apps folder.
@@ -65,11 +65,13 @@ internal sealed class AppWatch : IDisposable
             var watcher = new FileSystemWatcher(folder)
             {
                 IncludeSubdirectories = true,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName,
+                // Written too: an update can rewrite a shortcut in place to point at its new version.
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite,
             };
             watcher.Created += File_Changed;
             watcher.Deleted += File_Changed;
             watcher.Renamed += File_Changed;
+            watcher.Changed += File_Written;
             // Too many changes at once for Windows to list them: something changed all the same.
             watcher.Error += (_, _) => Changed();
             watcher.EnableRaisingEvents = true;
@@ -98,6 +100,14 @@ internal sealed class AppWatch : IDisposable
     }
 
     private void File_Changed(object sender, FileSystemEventArgs e) => Changed();
+
+    private void File_Written(object sender, FileSystemEventArgs e)
+    {
+        // A folder is "written" when something in it is added or removed, which is seen already, and Windows marks
+        // that a few seconds late: only a file written counts.
+        if (Directory.Exists(e.FullPath)) return;
+        Changed();
+    }
 
     private void Package_Installing(PackageCatalog sender, PackageInstallingEventArgs e)
     {
