@@ -67,8 +67,9 @@ internal static partial class SelfTest
         }
 
         // The watch, on a folder of the self-test's own standing in for a Start menu folder: an install's few
-        // changes in a row bring one look.
+        // changes in a row bring one look. Made anew each time, so the shortcuts are new even in a folder used before.
         string folder = Path.Combine(directory, "app-watch");
+        if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
         Directory.CreateDirectory(folder);
         int looks = 0;
         bool storeApps;
@@ -84,6 +85,7 @@ internal static partial class SelfTest
             await Task.Delay(1000);
             if (looks != 1) errors.Add($"App list: a new program's shortcuts brought {looks} looks instead of one");
         }
+        Directory.Delete(folder, recursive: true);
         if (!storeApps) errors.Add("App list: Store apps installed or removed cannot be watched for");
 
         return new

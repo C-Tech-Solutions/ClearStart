@@ -14,10 +14,13 @@ internal sealed class AppCatalog : IDisposable
 {
     /// <summary>
     /// How long after the list is first read the watch for apps installed or removed starts, with a look at the apps
-    /// folder that catches what changed until then. By then Windows has long finished handing the list over, so a
-    /// look never adds an app that the first read is still about to add.
+    /// folder that catches what changed until then. Windows hands the list over in a few seconds; if it is still
+    /// doing so, the watch waits as long again, so that a look never adds an app that the first read then adds too.
     /// </summary>
     internal static readonly TimeSpan WatchAfter = TimeSpan.FromSeconds(30);
+
+    /// <summary>How long the list must not have grown before the watch starts.</summary>
+    internal static readonly TimeSpan QuietFor = TimeSpan.FromSeconds(10);
 
     private readonly ObservableCollection<ShellFile> _empty = new();
     private ShellFolder? _folder;
@@ -25,6 +28,8 @@ internal sealed class AppCatalog : IDisposable
     private AppWatch? _watch;
     private bool _looking;
     private bool _lookAgain;
+    // When an app was last added to the list (Environment.TickCount64).
+    private long _grewAt;
 
     private ObservableCollection<ShellFile>? _only;
 
@@ -69,6 +74,8 @@ internal sealed class AppCatalog : IDisposable
         _watchSoon = new DispatcherTimer(DispatcherPriority.Background) { Interval = WatchAfter };
         _watchSoon.Tick += (_, _) =>
         {
+            // Still filling: try again next time.
+            if (Environment.TickCount64 - _grewAt < QuietFor.TotalMilliseconds) return;
             _watchSoon?.Stop();
             _watchSoon = null;
             Ui.Safe(StartWatching, "Watching for apps installed or removed");
@@ -84,9 +91,10 @@ internal sealed class AppCatalog : IDisposable
         _ = LookAsync();
     }
 
-    private static void Apps_Changed(object? sender, NotifyCollectionChangedEventArgs e)
+    private void Apps_Changed(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (e.NewItems == null) return;
+        _grewAt = Environment.TickCount64;
         foreach (var added in e.NewItems)
         {
             if (added is ShellFile app) _ = app.LargeIcon;
@@ -225,7 +233,7 @@ internal sealed class AppCatalog : IDisposable
             files.Add(app);
         }
 
-        if (added.Count > 0) Log.Info($"Apps installed: {string.Join(", ", added)}");
+        if (added.Count > 0) Log.Info($"Apps added to the list: {string.Join(", ", added)}");
         if (removed.Count > 0) Log.Info($"Apps taken out of the list: {string.Join(", ", removed)}");
         return (added, removed);
     }
