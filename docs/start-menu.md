@@ -18,7 +18,7 @@ It has four parts:
 | Part | What it is |
 | --- | --- |
 | **Search box** | Across the top. The cursor is already in it when the menu opens. |
-| **All apps** | Every app on the PC, in a list. |
+| **All apps** | Every app on the PC, in a list. It keeps up as apps are installed and removed. |
 | **Pinned** | Your pinned apps, as tiles. |
 | **Places** | A column with your name at the top, a list of places you choose, and the settings and power buttons at the bottom. |
 

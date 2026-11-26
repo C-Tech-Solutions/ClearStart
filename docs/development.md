@@ -106,7 +106,9 @@ lines says how long it was since ClearStart started and since you signed in.
    `First frame of the bars is being drawn` and `Taskbars on screen`.
 5. **The rest follows:** network discovery, the tray, the weather and the update check, and once the bars are idle
    the list of apps for the start menu (`App list read`). Opening the start menu before then reads
-   it on the spot.
+   it on the spot. Half a minute later ClearStart starts watching for apps installed or removed
+   (`Watching 2 Start menu folders and Store apps for apps installed or removed`), and the log
+   names each app it adds to the list or takes out.
 
 Start-menu pins are loaded on first access, including opening the menu or editing its pins.
 Startup prefetches only taskbar-sized pin images. Which app each taskbar pin starts is read from

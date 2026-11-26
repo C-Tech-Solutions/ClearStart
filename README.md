@@ -33,6 +33,9 @@ its failure recovery still needs desktop testing.
 > Windows taskbar and hides nothing, and **live mode**, where ClearStart takes the Windows
 > taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
+Version 0.14.0 keeps the start menu's list of apps current: an app installed or removed while
+ClearStart runs now comes into the list and its search, or leaves them, without restarting
+ClearStart. The self-test checks it; a real install has not been run with it yet.
 Version 0.13.0 keeps the bars' room on the desktop after a monitor is turned off and on or wakes:
 for half a minute it docks again any bar whose strip Windows gave back to the desktop, so maximized
 windows stop beside the bars on every monitor. On one PC with four monitors, after they were turned off

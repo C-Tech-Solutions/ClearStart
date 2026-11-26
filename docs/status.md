@@ -2,14 +2,14 @@
 
 [← Back to the README](../README.md)
 
-ClearStart is at version 0.13.0 and is an early preview. This page says plainly what has been run,
+ClearStart is at version 0.14.0 and is an early preview. This page says plainly what has been run,
 what has not, and what is missing.
 
 - [What has been run](#what-has-been-run)
-- [Known problems in 0.13.0](#known-problems-in-0130)
+- [Known problems in 0.14.0](#known-problems-in-0140)
 - [What has not been run](#what-has-not-been-run)
 - [Not confirmed by hand yet](#not-confirmed-by-hand-yet)
-- [In 0.13.0, not run yet](#in-0130-not-run-yet)
+- [In 0.14.0, not run yet](#in-0140-not-run-yet)
 - [Not there yet](#not-there-yet)
 
 ## What has been run
@@ -18,7 +18,7 @@ what has not, and what is missing.
 | --- | --- |
 | **Preview mode** | Run on one desktop: Windows 11 25H2, four monitors at 100% scaling. |
 | **Live mode** | Run on that desktop in the Windows taskbar's place, with a bar on each of the four monitors: hiding the Windows taskbar and putting it back on exit, your apps' tray icons on the bars, the hidden ones behind the arrow, dragging icons on and off the bar, and the Cast button. Win+arrow window snapping, and the Windows key raising the bars with the start menu over a fullscreen app, were checked by hand after signing in. Also run on a second PC, a laptop with one screen. |
-| **Start with Windows** | The sign-in task has started ClearStart on that desktop after signing out and in again, and after a restart (see [Known problems](#known-problems-in-0130)). The tray, the weather and the list of apps started after the bars were on screen. |
+| **Start with Windows** | The sign-in task has started ClearStart on that desktop after signing out and in again, and after a restart (see [Known problems](#known-problems-in-0140)). The tray, the weather and the list of apps started after the bars were on screen. |
 | **Minimizing towards the bar** | On that desktop, with bars on the top, left and right edges of three monitors, windows shrank into their button on ClearStart's bar and grew back out of it, also after a bar was moved to another edge. ClearStart had started after Explorer there. Its log showed that Windows had Explorer's answer first and used ClearStart's, which came after it. |
 | **Bars that another program minimizes** | On that desktop, with bars on the top, left and right edges of three monitors, another program minimized each bar, one at a time and all three at once. Each bar was back within a fiftieth of a second, in the same place and on top, the room it keeps on the desktop did not change, and the app in front kept the keyboard. The log had a line for each. A bar that was asked to minimize, as a title bar's button asks, stayed where it was. Win+M and Win+D left the bars alone. |
 | **A taskbar on another edge** | On the laptop, a Windows taskbar on the top edge was moved to the bottom while ClearStart ran and put back on the top when it closed, including when Explorer did not close when asked and was ended and started again. |
@@ -26,7 +26,7 @@ what has not, and what is missing.
 | **The installer** | A build from before the updater was added was signed and run on that desktop without its pages on screen: installing, installing again over a running copy, adding Start with Windows, and uninstalling. The installed copy passed the self-test. An unsigned build of the 0.3.0 code was installed over a running copy the same way, with Start with Windows, and started ClearStart again. |
 | **The release** | The [0.2.0 release](https://github.com/C-Tech-Solutions/ClearStart/releases/tag/v0.2.0)'s installer was built from the tagged commit and signed. After it was published, its signature, its version and its SHA-256 were checked against the checksum file and GitHub's own record. The program in it passes the self-test, and GitHub's answer about the latest release passes every check the updater makes. It has been downloaded from the release, installed and run on that desktop. |
 
-## Known problems in 0.13.0
+## Known problems in 0.14.0
 
 - **After a monitor is turned off and on, maximized windows can go under the side bars.** On one
   PC with four monitors and 0.12.0, the bars came back, but on the two monitors with a bar on the
@@ -36,7 +36,7 @@ what has not, and what is missing.
   not look again afterwards. From 0.13.0 ClearStart keeps docking the bars again for half a
   minute after the displays change. On that PC with 0.13.0, the monitors were turned off and on
   again: one bar came back without its room, and ClearStart had won it back three seconds later.
-  A wake from sleep has [not been run with it yet](#in-0130-not-run-yet).
+  A wake from sleep has [not been run with it yet](#in-0140-not-run-yet).
 - **After a restart, the Windows taskbar can show for a moment, and the bars can take a while.**
   On one restart with Start with Windows, ClearStart's program waited about ten seconds before it
   began, while Windows' virus scanner started, and the Windows taskbar showed a few times before
@@ -49,7 +49,7 @@ what has not, and what is missing.
   monitors and 0.10.0 it flashed when the monitors woke, days after the last sign-in. Signing out
   and in brings the protection back. From 0.11.0 ClearStart also keeps the hidden taskbar
   see-through, so that it draws nothing in that moment; that has
-  [not been run at a real wake](#in-0130-not-run-yet).
+  [not been run at a real wake](#in-0140-not-run-yet).
 - **The bars wait for a newly started Explorer.** At sign-in, ClearStart gives Explorer three
   seconds before its own tray starts beside it; one that is crowded sooner stops snapping windows
   with Win+arrow. That adds up to three seconds before the bars are on screen.
@@ -133,11 +133,20 @@ one by clicking it on a real desktop:
 - how Windows shows the app icon on the program file and in Alt+Tab;
 - the installer's **Start ClearStart now** at the end, which starts live mode.
 
-## In 0.13.0, not run yet
+## In 0.14.0, not run yet
 
 These are in the code, and build, but have not been run on a real desktop yet, or only in part,
 as each one says:
 
+- **Apps installed or removed while ClearStart runs:** the start menu's list of apps, and its
+  search, keep up with them. Up to 0.13.0 the list was read once, when ClearStart started, so an
+  app installed afterwards could not be found until ClearStart started again. ClearStart now
+  watches the Start menu folders, where programs add, rewrite and remove their shortcuts, and
+  Windows' list of Store apps. A few seconds after a change it reads Windows' apps folder again,
+  and once more half a minute later, and adds and takes out the apps that came and went; the log
+  names them. The self-test reads the folder again and checks that nothing changes, takes a Store
+  app and a program out of its own list and puts them back, and runs the watch on a folder of its
+  own. No app has been installed or removed on a running ClearStart with it yet.
 - **Monitors keep their settings when Windows numbers them again:** each monitor's edge, size,
   Start button, pins and hidden bar are kept with the monitor itself, by its model and the
   connector it is on, not by the display number Windows gives it. Windows can number the displays
