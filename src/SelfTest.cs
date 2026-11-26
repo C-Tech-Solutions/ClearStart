@@ -184,6 +184,17 @@ internal static partial class SelfTest
                 errors.Add("App list: " + ex);
             }
 
+            // Windows' quick settings moved next to the bar whose button was clicked: worked out for made-up screens, and
+            // tried on a window of the self-test's own that draws nothing. The panel is not opened.
+            try
+            {
+                report["quickSettings"] = await CheckQuickSettingsAsync(errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Quick settings: " + ex);
+            }
+
             // A window that must stay on screen, as the bars do: tried on a window of the self-test's own.
             try
             {

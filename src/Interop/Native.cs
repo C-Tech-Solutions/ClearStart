@@ -293,7 +293,7 @@ internal static class Native
     [DllImport("user32.dll")]
     private static extern bool AttachThreadInput(uint attach, uint attachTo, bool doAttach);
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", SetLastError = true)]
     internal static extern bool SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
 
     [DllImport("user32.dll")]

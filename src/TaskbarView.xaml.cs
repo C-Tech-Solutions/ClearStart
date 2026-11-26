@@ -1059,7 +1059,15 @@ public partial class TaskbarView : UserControl
         QuickButton.ToolTip = state.Description + "\nClick for quick settings, right-click for sound or network options";
     }
 
-    private void Quick_Click(object sender, RoutedEventArgs e) => Ui.Safe(ShellHelper.ShowActionCenter, "Quick settings");
+    private void Quick_Click(object sender, RoutedEventArgs e) => Ui.Safe(() =>
+    {
+        // Windows opens the panel on the main screen whichever bar asks for it: it is moved next to this bar.
+        if (PresentationSource.FromVisual(this) is HwndSource source)
+        {
+            QuickSettingsPlacer.Expect(Native.MonitorFromWindow(source.Handle, 2 /* MONITOR_DEFAULTTONEAREST */), _edge);
+        }
+        ShellHelper.ShowActionCenter();
+    }, "Quick settings");
 
     private void Quick_RightClick(object sender, MouseButtonEventArgs e)
     {
