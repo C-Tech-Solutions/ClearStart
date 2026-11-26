@@ -195,6 +195,17 @@ internal static partial class SelfTest
                 errors.Add("Quick settings: " + ex);
             }
 
+            // Windows' battery icon, which ClearStart answers itself: the tip's and panel's words for made-up batteries,
+            // pictures of the panel, and this PC's own batteries read.
+            try
+            {
+                report["battery"] = await CheckBatteryAsync(directory, errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Battery: " + ex);
+            }
+
             // A window that must stay on screen, as the bars do: tried on a window of the self-test's own.
             try
             {

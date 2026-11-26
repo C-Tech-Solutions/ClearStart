@@ -1,8 +1,10 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Threading;
+using ManagedShell.AppBar;
 
 namespace ClearStart;
 
@@ -86,6 +88,54 @@ internal static class Ui
         {
             Log.Error(what + " failed", ex);
         }
+    }
+
+    /// <summary>
+    /// Puts a panel that opens from something on a bar (the weather, the battery) beside it, on the side away from
+    /// the edge of the screen the bar is on, a little apart from the bar.
+    /// </summary>
+    public static void PlaceAgainstBar(Popup popup, AppBarEdge edge)
+    {
+        const double gap = 8;
+        switch (edge)
+        {
+            case AppBarEdge.Top:
+                popup.Placement = PlacementMode.Bottom;
+                popup.VerticalOffset = gap;
+                break;
+            case AppBarEdge.Left:
+                popup.Placement = PlacementMode.Right;
+                popup.HorizontalOffset = gap;
+                break;
+            case AppBarEdge.Right:
+                popup.Placement = PlacementMode.Left;
+                popup.HorizontalOffset = -gap;
+                break;
+            default:
+                popup.Placement = PlacementMode.Top;
+                popup.VerticalOffset = -gap;
+                break;
+        }
+    }
+
+    /// <summary>The rounded, framed background of such a panel, around its contents.</summary>
+    public static Border FlyoutPanel(UIElement content)
+    {
+        var panel = new Border
+        {
+            Background = (Brush)Application.Current.FindResource("MenuBackgroundBrush"),
+            BorderBrush = (Brush)Application.Current.FindResource("MenuBorderBrush"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(16, 14, 16, 12),
+            Child = content,
+            SnapsToDevicePixels = true,
+        };
+        // A popup made in code is not inside any window, so nothing is inherited: say it all here.
+        TextElement.SetForeground(panel, Brushes.White);
+        TextElement.SetFontFamily(panel, (FontFamily)Application.Current.FindResource("UiFont"));
+        TextElement.SetFontSize(panel, 13);
+        return panel;
     }
 
     /// <summary>Opens a context menu at the mouse position. An entry with a null header is a separator.</summary>

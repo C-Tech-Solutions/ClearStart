@@ -244,6 +244,7 @@ public partial class TaskbarView : UserControl
         _host.Weather.Changed -= RefreshWeather;
         _host.HidePreview();
         WeatherFlyout.Close();
+        BatteryFlyout.Close();
         TrayOverflowWindow.CloseFor(OverflowButton);
         _springOpen.Stop();
         _clock.Stop();

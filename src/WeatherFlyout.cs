@@ -28,7 +28,6 @@ internal static class WeatherFlyout
             return;
         }
 
-        const double gap = 8;
         var popup = new Popup
         {
             Child = Build(report, problem),
@@ -37,25 +36,7 @@ internal static class WeatherFlyout
             StaysOpen = false,
             PopupAnimation = PopupAnimation.Fade,
         };
-        switch (edge)
-        {
-            case AppBarEdge.Top:
-                popup.Placement = PlacementMode.Bottom;
-                popup.VerticalOffset = gap;
-                break;
-            case AppBarEdge.Left:
-                popup.Placement = PlacementMode.Right;
-                popup.HorizontalOffset = gap;
-                break;
-            case AppBarEdge.Right:
-                popup.Placement = PlacementMode.Left;
-                popup.HorizontalOffset = -gap;
-                break;
-            default:
-                popup.Placement = PlacementMode.Top;
-                popup.VerticalOffset = -gap;
-                break;
-        }
+        Ui.PlaceAgainstBar(popup, edge);
 
         popup.Closed += (_, _) =>
         {
@@ -157,21 +138,7 @@ internal static class WeatherFlyout
         footer.Margin = new Thickness(0, 10, 0, 0);
         column.Children.Add(footer);
 
-        var panel = new Border
-        {
-            Background = (Brush)Application.Current.FindResource("MenuBackgroundBrush"),
-            BorderBrush = (Brush)Application.Current.FindResource("MenuBorderBrush"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(16, 14, 16, 12),
-            Child = column,
-            SnapsToDevicePixels = true,
-        };
-        // A popup made in code is not inside any window, so nothing is inherited: say it all here.
-        TextElement.SetForeground(panel, Brushes.White);
-        TextElement.SetFontFamily(panel, (FontFamily)Application.Current.FindResource("UiFont"));
-        TextElement.SetFontSize(panel, 13);
-        return panel;
+        return Ui.FlyoutPanel(column);
     }
 
     private static TextBlock Text(string text, double size, FontWeight? weight = null, double opacity = 1) => new()

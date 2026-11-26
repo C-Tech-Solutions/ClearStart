@@ -1,8 +1,10 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using ManagedShell.AppBar;
 using ManagedShell.Common.Helpers;
 using ManagedShell.Interop;
 using ManagedShell.WindowsTray;
@@ -14,6 +16,10 @@ namespace ClearStart;
 /// that owns the icon. A left press is held back until it is clear what it is: let go on the icon and the
 /// app gets the click; move away with the button down and the icon is being dragged instead, onto the bar
 /// to keep it there or onto the arrow to hide it.
+///
+/// Windows' battery icon is the exception. Explorer still puts it in the tray, but on Windows 11 it no longer
+/// answers it: no tip, and a click only shows the busy pointer. ClearStart answers it itself, with its own tip,
+/// panel and menu.
 /// </summary>
 internal static class TrayIconInput
 {
@@ -34,11 +40,23 @@ internal static class TrayIconInput
     public static NotifyIcon? DraggedIcon(DragEventArgs e) =>
         Dragging != null && e.Data.GetDataPresent(DragFormat) ? Dragging : null;
 
+    private static readonly Guid BatteryIcon = new(TaskbarSettings.BatteryTrayIcon);
+
     private static int DoubleClickTime => (int)Native.GetDoubleClickTime();
+
+    private static bool IsBattery(NotifyIcon icon) => icon.GUID == BatteryIcon;
 
     public static void Enter(object sender)
     {
         if (sender is not FrameworkElement element || element.DataContext is not NotifyIcon icon || Dragging != null) return;
+        if (IsBattery(icon))
+        {
+            // Read as the mouse arrives, so the tip is current when it shows. Set without undoing the tip's binding to
+            // the icon's own text, which is back for any other icon this place on the bar shows later.
+            Ui.Safe(() => element.SetCurrentValue(FrameworkElement.ToolTipProperty, Batteries.Tip(Batteries.Read())),
+                "Battery tip");
+            return;
+        }
         Ui.Safe(() =>
         {
             // Apps ask where their icon is (to place flyouts); tell the tray service.
@@ -57,7 +75,7 @@ internal static class TrayIconInput
 
     public static void Leave(object sender)
     {
-        if ((sender as FrameworkElement)?.DataContext is NotifyIcon icon && Dragging == null)
+        if ((sender as FrameworkElement)?.DataContext is NotifyIcon icon && Dragging == null && !IsBattery(icon))
         {
             Ui.Safe(() => icon.IconMouseLeave(MouseHelper.GetCursorPositionParam()), "Tray icon hover");
         }
@@ -81,7 +99,10 @@ internal static class TrayIconInput
             return;
         }
 
-        if (Dragging == null) Ui.Safe(() => icon.IconMouseMove(MouseHelper.GetCursorPositionParam()), "Tray icon hover");
+        if (Dragging == null && !IsBattery(icon))
+        {
+            Ui.Safe(() => icon.IconMouseMove(MouseHelper.GetCursorPositionParam()), "Tray icon hover");
+        }
     }
 
     public static void Down(object sender, MouseButtonEventArgs e)
@@ -98,6 +119,7 @@ internal static class TrayIconInput
             return;
         }
 
+        if (IsBattery(icon)) return;
         Ui.Safe(() => icon.IconMouseDown(e.ChangedButton, MouseHelper.GetCursorPositionParam(), DoubleClickTime),
             "Tray icon click");
     }
@@ -109,6 +131,15 @@ internal static class TrayIconInput
 
         if (e.ChangedButton != MouseButton.Left)
         {
+            if (IsBattery(icon))
+            {
+                if (e.ChangedButton == MouseButton.Right)
+                {
+                    BatteryFlyout.Close();
+                    Ui.Safe(() => Ui.ShowMenu(element, PlacementMode.MousePoint, TrayMenus.Battery()), "Battery menu");
+                }
+                return;
+            }
             Ui.Safe(() => icon.IconMouseUp(e.ChangedButton, MouseHelper.GetCursorPositionParam(), DoubleClickTime),
                 "Tray icon click");
             return;
@@ -122,6 +153,12 @@ internal static class TrayIconInput
         var at = e.GetPosition(element);
         if (at.X < 0 || at.Y < 0 || at.X > element.ActualWidth || at.Y > element.ActualHeight) return;
 
+        if (IsBattery(icon))
+        {
+            BatteryFlyout.Toggle(element, EdgeOf(element));
+            return;
+        }
+
         // The press the app was not told about, and then the release. A second click soon after the first
         // still reaches it as a double click: the tray service times the clicks itself.
         uint mouse = MouseHelper.GetCursorPositionParam();
@@ -131,6 +168,14 @@ internal static class TrayIconInput
             icon.IconMouseUp(MouseButton.Left, mouse, DoubleClickTime);
         }, "Tray icon click");
     }
+
+    /// <summary>The edge of the screen the icon's bar is on (for a hidden icon, the bar of the arrow that showed it).</summary>
+    private static AppBarEdge EdgeOf(FrameworkElement element) => Window.GetWindow(element) switch
+    {
+        TaskbarWindow bar => bar.Edge,
+        TrayOverflowWindow hidden => hidden.Edge,
+        _ => AppBarEdge.Bottom,
+    };
 
     public static void LostCapture(object sender)
     {

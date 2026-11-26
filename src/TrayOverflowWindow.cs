@@ -32,6 +32,9 @@ internal sealed class TrayOverflowWindow : Window
     private bool _forDrag;
     private bool _droppedHere;
 
+    /// <summary>The edge of the screen the bar with the arrow is on.</summary>
+    public AppBarEdge Edge => _edge;
+
     static TrayOverflowWindow()
     {
         TrayIconInput.DragEnded += OnDragEnded;
