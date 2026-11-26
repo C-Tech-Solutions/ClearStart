@@ -399,7 +399,8 @@ internal static class PanelPlacer
                 _moves = MostMoves + 1;
                 return;
             }
-            if (Native.GetWindowRect(_panel, out var now)) _placed = now;
+            // Kept only if it is there, so that if Windows has already put it back the next event moves it again.
+            _placed = Native.GetWindowRect(_panel, out var now) && now.Left == x && now.Top == y ? now : null;
             Note($"moved to {x},{y}");
         }
 

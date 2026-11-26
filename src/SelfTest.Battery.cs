@@ -16,6 +16,9 @@ internal static partial class SelfTest
         var twoWithLeft = two with { Left = TimeSpan.FromHours(5) };
         var onBattery = new PowerReading(false, false, 57, TimeSpan.FromMinutes(200), null,
             new[] { new BatteryReading(BatteryStatus.Discharging, 28500, 50000, -9000) });
+        // For Windows' power status with parts it does not know (255): the batteries' report beside it.
+        var idle = new BatteryReading(BatteryStatus.Idle, 42000, 50000, 0);
+        var none = new BatteryReading(BatteryStatus.NotPresent, null, null, null);
 
         var words = new (string Name, string Got, string Want)[]
         {
@@ -27,6 +30,14 @@ internal static partial class SelfTest
                 "Battery: 80%\nPlugged in, not charging"),
             ("tip, no battery", Batteries.Tip(new PowerReading(true, false, null, null, null, Array.Empty<BatteryReading>())),
                 "No battery found"),
+            ("status, battery state unknown", Batteries.Tip(Batteries.Combine(1, 255, 84, -1, idle)),
+                "Battery: 84%\nPlugged in, not charging"),
+            ("status, charge unknown", Batteries.Tip(Batteries.Combine(1, 0, 255, -1, idle)),
+                "Battery: 84%\nPlugged in, not charging"),
+            ("status, on battery", Batteries.Tip(Batteries.Combine(0, 0, 57, 12000, onBattery.Batteries[0])),
+                "Battery: 57%\nOn battery\nAbout 3 h 20 min left"),
+            ("status, no battery", Batteries.Tip(Batteries.Combine(1, 128, 255, -1, none)), "No battery found"),
+            ("status, nothing known", Batteries.Tip(Batteries.Combine(255, 255, 255, -1, none)), "No battery found"),
             ("a few seconds", Batteries.Duration(TimeSpan.FromSeconds(10)), "1 min"),
             ("an hour", Batteries.Duration(TimeSpan.FromMinutes(59.6)), "1 h"),
             ("an hour and more", Batteries.Duration(TimeSpan.FromMinutes(65)), "1 h 5 min"),

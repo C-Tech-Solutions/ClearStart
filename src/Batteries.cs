@@ -1,6 +1,6 @@
+using System.Runtime.InteropServices;
 using Windows.Devices.Enumeration;
 using Windows.System.Power;
-using Forms = System.Windows.Forms;
 using WinBattery = Windows.Devices.Power.Battery;
 
 namespace ClearStart;
@@ -35,39 +35,55 @@ internal static class Batteries
     // An estimate longer than this comes from a trickle of power and means nothing.
     private static readonly TimeSpan LongestEstimate = TimeSpan.FromDays(1);
 
+    // Windows' power status says 255 for any part it does not know.
+    private const byte Unknown = 255;
+    private const byte ChargingFlag = 8;
+    private const byte NoBatteryFlag = 128;
+
     /// <summary>The power as a whole, read at once (for the tip).</summary>
     public static PowerReading Read()
     {
-        var status = Forms.SystemInformation.PowerStatus;
-        bool pluggedIn = status.PowerLineStatus == Forms.PowerLineStatus.Online;
-        bool noBattery = status.BatteryChargeStatus.HasFlag(Forms.BatteryChargeStatus.NoSystemBattery);
-        // Windows says 255 % when it does not know.
-        int? percent = !noBattery && status.BatteryLifePercent is >= 0 and <= 1
-            ? (int)Math.Round(status.BatteryLifePercent * 100)
-            : null;
-
+        if (!GetSystemPowerStatus(out var status))
+        {
+            status = new SystemPowerStatus
+            {
+                ACLineStatus = Unknown, BatteryFlag = Unknown, BatteryLifePercent = Unknown, BatteryLifeTime = -1,
+            };
+        }
         var all = WinBattery.AggregateBattery.GetReport();
-        int? rate = all.ChargeRateInMilliwatts;
-        int? remaining = all.RemainingCapacityInMilliwattHours;
-        int? full = all.FullChargeCapacityInMilliwattHours;
-        bool charging = pluggedIn && (all.Status == BatteryStatus.Charging ||
-                                      status.BatteryChargeStatus.HasFlag(Forms.BatteryChargeStatus.Charging));
+        return Combine(status.ACLineStatus, status.BatteryFlag, status.BatteryLifePercent, status.BatteryLifeTime,
+            new BatteryReading(all.Status, all.RemainingCapacityInMilliwattHours, all.FullChargeCapacityInMilliwattHours,
+                all.ChargeRateInMilliwatts));
+    }
+
+    /// <summary>
+    /// The power as a whole, from Windows' power status (each part 255 when Windows does not know it, the seconds
+    /// left -1) and the report on all the batteries together, which fills in what the status does not know.
+    /// </summary>
+    internal static PowerReading Combine(byte acLine, byte flags, byte percent, int secondsLeft, BatteryReading all)
+    {
+        bool pluggedIn = acLine == 1;
+        bool flagsKnown = flags != Unknown;
+        bool noBattery = flagsKnown ? (flags & NoBatteryFlag) != 0 : all.Status == BatteryStatus.NotPresent;
+        int? charge = noBattery ? null : percent <= 100 ? (int)percent : all.Percent;
+        bool charging = pluggedIn &&
+                        (all.Status == BatteryStatus.Charging || (flagsKnown && (flags & ChargingFlag) != 0));
 
         TimeSpan? left = null;
         if (!pluggedIn)
         {
             // Windows' own estimate; failing that, what is left at the rate it is going.
-            if (status.BatteryLifeRemaining > 0) left = TimeSpan.FromSeconds(status.BatteryLifeRemaining);
-            else if (rate < 0 && remaining > 0) left = TimeSpan.FromHours((double)remaining.Value / -rate.Value);
+            if (secondsLeft > 0) left = TimeSpan.FromSeconds(secondsLeft);
+            else if (all.Rate < 0 && all.Remaining > 0) left = TimeSpan.FromHours((double)all.Remaining.Value / -all.Rate.Value);
         }
 
         TimeSpan? toFull = null;
-        if (charging && rate > 0 && remaining != null && full > remaining)
+        if (charging && all.Rate > 0 && all.Remaining != null && all.Full > all.Remaining)
         {
-            toFull = TimeSpan.FromHours((double)(full.Value - remaining.Value) / rate.Value);
+            toFull = TimeSpan.FromHours((double)(all.Full.Value - all.Remaining.Value) / all.Rate.Value);
         }
 
-        return new PowerReading(pluggedIn, charging, percent, Sensible(left), Sensible(toFull),
+        return new PowerReading(pluggedIn, charging, charge, Sensible(left), Sensible(toFull),
             Array.Empty<BatteryReading>());
     }
 
@@ -147,4 +163,19 @@ internal static class Batteries
 
     private static TimeSpan? Sensible(TimeSpan? time) =>
         time is { } t && t > TimeSpan.Zero && t <= LongestEstimate ? t : null;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SystemPowerStatus
+    {
+        public byte ACLineStatus;
+        public byte BatteryFlag;
+        public byte BatteryLifePercent;
+        public byte SystemStatusFlag;
+        public int BatteryLifeTime;
+        public int BatteryFullLifeTime;
+    }
+
+    [DllImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetSystemPowerStatus(out SystemPowerStatus status);
 }
