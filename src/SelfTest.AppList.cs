@@ -89,9 +89,12 @@ internal static partial class SelfTest
             File.WriteAllText(Path.Combine(programFolder, "Some program.lnk"), "");
             File.WriteAllText(Path.Combine(programFolder, "Uninstall.lnk"), "");
             installedAt = clock.ElapsedMilliseconds;
-            await Task.Delay(3000);
+            // Until the last look, due at 2 s (a busy PC's timers can run late), then a second more for any look that
+            // should not come.
+            for (int wait = 0; wait < 60 && !lookTimes.Any(t => t - installedAt >= 1600); wait++) await Task.Delay(100);
+            await Task.Delay(1000);
             var after = lookTimes.Select(t => t - installedAt).ToList();
-            // About five looks from 0.2 s to 1.2 s and a last one at 2 s; a busy PC's timers can run late.
+            // About five looks from 0.2 s to 1.2 s and a last one at 2 s.
             bool kept = after.Count(t => t < 1600) >= 3;
             bool last = after.Count(t => t >= 1600) == 1;
             bool soon = after.Count > 0 && after[0] < 1000;
