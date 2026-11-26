@@ -135,7 +135,8 @@ one by clicking it on a real desktop:
 
 ## In 0.13.0, not run yet
 
-These are in the code, and build, but have not been run on a real desktop yet:
+These are in the code, and build, but have not been run on a real desktop yet, or only in part,
+as each one says:
 
 - **Monitors keep their settings when Windows numbers them again:** each monitor's edge, size,
   Start button, pins and hidden bar are kept with the monitor itself, by its model and the
