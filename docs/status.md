@@ -107,13 +107,13 @@ one by clicking it on a real desktop:
 - the search button opening **Windows Search**, and switching what it opens from its right-click
   menu and from the settings page;
 - **Show desktop**;
-- **Quick settings on the clicked bar's screen.** Windows opens its quick settings panel on the
-  main screen whichever bar asks for it. When the Wi-Fi and volume button is clicked, ClearStart
-  watches for the panel and moves it to the same corner of the clicked bar's screen, the top
-  corner for a bar on the top and the left one for a bar on the left. If Windows puts it back
-  while it is open, it is moved again. The log has a line for each click. The self-test works the
-  places out for made-up screens and moves a window of its own; the real panel has not been
-  moved yet;
+- **Quick settings and notifications on the clicked bar's screen.** Windows opens its quick
+  settings and its notifications and calendar on the main screen whichever bar asks for them.
+  When the Wi-Fi and volume button or the clock is clicked, ClearStart watches for the panel and
+  moves it to the same corner of the clicked bar's screen, the top corner for a bar on the top and
+  the left one for a bar on the left. If Windows puts it back while it is open, it is moved again.
+  The log has a line for each click. The self-test works the places out for made-up screens and
+  moves a window of its own; the real panels have not been moved yet;
 - switching the output device and spatial sound from the volume menu;
 - the weather's location search against the live service;
 - hiding and showing a bar from the right-click menu;

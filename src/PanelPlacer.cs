@@ -1,25 +1,40 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using ManagedShell.AppBar;
 
 namespace ClearStart;
 
 /// <summary>
-/// Opens Windows' quick settings next to the bar whose button was clicked.
+/// Opens Windows' quick settings and notification center next to the bar whose button was clicked.
 ///
-/// Windows opens the panel on the main screen whichever bar asks for it (its own taskbars on the other screens have no
-/// button for it), in the corner of the work area by the taskbar. So when the button is clicked, the panel is watched
-/// for: when it appears on another screen than the clicked bar's, it is moved to the same corner of that bar's screen,
-/// as far in from the edges (scaled to that screen), and to the top or left corner for a bar on that edge. If Windows
-/// puts it back while it is open, for example as the panel grows to list Wi-Fi networks, it is moved again. Opened by
-/// a bar on the bottom or the right of the main screen, it is left where Windows put it.
+/// Windows opens these panels on the main screen whichever bar asks for them (its own taskbars on the other screens
+/// have no buttons for them), in the corner of the work area by the taskbar. So when the button is clicked, the panel
+/// is watched for: when it appears on another screen than the clicked bar's, it is moved to the same corner of that
+/// bar's screen, as far in from the edges (scaled to that screen), and to the top or left corner for a bar on that
+/// edge. If Windows puts it back while it is open, for example as quick settings grows to list Wi-Fi networks, it is
+/// moved again. Opened by a bar on the bottom or the right of the main screen, it is left where Windows put it.
 ///
 /// Only the panel's place is changed: never its size, which window is in front, or which is active. Each click gets
 /// a line in the log saying where the panel opened and where it was moved.
 /// </summary>
-internal static class QuickSettingsPlacer
+internal static class PanelPlacer
 {
-    /// <summary>The class of Windows' quick settings window.</summary>
-    public const string PanelClass = "ControlCenterWindow";
+    /// <summary>A panel to watch for, told apart by its window.</summary>
+    /// <param name="Name">What the log calls it.</param>
+    /// <param name="ClassName">The class of its window.</param>
+    /// <param name="ProcessName">The program it belongs to, when its class is a common one.</param>
+    /// <param name="ProcessId">Only a window of this process, if not 0; the self-test gives its own.</param>
+    internal sealed record Panel(string Name, string ClassName, string? ProcessName = null, uint ProcessId = 0);
+
+    /// <summary>Windows' quick settings: Wi-Fi, volume and the like. A window of its own class, made as it opens.</summary>
+    public static readonly Panel QuickSettings = new("Quick settings", "ControlCenterWindow");
+
+    /// <summary>
+    /// Windows' notifications and calendar. Its window is kept, hidden, while it is closed, and has the class every
+    /// window of a Store-style app has; a window of Windows' shell experience host that size is it.
+    /// </summary>
+    public static readonly Panel NotificationCenter = new("Notification center", "Windows.UI.Core.CoreWindow",
+        "ShellExperienceHost");
 
     /// <summary>How long the panel is waited for after the button is clicked.</summary>
     public static readonly TimeSpan WaitToOpen = TimeSpan.FromSeconds(3);
@@ -32,6 +47,9 @@ internal static class QuickSettingsPlacer
 
     /// <summary>The most times the panel is moved in one opening, in case Windows keeps putting it back.</summary>
     private const int MostMoves = 20;
+
+    /// <summary>Smaller windows of the panel's program are not the panel: Store-style apps keep a tiny one too.</summary>
+    private const int SmallestPanel = 100;
 
     private const uint EVENT_OBJECT_DESTROY = 0x8001;
     private const uint EVENT_OBJECT_SHOW = 0x8002;
@@ -66,15 +84,13 @@ internal static class QuickSettingsPlacer
     }
 
     /// <summary>
-    /// Called just before the panel is asked for: it is watched for, and moved next to the bar on
+    /// Called just before <paramref name="panel"/> is asked for: it is watched for, and moved next to the bar on
     /// <paramref name="monitor"/> at <paramref name="edge"/>.
     /// </summary>
-    /// <param name="className">The class of the window to watch for; the self-test gives one of its own.</param>
-    /// <param name="processId">Only a window of this process, if not 0; the self-test gives its own.</param>
-    public static void Expect(IntPtr monitor, AppBarEdge edge, string className = PanelClass, uint processId = 0)
+    public static void Expect(Panel panel, IntPtr monitor, AppBarEdge edge)
     {
         if (monitor == IntPtr.Zero) return;
-        var expectation = new Expectation(monitor, edge, className, processId, Environment.TickCount64);
+        var expectation = new Expectation(panel, monitor, edge, Environment.TickCount64);
         ManualResetEventSlim ready;
         lock (Gate)
         {
@@ -90,7 +106,7 @@ internal static class QuickSettingsPlacer
             _thread = new Thread(() => new Watch(expectation).Run(started))
             {
                 IsBackground = true,
-                Name = "Quick settings placer",
+                Name = "Panel placer",
             };
             _thread.Start();
         }
@@ -126,7 +142,7 @@ internal static class QuickSettingsPlacer
         return (x, y);
     }
 
-    private sealed record Expectation(IntPtr Monitor, AppBarEdge Edge, string ClassName, uint ProcessId, long Since);
+    private sealed record Expectation(Panel Panel, IntPtr Monitor, AppBarEdge Edge, long Since);
 
     /// <summary>One watch, on a thread of its own: Windows reports windows shown, moved and hidden to it.</summary>
     private sealed class Watch
@@ -134,6 +150,7 @@ internal static class QuickSettingsPlacer
         private readonly Native.WinEventProc _callback;
         private readonly List<string> _trail = new();
         private readonly HashSet<string> _otherShown = new();
+        private readonly Dictionary<uint, string> _processNames = new();
         private Expectation _expect;
         private IntPtr _panel;
         private Anchor? _anchor;
@@ -170,7 +187,7 @@ internal static class QuickSettingsPlacer
             }
             catch (Exception ex)
             {
-                Log.Error("Could not watch for the quick settings panel", ex);
+                Log.Error("Could not watch for Windows' panels", ex);
             }
             finally
             {
@@ -193,7 +210,7 @@ internal static class QuickSettingsPlacer
             }
             catch (Exception ex)
             {
-                Log.Error("Watching for the quick settings panel failed", ex);
+                Log.Error("Watching for Windows' panels failed", ex);
             }
             finally
             {
@@ -267,9 +284,9 @@ internal static class QuickSettingsPlacer
                 {
                     if (closing) return;
                     string className = Native.ClassNameOf(hwnd);
-                    if (className != _expect.ClassName || !OfTheProcess(hwnd))
+                    if (!IsThePanel(hwnd, className))
                     {
-                        // Kept for the log, in case Windows names its panel otherwise one day.
+                        // Kept for the log, in case Windows makes its panel otherwise one day.
                         if (eventType != EVENT_OBJECT_LOCATIONCHANGE && _otherShown.Count < 8) _otherShown.Add(className);
                         return;
                     }
@@ -300,11 +317,37 @@ internal static class QuickSettingsPlacer
             }
         }
 
-        private bool OfTheProcess(IntPtr hwnd)
+        private bool IsThePanel(IntPtr hwnd, string className)
         {
-            if (_expect.ProcessId == 0) return true;
-            Native.GetWindowThreadProcessId(hwnd, out uint processId);
-            return processId == _expect.ProcessId;
+            var panel = _expect.Panel;
+            if (className != panel.ClassName) return false;
+            if (panel.ProcessId != 0 || panel.ProcessName != null)
+            {
+                Native.GetWindowThreadProcessId(hwnd, out uint processId);
+                if (panel.ProcessId != 0 && processId != panel.ProcessId) return false;
+                if (panel.ProcessName != null &&
+                    !string.Equals(ProcessNameOf(processId), panel.ProcessName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+            return Native.GetWindowRect(hwnd, out var rect) && rect.Width >= SmallestPanel && rect.Height >= SmallestPanel;
+        }
+
+        private string ProcessNameOf(uint processId)
+        {
+            if (_processNames.TryGetValue(processId, out var name)) return name;
+            try
+            {
+                using var process = Process.GetProcessById((int)processId);
+                name = process.ProcessName;
+            }
+            catch (Exception)
+            {
+                name = "";
+            }
+            _processNames[processId] = name;
+            return name;
         }
 
         /// <summary>Moves the panel next to the clicked bar, unless it is there.</summary>
@@ -371,13 +414,14 @@ internal static class QuickSettingsPlacer
             string target = Native.TryGetMonitor(_expect.Monitor, out var bounds, out _)
                 ? $"the bar on the screen at {bounds.Left},{bounds.Top} ({_expect.Edge.ToString().ToLowerInvariant()})"
                 : "a bar whose screen is gone";
+            string name = _expect.Panel.Name;
             if (_panel == IntPtr.Zero)
             {
                 string others = _otherShown.Count == 0 ? "" : "; shown meanwhile: " + string.Join(", ", _otherShown);
-                return $"Quick settings, asked for by {target}: did not open within {WaitToOpen.TotalSeconds:0} s " +
+                return $"{name}, asked for by {target}: did not open within {WaitToOpen.TotalSeconds:0} s " +
                     $"(clicked while it was open closes it){others}" + (_trail.Count > 0 ? "; " + string.Join("; ", _trail) : "");
             }
-            return $"Quick settings, asked for by {target}: {string.Join("; ", _trail)}";
+            return $"{name}, asked for by {target}: {string.Join("; ", _trail)}";
         }
 
         private static string Where(Native.RECT rect) => $"{rect.Left},{rect.Top} ({rect.Width}x{rect.Height})";

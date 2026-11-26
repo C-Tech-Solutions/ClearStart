@@ -188,7 +188,7 @@ internal static partial class SelfTest
             // tried on a window of the self-test's own that draws nothing. The panel is not opened.
             try
             {
-                report["quickSettings"] = await CheckQuickSettingsAsync(errors);
+                report["panels"] = await CheckPanelsAsync(errors);
             }
             catch (Exception ex)
             {

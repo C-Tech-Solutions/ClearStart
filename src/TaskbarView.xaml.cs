@@ -1061,13 +1061,18 @@ public partial class TaskbarView : UserControl
 
     private void Quick_Click(object sender, RoutedEventArgs e) => Ui.Safe(() =>
     {
-        // Windows opens the panel on the main screen whichever bar asks for it: it is moved next to this bar.
-        if (PresentationSource.FromVisual(this) is HwndSource source)
-        {
-            QuickSettingsPlacer.Expect(Native.MonitorFromWindow(source.Handle, 2 /* MONITOR_DEFAULTTONEAREST */), _edge);
-        }
+        ExpectPanel(PanelPlacer.QuickSettings);
         ShellHelper.ShowActionCenter();
     }, "Quick settings");
+
+    /// <summary>Windows opens its panels on the main screen whichever bar asks for them: they are moved next to this bar.</summary>
+    private void ExpectPanel(PanelPlacer.Panel panel)
+    {
+        if (PresentationSource.FromVisual(this) is HwndSource source)
+        {
+            PanelPlacer.Expect(panel, Native.MonitorFromWindow(source.Handle, 2 /* MONITOR_DEFAULTTONEAREST */), _edge);
+        }
+    }
 
     private void Quick_RightClick(object sender, MouseButtonEventArgs e)
     {
@@ -1082,8 +1087,11 @@ public partial class TaskbarView : UserControl
 
     private void Cast_Click(object sender, RoutedEventArgs e) => _host.OpenCast();
 
-    private void Clock_Click(object sender, RoutedEventArgs e) =>
-        Ui.Safe(ShellHelper.ShowNotificationCenter, "Notification center");
+    private void Clock_Click(object sender, RoutedEventArgs e) => Ui.Safe(() =>
+    {
+        ExpectPanel(PanelPlacer.NotificationCenter);
+        ShellHelper.ShowNotificationCenter();
+    }, "Notification center");
 
     // ------------------------------------------------------------------ weather
 
