@@ -150,7 +150,9 @@ as each one says:
   folder of its own. An app installed on the laptop while 0.14.0 ran came into the list, but only
   about half a minute later: 0.14.0 looked three seconds after the change, before Windows had
   listed the app (a test shortcut took Windows about 4.5 seconds), and then not again for 30
-  seconds. The looks every two seconds have not been run with a real install yet.
+  seconds. With the looks every two seconds, a test shortcut on the laptop came into the list 5.3
+  seconds after it was made and went 5.3 seconds after it was deleted; a real install has not been
+  run with them yet.
 - **Monitors keep their settings when Windows numbers them again:** each monitor's edge, size,
   Start button, pins and hidden bar are kept with the monitor itself, by its model and the
   connector it is on, not by the display number Windows gives it. Windows can number the displays
