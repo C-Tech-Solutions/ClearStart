@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using ManagedShell.AppBar;
+using Windows.System.Power;
 
 namespace ClearStart;
 
@@ -15,6 +16,9 @@ internal static class BatteryFlyout
     private const string PowerSettings = "ms-settings:powersleep";
 
     private static readonly Brush LineBrush = Ui.Brush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
+    // The battery bars: fixed colours, as the accent colour can be too dark to see on the panel.
+    private static readonly Brush ChargeBrush = Ui.Brush(Color.FromArgb(0xD8, 0xFF, 0xFF, 0xFF));
+    private static readonly Brush ChargingBrush = Ui.Brush(Color.FromRgb(0x6C, 0xCB, 0x5F));
     private static readonly Brush LowBrush = Ui.Brush(Color.FromRgb(0xFF, 0xC0, 0x6A));
 
     private static Popup? _open;
@@ -110,7 +114,7 @@ internal static class BatteryFlyout
                 var battery = power.Batteries[i];
                 rows.RowDefinitions.Add(new RowDefinition { Height = new GridLength(30) });
                 Put(rows, i, 0, Text($"Battery {i + 1}", 13), HorizontalAlignment.Left);
-                Put(rows, i, 1, Gauge(battery.Percent ?? 0), HorizontalAlignment.Stretch);
+                Put(rows, i, 1, Gauge(battery.Percent ?? 0, battery.Status == BatteryStatus.Charging), HorizontalAlignment.Stretch);
                 Put(rows, i, 2, Text(battery.Percent is int bp ? bp + "%" : "–", 13), HorizontalAlignment.Right);
                 Put(rows, i, 3, Text(Batteries.State(battery, power.PluggedIn), 12, opacity: 0.75), HorizontalAlignment.Right);
             }
@@ -136,8 +140,8 @@ internal static class BatteryFlyout
         return Ui.FlyoutPanel(column);
     }
 
-    /// <summary>A bar filled as far as the battery is.</summary>
-    private static Grid Gauge(int percent)
+    /// <summary>A bar filled as far as the battery is: green while it charges, amber when it is low.</summary>
+    private static Grid Gauge(int percent, bool charging)
     {
         var gauge = new Grid { Height = 6, Margin = new Thickness(0, 0, 10, 0) };
         gauge.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(percent, GridUnitType.Star) });
@@ -147,7 +151,7 @@ internal static class BatteryFlyout
         gauge.Children.Add(track);
         gauge.Children.Add(new Border
         {
-            Background = percent <= 20 ? LowBrush : (Brush)Application.Current.FindResource("AccentBrush"),
+            Background = charging ? ChargingBrush : percent <= 20 ? LowBrush : ChargeBrush,
             CornerRadius = new CornerRadius(3),
         });
         return gauge;

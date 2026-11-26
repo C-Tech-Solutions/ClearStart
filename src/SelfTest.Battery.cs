@@ -11,9 +11,9 @@ internal static partial class SelfTest
     {
         var charging = new BatteryReading(BatteryStatus.Charging, 45000, 50000, 18000);
         var waiting = new BatteryReading(BatteryStatus.Idle, 18330, 23500, 0);
-        var two = new PowerReading(true, true, 84, TimeSpan.FromMinutes(40), null, new[] { charging, waiting });
-        // While the laptop is plugged in, the left and until-full times are left out where they do not belong.
-        var twoWithLeft = two with { Left = TimeSpan.FromHours(5), ToFull = TimeSpan.FromMinutes(40) };
+        var two = new PowerReading(true, true, 84, null, TimeSpan.FromMinutes(40), new[] { charging, waiting });
+        // Plugged in, a time left is not shown, should Windows give one.
+        var twoWithLeft = two with { Left = TimeSpan.FromHours(5) };
         var onBattery = new PowerReading(false, false, 57, TimeSpan.FromMinutes(200), null,
             new[] { new BatteryReading(BatteryStatus.Discharging, 28500, 50000, -9000) });
 
