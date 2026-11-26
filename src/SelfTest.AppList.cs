@@ -67,9 +67,9 @@ internal static partial class SelfTest
         }
 
         // The watch, on a folder of the self-test's own standing in for a Start menu folder: an install's few
-        // changes in a row bring one look. Made anew each time, so the shortcuts are new even in a folder used before.
-        string folder = Path.Combine(directory, "app-watch");
-        if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+        // changes in a row bring one look. A folder of its own each run, so the shortcuts are new even in a folder
+        // used before, and nothing that was there is deleted.
+        string folder = Path.Combine(directory, "app-watch-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
         int looks = 0;
         bool storeApps;
