@@ -33,6 +33,12 @@ its failure recovery still needs desktop testing.
 > Windows taskbar and hides nothing, and **live mode**, where ClearStart takes the Windows
 > taskbar's place. Start with the preview. [Where it stands](docs/status.md) has the full list.
 
+Version 0.15.0 opens quick settings and the notifications and calendar on the screen whose bar
+was clicked, instead of always on the main screen, and answers Windows' battery icon, which
+Windows 11 no longer does: it has its tip again, and a click opens a panel with each battery on
+its own. Both were tried by hand on a laptop with two screens and bars on the bottom; other
+edges have not been. A new app also comes into the start menu's list within seconds instead of
+half a minute; that was tried with a test shortcut, not a real install.
 Version 0.14.0 keeps the start menu's list of apps current: an app installed or removed while
 ClearStart runs now comes into the list and its search, or leaves them, without restarting
 ClearStart. The self-test checks it; a real install has not been run with it yet.
