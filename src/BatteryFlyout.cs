@@ -24,6 +24,9 @@ internal static class BatteryFlyout
     private static Popup? _open;
     private static DateTime _closedAt = DateTime.MinValue;
     private static bool _reading;
+    // Counts the closings, so that a read still under way when the panel is closed (a right-click opens the menu
+    // instead) does not open it afterwards.
+    private static int _closings;
 
     /// <summary>Opens the panel next to the icon, or closes it if that same click just closed it.</summary>
     public static async void Toggle(FrameworkElement icon, AppBarEdge edge)
@@ -38,11 +41,12 @@ internal static class BatteryFlyout
         if (_reading) return;
 
         _reading = true;
+        int closings = _closings;
         try
         {
             var power = await Batteries.ReadAsync();
-            // The bar, or the hidden icons, may have closed while the batteries were read.
-            if (!icon.IsVisible) return;
+            // Closed while the batteries were read, or the bar or the hidden icons have gone.
+            if (closings != _closings || !icon.IsVisible) return;
 
             Log.Info("Battery panel: " + Batteries.Describe(power));
             var popup = new Popup
@@ -75,6 +79,7 @@ internal static class BatteryFlyout
 
     public static void Close()
     {
+        _closings++;
         var popup = _open;
         _open = null;
         if (popup != null) popup.IsOpen = false;
