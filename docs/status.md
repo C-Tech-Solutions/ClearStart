@@ -142,11 +142,15 @@ as each one says:
   search, keep up with them. Up to 0.13.0 the list was read once, when ClearStart started, so an
   app installed afterwards could not be found until ClearStart started again. ClearStart now
   watches the Start menu folders, where programs add, rewrite and remove their shortcuts, and
-  Windows' list of Store apps. A few seconds after a change it reads Windows' apps folder again,
-  and once more half a minute later, and adds and takes out the apps that came and went; the log
-  names them. The self-test reads the folder again and checks that nothing changes, takes a Store
-  app and a program out of its own list and puts them back, and runs the watch on a folder of its
-  own. No app has been installed or removed on a running ClearStart with it yet.
+  Windows' list of Store apps. Windows lists a new app a few seconds after its shortcut is written,
+  so after a change ClearStart reads Windows' apps folder again every two seconds for half a
+  minute, and once more a minute after the change, and adds and takes out the apps that came and
+  went; the log names them. The self-test reads the folder again and checks that nothing changes,
+  takes a Store app and a program out of its own list and puts them back, and runs the watch on a
+  folder of its own. An app installed on the laptop while 0.14.0 ran came into the list, but only
+  about half a minute later: 0.14.0 looked three seconds after the change, before Windows had
+  listed the app (a test shortcut took Windows about 4.5 seconds), and then not again for 30
+  seconds. The looks every two seconds have not been run with a real install yet.
 - **Monitors keep their settings when Windows numbers them again:** each monitor's edge, size,
   Start button, pins and hidden bar are kept with the monitor itself, by its model and the
   connector it is on, not by the display number Windows gives it. Windows can number the displays

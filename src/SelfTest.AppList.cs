@@ -66,33 +66,47 @@ internal static partial class SelfTest
             kinds.Add(new { name, ok });
         }
 
-        // The watch, on a folder of the self-test's own standing in for a Start menu folder: an install's few
-        // changes in a row bring one look, and so does an update that rewrites a shortcut in place. A folder of its
-        // own each run, so the shortcuts are new even in a folder used before, and nothing that was there is deleted.
+        // The watch, on a folder of the self-test's own standing in for a Start menu folder, with its times cut to a
+        // tenth: an install's few changes in a row bring looks every 0.2 s until 1 s after them, then a last one at
+        // 2 s, and nothing more. An update that rewrites a shortcut in place brings looks too. A folder of its own
+        // each run, so the shortcuts are new even in a folder used before, and nothing that was there is deleted.
         string folder = Path.Combine(directory, "app-watch-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
         string installed = Path.Combine(folder, "Installed program.lnk");
         File.WriteAllText(installed, "");
-        int looks = 0;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var lookTimes = new List<long>();
         int rewriteLooks;
         bool storeApps;
-        using (var watch = new AppWatch(() => looks++, Dispatcher.CurrentDispatcher, [folder], storeApps: true,
-            settle: TimeSpan.FromMilliseconds(500)))
+        long installedAt;
+        using (var watch = new AppWatch(() => lookTimes.Add(clock.ElapsedMilliseconds), Dispatcher.CurrentDispatcher,
+            [folder], storeApps: true, every: TimeSpan.FromMilliseconds(200), lookFor: TimeSpan.FromSeconds(1),
+            lastLookAfter: TimeSpan.FromSeconds(2)))
         {
             storeApps = watch.WatchesStoreApps;
             string programFolder = Path.Combine(folder, "Some program");
             Directory.CreateDirectory(programFolder);
             File.WriteAllText(Path.Combine(programFolder, "Some program.lnk"), "");
             File.WriteAllText(Path.Combine(programFolder, "Uninstall.lnk"), "");
-            for (int wait = 0; wait < 40 && looks == 0; wait++) await Task.Delay(100);
-            await Task.Delay(1000);
-            if (looks != 1) errors.Add($"App list: a new program's shortcuts brought {looks} looks instead of one");
+            installedAt = clock.ElapsedMilliseconds;
+            await Task.Delay(3000);
+            var after = lookTimes.Select(t => t - installedAt).ToList();
+            // About five looks from 0.2 s to 1.2 s and a last one at 2 s; a busy PC's timers can run late.
+            bool kept = after.Count(t => t < 1600) >= 3;
+            bool last = after.Count(t => t >= 1600) == 1;
+            bool soon = after.Count > 0 && after[0] < 1000;
+            if (!kept || !last || !soon)
+            {
+                errors.Add("App list: a new program's shortcuts brought looks at " +
+                    string.Join(", ", after.Select(t => $"{t} ms")) +
+                    " instead of every 0.2 s until 1.2 s and a last one at 2 s");
+            }
 
             // An update rewrites the program's shortcut in place: no file added, removed or renamed.
-            int looksBefore = looks;
+            int looksBefore = lookTimes.Count;
             File.WriteAllText(installed, "updated");
-            for (int wait = 0; wait < 40 && looks == looksBefore; wait++) await Task.Delay(100);
-            rewriteLooks = looks - looksBefore;
+            for (int wait = 0; wait < 20 && lookTimes.Count == looksBefore; wait++) await Task.Delay(100);
+            rewriteLooks = lookTimes.Count - looksBefore;
             if (rewriteLooks == 0) errors.Add("App list: a shortcut rewritten in place brought no look");
         }
         Directory.Delete(folder, recursive: true);
@@ -104,7 +118,7 @@ internal static partial class SelfTest
             listed = before,
             unreadable = unreadable.Count,
             takenOutAndBack = kinds,
-            watchLooks = looks,
+            watchLooksMs = lookTimes.Select(t => t - installedAt).Take(12).ToList(),
             rewriteLooks,
             storeApps,
         };
