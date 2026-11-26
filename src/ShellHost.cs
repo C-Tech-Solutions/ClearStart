@@ -152,7 +152,7 @@ internal sealed class ShellHost : IDisposable
         // The self-test reports on the app list straight away. Otherwise it loads once the bars are on screen
         // (see StartDeferredServices): with its few hundred icons it is the slowest part of starting, and only the
         // start menu needs it.
-        if (mode == HostMode.SelfTest) Apps.Load();
+        if (mode == HostMode.SelfTest) Apps.Load(watch: false);
 
         _screenTimer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
         {

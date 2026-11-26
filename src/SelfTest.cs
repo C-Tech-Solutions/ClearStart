@@ -173,6 +173,17 @@ internal static partial class SelfTest
                 errors.Add("Room watch: " + ex);
             }
 
+            // Apps installed or removed while ClearStart runs: the apps folder read again, and the self-test's own list
+            // and a folder of its own changed. No app is installed or removed, and the Start menu folders are not touched.
+            try
+            {
+                report["appList"] = await CheckAppListAsync(host, directory, errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("App list: " + ex);
+            }
+
             // A window that must stay on screen, as the bars do: tried on a window of the self-test's own.
             try
             {
