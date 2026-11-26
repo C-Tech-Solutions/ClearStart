@@ -34,8 +34,9 @@ what has not, and what is missing.
   monitor, with its bar on the top, was fine. Windows had given those monitors' whole area back
   to the desktop while Explorer was still setting up its own taskbars there, and ClearStart did
   not look again afterwards. From 0.13.0 ClearStart keeps docking the bars again for half a
-  minute after the displays change; that has
-  [not been run with real monitors turned off and on](#in-0130-not-run-yet).
+  minute after the displays change. On that PC with 0.13.0, the monitors were turned off and on
+  again: one bar came back without its room, and ClearStart had won it back three seconds later.
+  A wake from sleep has [not been run with it yet](#in-0130-not-run-yet).
 - **After a restart, the Windows taskbar can show for a moment, and the bars can take a while.**
   On one restart with Start with Windows, ClearStart's program waited about ten seconds before it
   began, while Windows' virus scanner started, and the Windows taskbar showed a few times before
@@ -217,8 +218,10 @@ These are in the code, and build, but have not been run on a real desktop yet:
   back is docked again each time, and docked anew through Explorer if that has not helped after
   ten seconds; the log says when a bar had no room and when it got it back. Windows saying that a
   monitor's area changed starts the watch again. Monitors that wake also give each bar their new
-  handle. The self-test runs the watch on made-up bars; it has not been run with real monitors
-  turned off and on yet.
+  handle. The self-test runs the watch on made-up bars. On one PC with four monitors and 0.13.0,
+  the monitors were turned off and on again: one bar came back without its room, was docked
+  again, and had its room back three seconds later; the other bars kept theirs. A wake from
+  sleep has not been run with it yet.
 - **Startup migration and the startup switch** are serialized, including commands from Setup.
   The switch also recognizes an enabled Run-key fallback when an older task remains.
 - **Uninstall stops if startup cleanup fails,** keeping the app files available for a retry.
