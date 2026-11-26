@@ -1,6 +1,6 @@
 namespace ClearStart;
 
-/// <summary>The right-click menus of the network and volume glyphs next to the clock.</summary>
+/// <summary>The right-click menus of the network and volume glyphs next to the clock, and of Windows' battery icon.</summary>
 internal static class TrayMenus
 {
     // The page with the output in use: its volume, format and spatial sound.
@@ -37,6 +37,15 @@ internal static class TrayMenus
         new("Open Network & Internet settings", () => Launcher.Run("ms-settings:network")),
         new("Network connections", () => Launcher.Run("ncpa.cpl")),
     };
+
+    public static List<MenuEntry> Battery()
+    {
+        var entries = new List<MenuEntry> { new("Open Power & battery settings", () => Launcher.Run("ms-settings:powersleep")) };
+        // The Control Panel pages, where this Windows still has them.
+        if (InSystemFolder("powercfg.cpl") is { } options) entries.Add(new("Power Options", () => Launcher.Run(options)));
+        if (InSystemFolder("mblctr.exe") is { } mobility) entries.Add(new("Windows Mobility Center", () => Launcher.Run(mobility)));
+        return entries;
+    }
 
     private static void SwitchOutput(AudioOutput output)
     {

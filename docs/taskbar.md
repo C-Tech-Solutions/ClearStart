@@ -232,12 +232,24 @@ button off in the settings and they come back, behind the arrow.
 | Drag an icon from the panel onto the bar | Keeps it on the bar, where you drop it. A line shows the spot |
 | Drag an icon along the bar | Moves it |
 | Drag an icon from the bar onto the arrow or into the panel | Hides it behind the arrow again |
-| Click, double-click or right-click an icon | Goes to its app, on the bar or in the panel |
+| Click, double-click or right-click an icon | Goes to its app, on the bar or in the panel. The battery is the exception: see below |
 
 Hold an icon on the arrow for a moment and the panel opens, so you can drop it in. Every bar shows
 the same icons, and the choice is kept in the settings file as
 [`taskbar.pinnedTrayIcons`](settings-file.md#taskbar). Tray icons need live mode: a preview has
 none.
+
+### The battery
+
+Windows still puts its battery icon in the tray, but on Windows 11 it no longer answers it when
+another taskbar is in charge: no tip, and a click only shows the busy pointer. ClearStart answers
+it itself.
+
+| Action | Result |
+| --- | --- |
+| Point at it | A tip with the charge, whether the PC is plugged in and charging, and about how long until it is full or how long the charge lasts |
+| Click it | A panel with the same, each battery on its own when the laptop has two (its charge, and whether it is charging, in use or waiting), and a link to **Power & battery** settings. Click the icon again, or anywhere else, to close it |
+| Right-click it | **Open Power & battery settings**, and **Power Options** and **Windows Mobility Center** where Windows still has them |
 
 ## Cast
 
@@ -264,6 +276,9 @@ them:
 A very thin bar shows the time alone. Seconds can be switched on in the settings, and the clock
 can be on every bar or on the main one only.
 
+Clicking the clock opens Windows' notifications and calendar, on the screen of the bar that was
+clicked.
+
 ## Network and volume
 
 The network glyph follows the connection:
@@ -275,8 +290,8 @@ The network glyph follows the connection:
 | A globe with a cross | No network |
 | A warning version of the wired or Wi-Fi glyph | Connected, but no internet |
 
-Clicking either glyph opens Windows' quick settings. Right-clicking gives a menu for the one under
-the mouse.
+Clicking either glyph opens Windows' quick settings, on the screen of the bar that was clicked.
+Right-clicking gives a menu for the one under the mouse.
 
 **Volume**
 

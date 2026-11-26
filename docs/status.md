@@ -107,6 +107,18 @@ one by clicking it on a real desktop:
 - the search button opening **Windows Search**, and switching what it opens from its right-click
   menu and from the settings page;
 - **Show desktop**;
+- **Quick settings and notifications on the clicked bar's screen.** Windows opens its quick
+  settings and its notifications and calendar on the main screen whichever bar asks for them.
+  When the Wi-Fi and volume button or the clock is clicked, ClearStart watches for the panel and
+  moves it to the same corner of the clicked bar's screen, the top corner for a bar on the top and
+  the left one for a bar on the left. If Windows puts it back while it is open, it is moved again.
+  The log has a line for each click. The self-test works the places out for made-up screens and
+  moves a window of its own. Both panels were moved on a laptop with a second screen and its bars
+  at the bottom; bars on the other edges have not been tried;
+- **Windows' battery icon answered by ClearStart:** its tip, the panel a click opens with each of
+  a laptop's two batteries, and its right-click menu (see [The battery](taskbar.md#the-battery)).
+  The self-test checks the words for made-up batteries, draws the panel and reads the PC's own
+  batteries;
 - switching the output device and spatial sound from the volume menu;
 - the weather's location search against the live service;
 - hiding and showing a bar from the right-click menu;
