@@ -12,8 +12,10 @@ namespace ClearStart;
 /// is watched for and put in the corner of the clicked bar's work area, as Windows puts it: the bottom right for a bar
 /// on the bottom or the right, the top right for one on the top, and the bottom left for one on the left. That place
 /// comes from the work area alone, not from where the panel is, so it is the same at every opening, though Windows
-/// opens the notification center again where it was left. If Windows puts a panel back while it is open, for example
-/// as quick settings grows to list Wi-Fi networks, it is moved again.
+/// opens the notification center again where it was left. By a bar on the bottom or the right, a panel already inside
+/// the clicked bar's work area is left where it is: it is in Windows' own corner, a little in from the bar if Windows'
+/// taskbar is taller than the bar. If Windows puts a panel back while it is open, for example as quick settings grows
+/// to list Wi-Fi networks, it is moved again.
 ///
 /// Windows makes the panels for the main screen, so on a screen with less room they would run off the edge. Quick
 /// settings is then made as tall, or as wide, as the work area. The notification center keeps its size, because it
@@ -359,7 +361,11 @@ internal static class PanelPlacer
 
             var (x, y, width, height) = Spot(rect.Width, rect.Height, work, _expect.Edge, _expect.Panel.Resizable);
             bool resize = width != rect.Width || height != rect.Height;
-            if (x == rect.Left && y == rect.Top && !resize)
+            // Inside the work area, by a bar on the bottom or the right, it is in Windows' own corner: moving it the few
+            // pixels to the bar would only make it jump at every opening.
+            bool inCorner = on == _expect.Monitor && _expect.Edge is AppBarEdge.Bottom or AppBarEdge.Right &&
+                            Inside(rect, work);
+            if (inCorner || x == rect.Left && y == rect.Top && !resize)
             {
                 Note($"at {Where(rect)} {where}, left there");
                 _placed = rect;
@@ -410,6 +416,9 @@ internal static class PanelPlacer
         }
 
         private static string Where(Native.RECT rect) => $"{rect.Left},{rect.Top} ({rect.Width}x{rect.Height})";
+
+        private static bool Inside(Native.RECT rect, Native.RECT work) =>
+            rect.Left >= work.Left && rect.Top >= work.Top && rect.Right <= work.Right && rect.Bottom <= work.Bottom;
 
         private static bool Same(Native.RECT a, Native.RECT b) =>
             a.Left == b.Left && a.Top == b.Top && a.Right == b.Right && a.Bottom == b.Bottom;

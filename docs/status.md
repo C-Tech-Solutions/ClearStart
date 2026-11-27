@@ -148,7 +148,8 @@ as each one says:
 
 - **Panels on a shorter screen:** Windows makes quick settings and the notifications and calendar
   as tall as its main screen. Both now go in the corner of the clicked bar's work area, worked out
-  from the work area alone, so they open in the same place every time. When quick settings is
+  from the work area alone, so they open in the same place every time; by a bar on the bottom or
+  right, one Windows put inside the work area is left there, as before. When quick settings is
   taller or wider than that work area, ClearStart makes it as tall or as wide as the work area,
   and the log says so. The notifications keep their height, because Windows does not lay them out
   again in a smaller window, and are lined up with the bottom so the calendar shows. A test build

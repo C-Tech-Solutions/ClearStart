@@ -122,14 +122,15 @@ internal static partial class SelfTest
             await WaitUntilAsync(() => !PanelPlacer.Watching, 3000);
             string? keptTopReport = PanelPlacer.LastReport;
 
-            // Opened by a bar on the bottom of the main screen: left where Windows put it.
-            Native.SetWindowPos(hwnd, IntPtr.Zero, opened.Left, opened.Top, 0, 0, Keep);
+            // Opened by a bar on the bottom of the main screen, a little above it, as Windows puts a panel by a bar
+            // thinner than its own taskbar: left where Windows put it.
+            Native.SetWindowPos(hwnd, IntPtr.Zero, opened.Left, opened.Top - 4, 0, 0, Keep);
             PanelPlacer.Expect(byId, from, AppBarEdge.Bottom);
             Native.ShowWindow(hwnd, 4 /* SW_SHOWNOACTIVATE */);
             await Task.Delay(500);
             Native.GetWindowRect(hwnd, out var stayed);
             Native.ShowWindow(hwnd, 0 /* SW_HIDE */);
-            bool leftAlone = stayed.Left == opened.Left && stayed.Top == opened.Top;
+            bool leftAlone = stayed.Left == opened.Left && stayed.Top == opened.Top - 4;
             if (!leftAlone) errors.Add($"Panels: opened by the main screen's bar, the panel was moved to {stayed.Left},{stayed.Top}");
             await WaitUntilAsync(() => !PanelPlacer.Watching, 3000);
             string? leftReport = PanelPlacer.LastReport;
