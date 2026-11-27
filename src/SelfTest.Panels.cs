@@ -11,20 +11,31 @@ internal static partial class SelfTest
     {
         // Where it goes, on made-up screens: a 360x560 panel 12 px in from the bottom right of a 1920x1032 work area.
         var anchor = PanelPlacer.Anchor.Of(WorkRect(1548, 460, 1908, 1020), WorkRect(0, 0, 1920, 1032), 1.0);
-        var spots = new (string Name, (int X, int Y) Got, (int X, int Y) Want)[]
+        // And a panel Windows made as tall as a 1440-high main screen with a bar on the top, as quick settings is.
+        var tallAnchor = PanelPlacer.Anchor.Of(WorkRect(2176, 0, 2560, 1392), WorkRect(0, 40, 2560, 1440), 1.0);
+        var spots = new (string Name, (int X, int Y, int W, int H) Got, (int X, int Y, int W, int H) Want)[]
         {
-            ("where Windows put it", Spot(WorkRect(0, 0, 1920, 1032), 1.0, AppBarEdge.Bottom), (1548, 460)),
-            ("another screen, bar at the bottom", Spot(WorkRect(1920, 0, 3840, 1040), 1.0, AppBarEdge.Bottom), (3468, 468)),
-            ("bar at the top", Spot(WorkRect(1920, 48, 3840, 1080), 1.0, AppBarEdge.Top), (3468, 60)),
-            ("bar on the left", Spot(WorkRect(1968, 0, 3840, 1080), 1.0, AppBarEdge.Left), (1980, 508)),
-            ("bar on the right", Spot(WorkRect(1920, 0, 3792, 1080), 1.0, AppBarEdge.Right), (3420, 508)),
+            ("where Windows put it", Spot(WorkRect(0, 0, 1920, 1032), 1.0, AppBarEdge.Bottom), (1548, 460, 360, 560)),
+            ("another screen, bar at the bottom", Spot(WorkRect(1920, 0, 3840, 1040), 1.0, AppBarEdge.Bottom),
+                (3468, 468, 360, 560)),
+            ("bar at the top", Spot(WorkRect(1920, 48, 3840, 1080), 1.0, AppBarEdge.Top), (3468, 60, 360, 560)),
+            ("bar on the left", Spot(WorkRect(1968, 0, 3840, 1080), 1.0, AppBarEdge.Left), (1980, 508, 360, 560)),
+            ("bar on the right", Spot(WorkRect(1920, 0, 3792, 1080), 1.0, AppBarEdge.Right), (3420, 508, 360, 560)),
             ("screen at 150 %", PanelPlacer.Spot(anchor, 540, 840, WorkRect(1920, 0, 4800, 1572), 1.5,
-                AppBarEdge.Bottom), (4242, 714)),
-            ("screen too small for it", Spot(WorkRect(0, 0, 300, 400), 1.0, AppBarEdge.Bottom), (0, 0)),
+                AppBarEdge.Bottom), (4242, 714, 540, 840)),
+            ("screen too small for it", Spot(WorkRect(0, 0, 300, 400), 1.0, AppBarEdge.Bottom), (0, 0, 300, 400)),
+            ("taller than a 1080-high screen, bar on the right", PanelPlacer.Spot(tallAnchor, 384, 1392,
+                WorkRect(2560, 0, 4410, 1080), 1.0, AppBarEdge.Right), (4026, 0, 384, 1080)),
+            ("taller than a 1080-high screen, bar at the top", PanelPlacer.Spot(tallAnchor, 384, 1392,
+                WorkRect(2560, 48, 4480, 1080), 1.0, AppBarEdge.Top), (4096, 48, 384, 1032)),
         };
         foreach (var (name, got, want) in spots)
         {
-            if (got != want) errors.Add($"Panels: {name}, the panel would go to {got.X},{got.Y} instead of {want.X},{want.Y}");
+            if (got != want)
+            {
+                errors.Add($"Panels: {name}, the panel would go to {got.X},{got.Y} ({got.W}x{got.H}) instead of " +
+                    $"{want.X},{want.Y} ({want.W}x{want.H})");
+            }
         }
 
         // The watch, on a window of the self-test's own: it opens in the corner of the main screen, as the panel
@@ -99,6 +110,32 @@ internal static partial class SelfTest
             await WaitUntilAsync(() => !PanelPlacer.Watching, 3000);
             string? leftReport = PanelPlacer.LastReport;
 
+            // Taller than the screen's work area, as Windows' panels are on a screen shorter than the main one: made as
+            // tall as the work area, though a panel by the bar on the bottom is otherwise left where it is.
+            Native.SetWindowPos(hwnd, IntPtr.Zero, opened.Left, fromWork.Top - 100, opened.Width, fromWork.Height + 200,
+                Native.SWP_NOZORDER | Native.SWP_NOACTIVATE);
+            Native.GetWindowRect(hwnd, out var tall);
+            bool? fitted = null;
+            string? fitReport = null;
+            var fit = PanelPlacer.Spot(PanelPlacer.Anchor.Of(tall, fromWork, Native.ScaleOf(from)), tall.Width,
+                tall.Height, fromWork, Native.ScaleOf(from), AppBarEdge.Bottom);
+            // Windows may keep a window from being taller than the screens; it is only tried when it is too tall.
+            if (tall.Height > fromWork.Height)
+            {
+                PanelPlacer.Expect(byId, from, AppBarEdge.Bottom);
+                Native.ShowWindow(hwnd, 4 /* SW_SHOWNOACTIVATE */);
+                fitted = await WaitForSpotAsync(hwnd, fit);
+                Native.ShowWindow(hwnd, 0 /* SW_HIDE */);
+                await WaitUntilAsync(() => !PanelPlacer.Watching, 3000);
+                fitReport = PanelPlacer.LastReport;
+                if (fitted != true)
+                {
+                    Native.GetWindowRect(hwnd, out var now);
+                    errors.Add($"Panels: a panel taller than the screen was not made to fit it: it is at {Describe(now)}, " +
+                        $"wanted at {fit.X},{fit.Y} {fit.Width}x{fit.Height}; {fitReport}");
+                }
+            }
+
             // Asked for, and nothing opens (as when the button closes an open panel): the watch ends by itself.
             PanelPlacer.Expect(byId with { ClassName = "ClearStart self-test: no such window" }, to, edge);
             bool gaveUp = await WaitUntilAsync(() => !PanelPlacer.Watching,
@@ -116,9 +153,12 @@ internal static partial class SelfTest
                 movedAgain,
                 ended,
                 leftAlone,
+                tall = Describe(tall),
+                fitted,
                 gaveUp,
                 movedReport,
                 leftReport,
+                fitReport,
                 gaveUpReport = PanelPlacer.LastReport,
             };
 
@@ -133,7 +173,7 @@ internal static partial class SelfTest
             window.DestroyHandle();
         }
 
-        (int X, int Y) Spot(Native.RECT work, double scale, AppBarEdge edge) =>
+        (int X, int Y, int W, int H) Spot(Native.RECT work, double scale, AppBarEdge edge) =>
             PanelPlacer.Spot(anchor, 360, 560, work, scale, edge);
     }
 
@@ -144,8 +184,9 @@ internal static partial class SelfTest
 
     private static string Describe(Native.RECT rect) => $"{rect.Left},{rect.Top} {rect.Width}x{rect.Height}";
 
-    private static async Task<bool> WaitForSpotAsync(IntPtr hwnd, (int X, int Y) want) =>
-        await WaitUntilAsync(() => Native.GetWindowRect(hwnd, out var now) && now.Left == want.X && now.Top == want.Y, 2000);
+    private static async Task<bool> WaitForSpotAsync(IntPtr hwnd, (int X, int Y, int Width, int Height) want) =>
+        await WaitUntilAsync(() => Native.GetWindowRect(hwnd, out var now) && now.Left == want.X && now.Top == want.Y &&
+            now.Width == want.Width && now.Height == want.Height, 2000);
 
     private static async Task<bool> WaitUntilAsync(Func<bool> done, int milliseconds)
     {

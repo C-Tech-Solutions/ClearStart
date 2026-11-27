@@ -12,10 +12,11 @@ namespace ClearStart;
 /// is watched for: when it appears on another screen than the clicked bar's, it is moved to the same corner of that
 /// bar's screen, as far in from the edges (scaled to that screen), and to the top or left corner for a bar on that
 /// edge. If Windows puts it back while it is open, for example as quick settings grows to list Wi-Fi networks, it is
-/// moved again. Opened by a bar on the bottom or the right of the main screen, it is left where Windows put it.
+/// moved again. Opened by a bar on the bottom or the right of the screen it is on, it is left where it is, if it fits.
 ///
-/// Only the panel's place is changed: never its size, which window is in front, or which is active. Each click gets
-/// a line in the log saying where the panel opened and where it was moved.
+/// Windows makes the panel for the main screen, so on a screen with less room it would run off the edge: there it is
+/// made as tall, or as wide, as the work area. Otherwise only the panel's place is changed: never which window is in
+/// front, or which is active. Each click gets a line in the log saying where the panel opened and where it was moved.
 /// </summary>
 internal static class PanelPlacer
 {
@@ -125,21 +126,24 @@ internal static class PanelPlacer
     }
 
     /// <summary>
-    /// Where a panel of this size goes in a work area: in the corner by a bar on <paramref name="edge"/> (the bottom
-    /// right for a bar on the bottom or the right, the top right for one on the top, the bottom left for one on the
-    /// left), as far in as <paramref name="anchor"/> says, and inside the work area.
+    /// Where a panel of this size goes in a work area, and its size there: in the corner by a bar on
+    /// <paramref name="edge"/> (the bottom right for a bar on the bottom or the right, the top right for one on the
+    /// top, the bottom left for one on the left), as far in as <paramref name="anchor"/> says, and inside the work
+    /// area. A panel taller or wider than the work area is made as tall or as wide as it.
     /// </summary>
-    internal static (int X, int Y) Spot(Anchor anchor, int width, int height, Native.RECT work, double scale,
-        AppBarEdge edge)
+    internal static (int X, int Y, int Width, int Height) Spot(Anchor anchor, int width, int height,
+        Native.RECT work, double scale, AppBarEdge edge)
     {
         double k = anchor.Scale > 0 && scale > 0 ? scale / anchor.Scale : 1;
         int side = (int)Math.Round(anchor.FromSide * k);
         int end = (int)Math.Round(anchor.FromEnd * k);
+        width = Math.Min(width, work.Width);
+        height = Math.Min(height, work.Height);
         int x = edge == AppBarEdge.Left ? work.Left + side : work.Right - side - width;
         int y = edge == AppBarEdge.Top ? work.Top + end : work.Bottom - end - height;
         x = Math.Max(work.Left, Math.Min(x, work.Right - width));
         y = Math.Max(work.Top, Math.Min(y, work.Bottom - height));
-        return (x, y);
+        return (x, y, width, height);
     }
 
     private sealed record Expectation(Panel Panel, IntPtr Monitor, AppBarEdge Edge, long Since);
@@ -368,9 +372,10 @@ internal static class PanelPlacer
             }
             else if (_anchor == null)
             {
-                if (_expect.Edge is AppBarEdge.Bottom or AppBarEdge.Right)
+                if (_expect.Edge is AppBarEdge.Bottom or AppBarEdge.Right && rect.Width <= work.Width &&
+                    rect.Height <= work.Height)
                 {
-                    // On the clicked bar's screen, in the corner by it: Windows' own place is right.
+                    // On the clicked bar's screen, in the corner by it, and not too big for it: where it is, is right.
                     if (!_leftAlone) Note($"at {Where(rect)} on the clicked bar's screen, left there");
                     _leftAlone = true;
                     _placed = rect;
@@ -380,8 +385,9 @@ internal static class PanelPlacer
                 Note($"at {Where(rect)} on the clicked bar's screen");
             }
 
-            var (x, y) = Spot(_anchor!.Value, rect.Width, rect.Height, work, scale, _expect.Edge);
-            if (x == rect.Left && y == rect.Top)
+            var (x, y, width, height) = Spot(_anchor!.Value, rect.Width, rect.Height, work, scale, _expect.Edge);
+            bool resize = width != rect.Width || height != rect.Height;
+            if (x == rect.Left && y == rect.Top && !resize)
             {
                 _placed = rect;
                 return;
@@ -392,8 +398,8 @@ internal static class PanelPlacer
                 return;
             }
             _moves++;
-            if (!Native.SetWindowPos(_panel, IntPtr.Zero, x, y, 0, 0,
-                Native.SWP_NOSIZE | Native.SWP_NOZORDER | Native.SWP_NOACTIVATE | SWP_NOOWNERZORDER))
+            if (!Native.SetWindowPos(_panel, IntPtr.Zero, x, y, width, height,
+                (resize ? 0 : Native.SWP_NOSIZE) | Native.SWP_NOZORDER | Native.SWP_NOACTIVATE | SWP_NOOWNERZORDER))
             {
                 Note($"could not be moved (error {Marshal.GetLastPInvokeError()})");
                 _moves = MostMoves + 1;
@@ -405,7 +411,7 @@ internal static class PanelPlacer
                       Native.MonitorFromWindow(_panel, 2 /* MONITOR_DEFAULTTONEAREST */) == _expect.Monitor
                 ? now
                 : null;
-            Note($"moved to {x},{y}");
+            Note(resize ? $"moved to {x},{y} and made {width}x{height}" : $"moved to {x},{y}");
         }
 
         private void Note(string what)

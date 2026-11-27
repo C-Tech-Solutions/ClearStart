@@ -277,7 +277,7 @@ A very thin bar shows the time alone. Seconds can be switched on in the settings
 can be on every bar or on the main one only.
 
 Clicking the clock opens Windows' notifications and calendar, on the screen of the bar that was
-clicked.
+clicked, made to fit that screen if it is shorter than the main one.
 
 ## Network and volume
 
@@ -290,8 +290,9 @@ The network glyph follows the connection:
 | A globe with a cross | No network |
 | A warning version of the wired or Wi-Fi glyph | Connected, but no internet |
 
-Clicking either glyph opens Windows' quick settings, on the screen of the bar that was clicked.
-Right-clicking gives a menu for the one under the mouse.
+Clicking either glyph opens Windows' quick settings, on the screen of the bar that was clicked,
+made to fit that screen if it is shorter than the main one. Right-clicking gives a menu for the one
+under the mouse.
 
 **Volume**
 
