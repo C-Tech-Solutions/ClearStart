@@ -12,10 +12,10 @@ namespace ClearStart;
 /// is watched for and put in the corner of the clicked bar's work area, as Windows puts it: the bottom right for a bar
 /// on the bottom or the right, the top right for one on the top, and the bottom left for one on the left. That place
 /// comes from the work area alone, not from where the panel is, so it is the same at every opening, though Windows
-/// opens the notification center again where it was left. By a bar on the bottom or the right, a panel already inside
-/// the clicked bar's work area is left where it is: it is in Windows' own corner, a little in from the bar if Windows'
-/// taskbar is taller than the bar. If Windows puts a panel back while it is open, for example as quick settings grows
-/// to list Wi-Fi networks, it is moved again.
+/// opens the notification center again where it was left. By a bar on the bottom, a panel in Windows' own corner is
+/// left where it is: at the right of the work area, and no higher above the bar than Windows' own taskbar is tall.
+/// If Windows puts a panel back while it is open, for example as quick settings grows to list Wi-Fi networks, it
+/// is moved again.
 ///
 /// Windows makes the panels for the main screen, so on a screen with less room they would run off the edge. Quick
 /// settings is then made as tall, or as wide, as the work area. The notification center keeps its size, because it
@@ -57,6 +57,9 @@ internal static class PanelPlacer
 
     /// <summary>The most times the panel is moved in one opening, in case Windows keeps putting it back.</summary>
     private const int MostMoves = 20;
+
+    /// <summary>How tall Windows' own taskbar is, at 100 %: Windows puts the panels above it.</summary>
+    private const int WindowsTaskbar = 48;
 
     /// <summary>Smaller windows of the panel's program are not the panel: Store-style apps keep a tiny one too.</summary>
     private const int SmallestPanel = 100;
@@ -361,10 +364,12 @@ internal static class PanelPlacer
 
             var (x, y, width, height) = Spot(rect.Width, rect.Height, work, _expect.Edge, _expect.Panel.Resizable);
             bool resize = width != rect.Width || height != rect.Height;
-            // Inside the work area, by a bar on the bottom or the right, it is in Windows' own corner: moving it the few
-            // pixels to the bar would only make it jump at every opening.
-            bool inCorner = on == _expect.Monitor && _expect.Edge is AppBarEdge.Bottom or AppBarEdge.Right &&
-                            Inside(rect, work);
+            // By a bar on the bottom, Windows puts it at the right of the work area, as high above the bottom of the
+            // screen as its own taskbar is tall. Moving it the few pixels down to a thinner bar would only make it jump
+            // at every opening.
+            int taskbar = (int)Math.Round(WindowsTaskbar * Native.ScaleOf(_expect.Monitor));
+            bool inCorner = on == _expect.Monitor && _expect.Edge == AppBarEdge.Bottom && !resize && rect.Left == x &&
+                            rect.Bottom <= work.Bottom && rect.Bottom >= work.Bottom - taskbar;
             if (inCorner || x == rect.Left && y == rect.Top && !resize)
             {
                 Note($"at {Where(rect)} {where}, left there");
@@ -416,9 +421,6 @@ internal static class PanelPlacer
         }
 
         private static string Where(Native.RECT rect) => $"{rect.Left},{rect.Top} ({rect.Width}x{rect.Height})";
-
-        private static bool Inside(Native.RECT rect, Native.RECT work) =>
-            rect.Left >= work.Left && rect.Top >= work.Top && rect.Right <= work.Right && rect.Bottom <= work.Bottom;
 
         private static bool Same(Native.RECT a, Native.RECT b) =>
             a.Left == b.Left && a.Top == b.Top && a.Right == b.Right && a.Bottom == b.Bottom;

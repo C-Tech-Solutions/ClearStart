@@ -135,6 +135,17 @@ internal static partial class SelfTest
             await WaitUntilAsync(() => !PanelPlacer.Watching, 3000);
             string? leftReport = PanelPlacer.LastReport;
 
+            // Opened again at the top of the screen, where it was left for a bar there, by a bar now on the bottom:
+            // moved down to it, not left in the wrong corner.
+            var high = PanelPlacer.Spot(opened.Width, opened.Height, fromWork, AppBarEdge.Top, false);
+            Native.SetWindowPos(hwnd, IntPtr.Zero, high.X, high.Y, 0, 0, Keep);
+            PanelPlacer.Expect(byId, from, AppBarEdge.Bottom);
+            Native.ShowWindow(hwnd, 4 /* SW_SHOWNOACTIVATE */);
+            bool movedDown = await WaitForSpotAsync(hwnd, (opened.Left, opened.Top, opened.Width, opened.Height));
+            Native.ShowWindow(hwnd, 0 /* SW_HIDE */);
+            if (!movedDown) errors.Add($"Panels: left at the top, the panel was not moved down to the bar: it is at {Now()}");
+            await WaitUntilAsync(() => !PanelPlacer.Watching, 3000);
+
             // Taller than the screen's work area, as Windows' panels are on a screen shorter than the main one. One that
             // may be made smaller is made as tall as the work area; one that may not keeps its size, lined up with the
             // bottom. Windows may keep a window from being taller than the screens: then neither is tried.
@@ -180,6 +191,7 @@ internal static partial class SelfTest
                 ended,
                 keptTop,
                 leftAlone,
+                movedDown,
                 tall = Describe(tall),
                 fitted,
                 kept,

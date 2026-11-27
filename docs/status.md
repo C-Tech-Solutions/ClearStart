@@ -148,16 +148,16 @@ as each one says:
 
 - **Panels on a shorter screen:** Windows makes quick settings and the notifications and calendar
   as tall as its main screen. Both now go in the corner of the clicked bar's work area, worked out
-  from the work area alone, so they open in the same place every time; by a bar on the bottom or
-  right, one Windows put inside the work area is left there, as before. When quick settings is
-  taller or wider than that work area, ClearStart makes it as tall or as wide as the work area,
-  and the log says so. The notifications keep their height, because Windows does not lay them out
-  again in a smaller window, and are lined up with the bottom so the calendar shows. A test build
-  had quick settings made to fit on the four-monitor desktop: it laid itself out again and looked
-  right. The notifications made smaller cut the calendar off there, which is why they are no
-  longer resized. The self-test works the places out for made-up screens, and moves a window of
-  its own as it would a panel. The notifications lined up with the bottom have not been seen on
-  a real desktop yet.
+  from the work area alone, so they open in the same place every time; by a bar on the bottom, one
+  in Windows' own corner, a little above the bar, is left there, as before. When quick settings is
+  taller or wider than that work area, ClearStart makes it as tall or as wide as the work area, and
+  the log says so. The notifications keep their height, because Windows does not lay them out again
+  in a smaller window, and are lined up with the bottom so the calendar shows. A test build had
+  quick settings made to fit on the four-monitor desktop: it laid itself out again and looked
+  right. The notifications made smaller cut the calendar off there, which is why they are no longer
+  resized. The self-test works the places out for made-up screens, and moves a window of its own as
+  it would a panel. The notifications lined up with the bottom have not been seen on a real desktop
+  yet.
 - **Apps installed or removed while ClearStart runs:** the start menu's list of apps, and its
   search, keep up with them. Up to 0.13.0 the list was read once, when ClearStart started, so an
   app installed afterwards could not be found until ClearStart started again. ClearStart now
