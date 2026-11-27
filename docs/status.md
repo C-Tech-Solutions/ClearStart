@@ -33,7 +33,8 @@ what has not, and what is missing.
   Windows makes these panels as tall as its main screen. On one PC whose other screens are shorter
   than the main one, ClearStart moved them to the clicked bar's screen but left them that tall, so
   the bottom of quick settings, and the calendar under the notifications, were below the screen.
-  A fix is in the code, not released or run on a real desktop yet.
+  Opened again and again from the same bar, the notifications also moved between two places. A
+  fix is in the code, not released yet.
 - **After a monitor is turned off and on, maximized windows can go under the side bars.** On one
   PC with four monitors and 0.12.0, the bars came back, but on the two monitors with a bar on the
   left or right edge, maximized windows went under the bar instead of stopping beside it. The main
@@ -145,13 +146,17 @@ one by clicking it on a real desktop:
 These are in the code, and build, but have not been run on a real desktop yet, or only in part,
 as each one says:
 
-- **Panels made to fit a shorter screen:** Windows makes quick settings and the notifications and
-  calendar as tall as its main screen. When one is taller or wider than the clicked bar's screen
-  has room for, ClearStart now makes it as tall or as wide as that screen's work area, and the log
-  says so. One that opens again where it was, on the clicked bar's screen, is made to fit too
-  instead of being left as it is. The self-test works the sizes out for made-up screens and makes
-  a too-tall window of its own fit. Windows' own panels have not been made smaller on a real
-  desktop yet.
+- **Panels on a shorter screen:** Windows makes quick settings and the notifications and calendar
+  as tall as its main screen. Both now go in the corner of the clicked bar's work area, worked out
+  from the work area alone, so they open in the same place every time. When quick settings is
+  taller or wider than that work area, ClearStart makes it as tall or as wide as the work area,
+  and the log says so. The notifications keep their height, because Windows does not lay them out
+  again in a smaller window, and are lined up with the bottom so the calendar shows. A test build
+  had quick settings made to fit on the four-monitor desktop: it laid itself out again and looked
+  right. The notifications made smaller cut the calendar off there, which is why they are no
+  longer resized. The self-test works the places out for made-up screens, and moves a window of
+  its own as it would a panel. The notifications lined up with the bottom have not been seen on
+  a real desktop yet.
 - **Apps installed or removed while ClearStart runs:** the start menu's list of apps, and its
   search, keep up with them. Up to 0.13.0 the list was read once, when ClearStart started, so an
   app installed afterwards could not be found until ClearStart started again. ClearStart now

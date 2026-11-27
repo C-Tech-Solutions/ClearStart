@@ -276,8 +276,10 @@ them:
 A very thin bar shows the time alone. Seconds can be switched on in the settings, and the clock
 can be on every bar or on the main one only.
 
-Clicking the clock opens Windows' notifications and calendar, on the screen of the bar that was
-clicked, made to fit that screen if it is shorter than the main one.
+Clicking the clock opens Windows' notifications and calendar, in the corner of the screen of the
+bar that was clicked. On a screen shorter than the main one, Windows' panel keeps its height and is
+lined up with the bottom, where the calendar is; with many notifications, the top of the list is
+above the screen.
 
 ## Network and volume
 
