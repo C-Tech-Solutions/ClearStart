@@ -21,7 +21,7 @@ what has not, and what is missing.
 | **Start with Windows** | The sign-in task has started ClearStart on that desktop after signing out and in again, and after a restart (see [Known problems](#known-problems-in-0150)). The tray, the weather and the list of apps started after the bars were on screen. |
 | **Minimizing towards the bar** | On that desktop, with bars on the top, left and right edges of three monitors, windows shrank into their button on ClearStart's bar and grew back out of it, also after a bar was moved to another edge. ClearStart had started after Explorer there. Its log showed that Windows had Explorer's answer first and used ClearStart's, which came after it. |
 | **Bars that another program minimizes** | On that desktop, with bars on the top, left and right edges of three monitors, another program minimized each bar, one at a time and all three at once. Each bar was back within a fiftieth of a second, in the same place and on top, the room it keeps on the desktop did not change, and the app in front kept the keyboard. The log had a line for each. A bar that was asked to minimize, as a title bar's button asks, stayed where it was. Win+M and Win+D left the bars alone. |
-| **Panels on the clicked screen, and the battery** | On the laptop, with a second screen and bars on the bottom of both: quick settings and the notifications and calendar opened on the screen of the bar that was clicked, and Windows' battery icon showed ClearStart's tip and opened its panel, with each of the laptop's two batteries, both plugged in and on battery. Bars on the other edges, screens at different scaling and the battery icon's right-click menu have not been tried by hand. |
+| **Panels on the clicked screen, and the battery** | On the laptop, with a second screen and bars on the bottom of both: quick settings and the notifications and calendar opened on the screen of the bar that was clicked, and Windows' battery icon showed ClearStart's tip and opened its panel, with each of the laptop's two batteries, both plugged in and on battery. On the four-monitor desktop with 0.15.0, from bars on the top, left and right: both panels opened on the clicked bar's screen, but on the two screens shorter than the main one they ran off the bottom (see [Known problems](#known-problems-in-0150)). Screens at different scaling and the battery icon's right-click menu have not been tried by hand. |
 | **A taskbar on another edge** | On the laptop, a Windows taskbar on the top edge was moved to the bottom while ClearStart ran and put back on the top when it closed, including when Explorer did not close when asked and was ended and started again. |
 | **The self-test** | `ClearStart.exe --selftest` draws about eighty pictures of the bars, the start menu, the weather panel, the settings pages and the Start button designs, checks where things end up, and reports any error. It passes with no errors. |
 | **The installer** | A build from before the updater was added was signed and run on that desktop without its pages on screen: installing, installing again over a running copy, adding Start with Windows, and uninstalling. The installed copy passed the self-test. An unsigned build of the 0.3.0 code was installed over a running copy the same way, with Start with Windows, and started ClearStart again. |
@@ -29,6 +29,12 @@ what has not, and what is missing.
 
 ## Known problems in 0.15.0
 
+- **On a screen shorter than the main one, quick settings and the calendar run off the bottom.**
+  Windows makes these panels as tall as its main screen. On one PC whose other screens are shorter
+  than the main one, ClearStart moved them to the clicked bar's screen but left them that tall, so
+  the bottom of quick settings, and the calendar under the notifications, were below the screen.
+  Opened again and again from the same bar, the notifications also moved between two places. A
+  fix is in the code, not released yet.
 - **After a monitor is turned off and on, maximized windows can go under the side bars.** On one
   PC with four monitors and 0.12.0, the bars came back, but on the two monitors with a bar on the
   left or right edge, maximized windows went under the bar instead of stopping beside it. The main
@@ -108,9 +114,6 @@ one by clicking it on a real desktop:
 - the search button opening **Windows Search**, and switching what it opens from its right-click
   menu and from the settings page;
 - **Show desktop**;
-- quick settings and the notifications and calendar moving to the clicked bar's screen with
-  bars on the top, left or right edge (see [What has been run](#what-has-been-run) for the
-  bottom);
 - the battery icon's right-click menu (see [The battery](taskbar.md#the-battery));
 - switching the output device and spatial sound from the volume menu;
 - the weather's location search against the live service;
@@ -143,6 +146,20 @@ one by clicking it on a real desktop:
 These are in the code, and build, but have not been run on a real desktop yet, or only in part,
 as each one says:
 
+- **Panels on a shorter screen:** Windows makes quick settings and the notifications and calendar
+  as tall as its main screen. Both now go in the corner of the clicked bar's work area, worked out
+  from the work area alone, so they open in the same place every time; by a bar on the bottom, one
+  in Windows' own corner, a little above the bar, is left there, as before. When quick settings is
+  taller or wider than that work area, ClearStart makes it as tall or as wide as the work area, and
+  the log says so. The notifications keep their height, because Windows does not lay them out again
+  in a smaller window, and are lined up with the bottom so the calendar shows. A test build had
+  quick settings made to fit on the four-monitor desktop: it laid itself out again and looked
+  right. The notifications made smaller cut the calendar off there, which is why they are no longer
+  resized. The self-test works the places out for made-up screens, and moves a window of its own as
+  it would a panel. A test build of this code was then tried there: from the bars on the top, left
+  and right, the notifications opened in the same place every time, lined up with the bottom, with
+  the calendar showing. Quick settings was not opened again with that build, and neither panel has
+  been tried by hand by a bar on the bottom with this code.
 - **Apps installed or removed while ClearStart runs:** the start menu's list of apps, and its
   search, keep up with them. Up to 0.13.0 the list was read once, when ClearStart started, so an
   app installed afterwards could not be found until ClearStart started again. ClearStart now
