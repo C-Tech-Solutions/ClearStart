@@ -36,8 +36,10 @@ its failure recovery still needs desktop testing.
 Version 0.16.0 fits quick settings and the notifications and calendar to a screen shorter than
 the main one, where 0.15.0 let them run off the bottom: quick settings is made as tall as the
 screen, and the notifications keep their height, lined up with the bottom so the calendar shows.
-They also open in the same place every time. That was tried by hand on a desktop with bars on
-the top, left and right; a bar on the bottom has not been tried with it.
+Both open in the same place every time. On a desktop with bars on the top, left and right, a
+test build made quick settings fit, and the final build opened the notifications in the same
+place every time; quick settings was not opened again with it, and a bar on the bottom has not
+been tried.
 Version 0.15.0 opens quick settings and the notifications and calendar on the screen whose bar
 was clicked, instead of always on the main screen, and answers Windows' battery icon, which
 Windows 11 no longer does: it has its tip again, and a click opens a panel with each battery on
