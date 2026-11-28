@@ -156,8 +156,10 @@ as each one says:
   quick settings made to fit on the four-monitor desktop: it laid itself out again and looked
   right. The notifications made smaller cut the calendar off there, which is why they are no longer
   resized. The self-test works the places out for made-up screens, and moves a window of its own as
-  it would a panel. The notifications lined up with the bottom have not been seen on a real desktop
-  yet.
+  it would a panel. A test build of this code was then tried there: from the bars on the top, left
+  and right, the notifications opened in the same place every time, lined up with the bottom, with
+  the calendar showing. Quick settings was not opened again with that build, and neither panel has
+  been tried by hand by a bar on the bottom with this code.
 - **Apps installed or removed while ClearStart runs:** the start menu's list of apps, and its
   search, keep up with them. Up to 0.13.0 the list was read once, when ClearStart started, so an
   app installed afterwards could not be found until ClearStart started again. ClearStart now
